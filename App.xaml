@@ -1,0 +1,14 @@
+<Application
+    x:Class="DynamicIsland.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <Color x:Key="IslandSurfaceColor">#F2111113</Color>
+            <SolidColorBrush x:Key="IslandSurfaceBrush" Color="{StaticResource IslandSurfaceColor}" />
+            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF7F7F8" />
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFA5A5AA" />
+            <SolidColorBrush x:Key="ControlSurfaceBrush" Color="#FF29292E" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
