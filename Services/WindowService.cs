@@ -1,5 +1,6 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using System.Runtime.InteropServices;
 using Windows.Graphics;
 using WinRT.Interop;
 
@@ -7,6 +8,9 @@ namespace DynamicIsland.Services;
 
 public sealed class WindowService
 {
+    private const int DwmwaBorderColor = 34;
+    private const uint DwmColorNone = 0xFFFFFFFE;
+
     private readonly Window _window;
     private readonly AppWindow _appWindow;
 
@@ -24,6 +28,14 @@ public sealed class WindowService
     {
         _window.ExtendsContentIntoTitleBar = true;
         _window.SetTitleBar(null);
+
+        var hwnd = WindowNative.GetWindowHandle(_window);
+        var borderColor = DwmColorNone;
+        _ = DwmSetWindowAttribute(
+            hwnd,
+            DwmwaBorderColor,
+            ref borderColor,
+            Marshal.SizeOf<uint>());
 
         var presenter = OverlappedPresenter.Create();
         presenter.IsAlwaysOnTop = true;
@@ -43,4 +55,11 @@ public sealed class WindowService
         var y = workArea.Y + TopOffset;
         _appWindow.MoveAndResize(new RectInt32(x, y, width, height));
     }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        nint hwnd,
+        int attribute,
+        ref uint attributeValue,
+        int attributeSize);
 }

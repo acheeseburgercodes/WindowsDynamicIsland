@@ -1,12 +1,21 @@
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using DynamicIsland.Core;
 using DynamicIsland.Models;
 using DynamicIsland.Services;
+using Microsoft.UI;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 using Windows.Storage.Streams;
+using WinRT.Interop;
 
 namespace DynamicIsland;
 
@@ -14,16 +23,22 @@ public sealed partial class MainWindow : Window
 {
     private const int CollapsedWidth = 188;
     private const int CollapsedHeight = 48;
-    private const int ExpandedWidth = 590;
-    private const int ExpandedHeight = 210;
+    private const int ExpandedWidth = 650;
+    private const int ExpandedHeight = 410;
 
     private readonly IslandManager _islandManager = new();
     private readonly MediaSessionService _mediaService = new();
+    private readonly ConfigurationService _configurationService = new();
+    private readonly ClipboardService _clipboardService = new();
+    private readonly ObservableCollection<DockedFileItem> _files = [];
     private readonly WindowService _windowService;
     private readonly DispatcherTimer _resizeTimer = new() { Interval = TimeSpan.FromMilliseconds(12) };
     private readonly DispatcherTimer _collapseTimer = new() { Interval = TimeSpan.FromMilliseconds(650) };
+    private readonly DispatcherTimer _settingsSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
 
+    private AppConfiguration _configuration = new();
     private DateTimeOffset _animationStarted;
+    private bool _settingsLoaded;
     private int _fromWidth;
     private int _fromHeight;
     private int _toWidth = CollapsedWidth;
@@ -34,6 +49,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        FileList.ItemsSource = _files;
+
         _windowService = new WindowService(this);
         _windowService.Configure(CollapsedWidth, CollapsedHeight);
 
@@ -41,6 +58,7 @@ public sealed partial class MainWindow : Window
         _mediaService.MediaChanged += OnMediaChanged;
         _resizeTimer.Tick += ResizeTimer_Tick;
         _collapseTimer.Tick += CollapseTimer_Tick;
+        _settingsSaveTimer.Tick += SettingsSaveTimer_Tick;
         Closed += OnClosed;
         Activated += OnFirstActivated;
     }
@@ -48,6 +66,18 @@ public sealed partial class MainWindow : Window
     private async void OnFirstActivated(object sender, WindowActivatedEventArgs args)
     {
         Activated -= OnFirstActivated;
+
+        _configuration = await _configurationService.LoadAsync();
+        _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.35, 1);
+        foreach (var file in _configuration.DockedFiles.Where(file => File.Exists(file.FullPath)))
+        {
+            _files.Add(file);
+        }
+
+        OpacitySlider.Value = _configuration.SurfaceOpacity * 100;
+        ApplySurfaceOpacity(_configuration.SurfaceOpacity);
+        _settingsLoaded = true;
+
         try
         {
             await _mediaService.InitializeAsync();
@@ -66,7 +96,7 @@ public sealed partial class MainWindow : Window
 
     private void Island_PointerExited(object sender, PointerRoutedEventArgs e)
     {
-        if (_islandManager.State == IslandState.Expanded)
+        if (_islandManager.State == IslandState.Expanded && MediaPanel.Visibility == Visibility.Visible)
         {
             _collapseTimer.Start();
         }
@@ -183,10 +213,29 @@ public sealed partial class MainWindow : Window
         visual.StartAnimation(nameof(Visual.Scale), scale);
     }
 
-    private void OnMediaChanged(object? sender, MediaSnapshot snapshot)
+    private void MediaNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(MediaPanel);
+
+    private void FilesNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(FilesPanel);
+
+    private async void ClipboardNavButton_Click(object sender, RoutedEventArgs e)
     {
-        DispatcherQueue.TryEnqueue(() => ApplyMediaSnapshot(snapshot));
+        ShowPanel(ClipboardPanel);
+        await PasteClipboardTextAsync(showEmptyMessage: false);
     }
+
+    private void SettingsNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(SettingsPanel);
+
+    private void ShowPanel(UIElement panel)
+    {
+        _collapseTimer.Stop();
+        MediaPanel.Visibility = panel == MediaPanel ? Visibility.Visible : Visibility.Collapsed;
+        FilesPanel.Visibility = panel == FilesPanel ? Visibility.Visible : Visibility.Collapsed;
+        ClipboardPanel.Visibility = panel == ClipboardPanel ? Visibility.Visible : Visibility.Collapsed;
+        SettingsPanel.Visibility = panel == SettingsPanel ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnMediaChanged(object? sender, MediaSnapshot snapshot) =>
+        DispatcherQueue.TryEnqueue(() => ApplyMediaSnapshot(snapshot));
 
     private async void ApplyMediaSnapshot(MediaSnapshot snapshot)
     {
@@ -231,6 +280,185 @@ public sealed partial class MainWindow : Window
         return image;
     }
 
+    private async void AddFilesButton_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new FileOpenPicker
+        {
+            ViewMode = PickerViewMode.List,
+            SuggestedStartLocation = PickerLocationId.Downloads
+        };
+        picker.FileTypeFilter.Add("*");
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+
+        var files = await picker.PickMultipleFilesAsync();
+        await AddFilesAsync(files);
+    }
+
+    private void FilesDropZone_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = "Add to file shelf";
+            e.DragUIOverride.IsGlyphVisible = true;
+        }
+    }
+
+    private async void FilesDropZone_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            return;
+        }
+
+        var items = await e.DataView.GetStorageItemsAsync();
+        await AddFilesAsync(items.OfType<StorageFile>());
+    }
+
+    private async void PasteFilesButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await AddFilesAsync(await _clipboardService.GetFilesAsync());
+        }
+        catch (Exception)
+        {
+            ClipboardStatus.Text = "The clipboard could not be read.";
+        }
+    }
+
+    private async Task AddFilesAsync(IEnumerable<StorageFile> files)
+    {
+        var changed = false;
+        foreach (var file in files)
+        {
+            if (_files.Any(item => string.Equals(item.FullPath, file.Path, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            _files.Add(new DockedFileItem
+            {
+                Name = file.Name,
+                FullPath = file.Path,
+                Extension = file.FileType
+            });
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await SaveConfigurationAsync();
+        }
+    }
+
+    private void OpenFileButton_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string path || !File.Exists(path))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+    }
+
+    private async void CopyFileButton_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string path || !File.Exists(path))
+        {
+            return;
+        }
+
+        await _clipboardService.SetFileAsync(path);
+    }
+
+    private async void RemoveFileButton_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not string path)
+        {
+            return;
+        }
+
+        var file = _files.FirstOrDefault(item =>
+            string.Equals(item.FullPath, path, StringComparison.OrdinalIgnoreCase));
+        if (file is not null)
+        {
+            _files.Remove(file);
+            await SaveConfigurationAsync();
+        }
+    }
+
+    private async void PasteTextButton_Click(object sender, RoutedEventArgs e) =>
+        await PasteClipboardTextAsync(showEmptyMessage: true);
+
+    private async Task PasteClipboardTextAsync(bool showEmptyMessage)
+    {
+        try
+        {
+            var text = await _clipboardService.GetTextAsync();
+            if (!string.IsNullOrEmpty(text))
+            {
+                ClipboardTextBox.Text = text;
+                ClipboardStatus.Text = "Pasted from Windows clipboard";
+            }
+            else if (showEmptyMessage)
+            {
+                ClipboardStatus.Text = "No text is currently on the clipboard";
+            }
+        }
+        catch (Exception)
+        {
+            ClipboardStatus.Text = "The clipboard could not be read";
+        }
+    }
+
+    private void CopyTextButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _clipboardService.SetText(ClipboardTextBox.Text);
+            ClipboardStatus.Text = "Copied to Windows clipboard";
+        }
+        catch (Exception)
+        {
+            ClipboardStatus.Text = "The clipboard could not be updated";
+        }
+    }
+
+    private void OpacitySlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        var opacity = Math.Clamp(e.NewValue / 100, 0.35, 1);
+        ApplySurfaceOpacity(opacity);
+
+        if (!_settingsLoaded)
+        {
+            return;
+        }
+
+        _configuration.SurfaceOpacity = opacity;
+        _settingsSaveTimer.Stop();
+        _settingsSaveTimer.Start();
+    }
+
+    private void ApplySurfaceOpacity(double opacity)
+    {
+        var alpha = (byte)Math.Round(255 * opacity);
+        IslandSurface.Background = new SolidColorBrush(ColorHelper.FromArgb(alpha, 17, 17, 19));
+        OpacityValueText.Text = $"{opacity:P0}";
+    }
+
+    private async void SettingsSaveTimer_Tick(object? sender, object e)
+    {
+        _settingsSaveTimer.Stop();
+        await SaveConfigurationAsync();
+    }
+
+    private async Task SaveConfigurationAsync()
+    {
+        _configuration.DockedFiles = _files.ToList();
+        await _configurationService.SaveAsync(_configuration);
+    }
+
     private async void PreviousButton_Click(object sender, RoutedEventArgs e) =>
         await _mediaService.PreviousAsync();
 
@@ -244,6 +472,7 @@ public sealed partial class MainWindow : Window
     {
         _resizeTimer.Stop();
         _collapseTimer.Stop();
+        _settingsSaveTimer.Stop();
         _mediaService.Dispose();
     }
 }

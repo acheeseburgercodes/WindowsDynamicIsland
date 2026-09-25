@@ -8,10 +8,20 @@
     Title="Dynamic Island">
 
     <Grid x:Name="Root" Background="Transparent">
+        <Grid.Resources>
+            <Style TargetType="Button">
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="UseSystemFocusVisuals" Value="False" />
+            </Style>
+        </Grid.Resources>
+
         <Border x:Name="IslandSurface"
-                Margin="4"
+                Margin="1"
                 Padding="10,6"
                 Background="{StaticResource IslandSurfaceBrush}"
+                BorderBrush="Transparent"
+                BorderThickness="0"
                 CornerRadius="22"
                 PointerEntered="Island_PointerEntered"
                 PointerExited="Island_PointerExited"
@@ -24,123 +34,250 @@
                         <ColumnDefinition Width="28" />
                     </Grid.ColumnDefinitions>
 
-                    <Grid Width="28" Height="28">
-                        <Border Background="#FF27272C" CornerRadius="7" />
-                        <Image x:Name="CollapsedArtwork" Stretch="UniformToFill" />
-                        <FontIcon x:Name="CollapsedFallbackIcon"
-                                  Glyph="&#xE8D6;"
-                                  FontSize="13"
-                                  Foreground="{StaticResource SecondaryTextBrush}" />
-                    </Grid>
+                    <Border Width="28" Height="28" Padding="3" Background="#FF27272C" BorderThickness="0" CornerRadius="7">
+                        <Grid>
+                            <Image x:Name="CollapsedArtwork" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform" />
+                            <FontIcon x:Name="CollapsedFallbackIcon" Glyph="&#xE8D6;" FontSize="13"
+                                      Foreground="{StaticResource SecondaryTextBrush}" />
+                        </Grid>
+                    </Border>
 
                     <StackPanel Grid.Column="1" Margin="8,0,4,0" VerticalAlignment="Center">
-                        <TextBlock x:Name="CollapsedTitle"
-                                   FontSize="11"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource PrimaryTextBrush}"
-                                   Text="Dynamic Island"
+                        <TextBlock x:Name="CollapsedTitle" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource PrimaryTextBrush}" Text="Dynamic Island"
                                    TextTrimming="CharacterEllipsis" />
-                        <TextBlock x:Name="CollapsedArtist"
-                                   FontSize="9"
-                                   Foreground="{StaticResource SecondaryTextBrush}"
-                                   Text="Hover to open"
+                        <TextBlock x:Name="CollapsedArtist" FontSize="9"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Text="Hover to open"
                                    TextTrimming="CharacterEllipsis" />
                     </StackPanel>
 
-                    <FontIcon Grid.Column="2"
-                              Glyph="&#xE70D;"
-                              FontSize="10"
+                    <FontIcon Grid.Column="2" Glyph="&#xE70D;" FontSize="10"
                               Foreground="{StaticResource SecondaryTextBrush}" />
                 </Grid>
 
                 <Grid x:Name="ExpandedContent" Opacity="0" Visibility="Collapsed">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="150" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="42" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                    <Grid Margin="4">
-                        <Border Background="#FF27272C" CornerRadius="18" />
-                        <Image x:Name="Artwork" Stretch="UniformToFill" />
-                        <FontIcon x:Name="ArtworkFallbackIcon"
-                                  Glyph="&#xE8D6;"
-                                  FontSize="44"
-                                  Foreground="{StaticResource SecondaryTextBrush}" />
+                    <Grid Grid.Row="0">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Button Padding="12,6" Background="#332F2F35" CornerRadius="14" Click="MediaNavButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE8D6;" FontSize="12" />
+                                    <TextBlock Text="Media" FontSize="12" />
+                                </StackPanel>
+                            </Button>
+                            <Button Padding="12,6" Background="Transparent" CornerRadius="14" Click="FilesNavButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE8B7;" FontSize="12" />
+                                    <TextBlock Text="Files" FontSize="12" />
+                                </StackPanel>
+                            </Button>
+                            <Button Padding="12,6" Background="Transparent" CornerRadius="14" Click="ClipboardNavButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE8B0;" FontSize="12" />
+                                    <TextBlock Text="Clipboard" FontSize="12" />
+                                </StackPanel>
+                            </Button>
+                            <Button Padding="12,6" Background="Transparent" CornerRadius="14" Click="SettingsNavButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE713;" FontSize="12" />
+                                    <TextBlock Text="Settings" FontSize="12" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <Button HorizontalAlignment="Right" Width="30" Height="30" Padding="0"
+                                Background="Transparent" Click="CollapseButton_Click">
+                            <FontIcon Glyph="&#xE70E;" FontSize="11" />
+                        </Button>
                     </Grid>
 
-                    <Grid Grid.Column="1" Margin="22,12,12,12">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                    <Grid Grid.Row="1">
+                        <Grid x:Name="MediaPanel">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="155" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                        <Grid>
-                            <TextBlock Text="NOW PLAYING"
-                                       FontSize="10"
-                                       FontWeight="SemiBold"
-                                       Foreground="#FF6ED6A9"
-                                       CharacterSpacing="120" />
-                            <Button HorizontalAlignment="Right"
-                                    Width="30" Height="30"
-                                    Padding="0"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Click="CollapseButton_Click">
-                                <FontIcon Glyph="&#xE70E;" FontSize="11" />
-                            </Button>
+                            <Border Margin="4,5,4,4" Padding="10" Background="#FF27272C"
+                                    BorderThickness="0" CornerRadius="18">
+                                <Grid>
+                                    <Image x:Name="Artwork" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform" />
+                                    <FontIcon x:Name="ArtworkFallbackIcon" Glyph="&#xE8D6;" FontSize="44"
+                                              Foreground="{StaticResource SecondaryTextBrush}" />
+                                </Grid>
+                            </Border>
+
+                            <Grid Grid.Column="1" Margin="22,10,12,12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="#FF6ED6A9" CharacterSpacing="120" />
+                                <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TrackTitle" FontSize="24" FontWeight="SemiBold"
+                                               Foreground="{StaticResource PrimaryTextBrush}" Text="Nothing playing"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="TrackArtist" Margin="0,5,0,0" FontSize="14"
+                                               Foreground="{StaticResource SecondaryTextBrush}"
+                                               Text="Start music in any supported app" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="AlbumTitle" Margin="0,3,0,0" FontSize="11"
+                                               Foreground="#FF717178" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
+                                    <Button x:Name="PreviousButton" Width="44" Height="44" Padding="0"
+                                            Background="{StaticResource ControlSurfaceBrush}" CornerRadius="22"
+                                            Click="PreviousButton_Click">
+                                        <FontIcon Glyph="&#xE892;" FontSize="16" />
+                                    </Button>
+                                    <Button x:Name="PlayPauseButton" Width="52" Height="52" Padding="0"
+                                            Background="#FFF4F4F5" Foreground="#FF111113" CornerRadius="26"
+                                            Click="PlayPauseButton_Click">
+                                        <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;" FontSize="20" />
+                                    </Button>
+                                    <Button x:Name="NextButton" Width="44" Height="44" Padding="0"
+                                            Background="{StaticResource ControlSurfaceBrush}" CornerRadius="22"
+                                            Click="NextButton_Click">
+                                        <FontIcon Glyph="&#xE893;" FontSize="16" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
                         </Grid>
 
-                        <StackPanel Grid.Row="1" VerticalAlignment="Center">
-                            <TextBlock x:Name="TrackTitle"
-                                       FontSize="24"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource PrimaryTextBrush}"
-                                       Text="Nothing playing"
-                                       TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="TrackArtist"
-                                       Margin="0,5,0,0"
-                                       FontSize="14"
-                                       Foreground="{StaticResource SecondaryTextBrush}"
-                                       Text="Start music in any supported app"
-                                       TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="AlbumTitle"
-                                       Margin="0,3,0,0"
-                                       FontSize="11"
-                                       Foreground="#FF717178"
-                                       TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
+                        <Grid x:Name="FilesPanel" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="82" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid Margin="4,2,4,8">
+                                <StackPanel>
+                                    <TextBlock Text="File shelf" FontSize="20" FontWeight="SemiBold" />
+                                    <TextBlock Text="References only — files stay in their original locations."
+                                               FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+                                </StackPanel>
+                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                                    <Button Padding="12,7" Background="#FF29292E" CornerRadius="14"
+                                            Click="PasteFilesButton_Click" Content="Paste files" />
+                                    <Button Padding="12,7" Background="#FFF4F4F5" Foreground="#FF111113"
+                                            CornerRadius="14" Click="AddFilesButton_Click" Content="Add files" />
+                                </StackPanel>
+                            </Grid>
 
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="PreviousButton"
-                                    Width="44" Height="44"
-                                    Padding="0"
-                                    Background="{StaticResource ControlSurfaceBrush}"
-                                    BorderThickness="0"
-                                    CornerRadius="22"
-                                    Click="PreviousButton_Click">
-                                <FontIcon Glyph="&#xE892;" FontSize="16" />
-                            </Button>
-                            <Button x:Name="PlayPauseButton"
-                                    Width="52" Height="52"
-                                    Padding="0"
-                                    Background="#FFF4F4F5"
-                                    Foreground="#FF111113"
-                                    BorderThickness="0"
-                                    CornerRadius="26"
-                                    Click="PlayPauseButton_Click">
-                                <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;" FontSize="20" />
-                            </Button>
-                            <Button x:Name="NextButton"
-                                    Width="44" Height="44"
-                                    Padding="0"
-                                    Background="{StaticResource ControlSurfaceBrush}"
-                                    BorderThickness="0"
-                                    CornerRadius="22"
-                                    Click="NextButton_Click">
-                                <FontIcon Glyph="&#xE893;" FontSize="16" />
-                            </Button>
-                        </StackPanel>
+                            <Border x:Name="FilesDropZone" Grid.Row="1" Margin="4,0,4,8" AllowDrop="True"
+                                    Background="#262F2F35" BorderBrush="#555B5B63" BorderThickness="1"
+                                    CornerRadius="14" DragOver="FilesDropZone_DragOver" Drop="FilesDropZone_Drop">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Orientation="Horizontal" Spacing="9">
+                                    <FontIcon Glyph="&#xE898;" FontSize="18" Foreground="{StaticResource SecondaryTextBrush}" />
+                                    <TextBlock Text="Drop files here" Foreground="{StaticResource SecondaryTextBrush}" />
+                                </StackPanel>
+                            </Border>
+
+                            <ListView x:Name="FileList" Grid.Row="2" Margin="0" SelectionMode="None">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid MinHeight="46" Padding="8,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="36" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="30" Height="30" Background="#FF29292E" CornerRadius="8">
+                                                <FontIcon Glyph="&#xE8A5;" FontSize="13" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="9,0,12,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding FullPath}" FontSize="9"
+                                                           Foreground="{StaticResource SecondaryTextBrush}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5">
+                                                <Button Width="32" Height="32" Padding="0" Background="#FF29292E" CornerRadius="10"
+                                                        Tag="{Binding FullPath}" ToolTipService.ToolTip="Open"
+                                                        Click="OpenFileButton_Click">
+                                                    <FontIcon Glyph="&#xE8E5;" FontSize="12" />
+                                                </Button>
+                                                <Button Width="32" Height="32" Padding="0" Background="#FF29292E" CornerRadius="10"
+                                                        Tag="{Binding FullPath}" ToolTipService.ToolTip="Copy file"
+                                                        Click="CopyFileButton_Click">
+                                                    <FontIcon Glyph="&#xE8C8;" FontSize="12" />
+                                                </Button>
+                                                <Button Width="32" Height="32" Padding="0" Background="Transparent" CornerRadius="10"
+                                                        Tag="{Binding FullPath}" ToolTipService.ToolTip="Remove from shelf"
+                                                        Click="RemoveFileButton_Click">
+                                                    <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="#FFFF8A8A" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+
+                        <Grid x:Name="ClipboardPanel" Margin="4,2,4,8" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Clipboard" FontSize="20" FontWeight="SemiBold" />
+                                <TextBlock Text="Paste text from Windows, edit it here, then copy it back."
+                                           FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+                            </StackPanel>
+                            <TextBox x:Name="ClipboardTextBox" Grid.Row="1" Margin="0,12" Padding="12"
+                                     AcceptsReturn="True" TextWrapping="Wrap"
+                                     PlaceholderText="Clipboard text appears here" Background="#7729292E"
+                                     BorderBrush="Transparent" BorderThickness="0" CornerRadius="14" />
+                            <Grid Grid.Row="2">
+                                <TextBlock x:Name="ClipboardStatus" VerticalAlignment="Center" FontSize="11"
+                                           Foreground="{StaticResource SecondaryTextBrush}" />
+                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                                    <Button Padding="14,8" Background="#FF29292E" CornerRadius="15"
+                                            Click="PasteTextButton_Click" Content="Paste" />
+                                    <Button Padding="14,8" Background="#FFF4F4F5" Foreground="#FF111113"
+                                            CornerRadius="15" Click="CopyTextButton_Click" Content="Copy" />
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+
+                        <Grid x:Name="SettingsPanel" Margin="4,2,4,8" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Settings" FontSize="20" FontWeight="SemiBold" />
+                                <TextBlock Text="Appearance changes are saved automatically."
+                                           FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+                            </StackPanel>
+                            <Border Grid.Row="1" Margin="0,18,0,0" Padding="16"
+                                    Background="#5529292E" BorderThickness="0" CornerRadius="16">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="230" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Island opacity" FontSize="14" FontWeight="SemiBold" />
+                                        <TextBlock Text="Only the surface fades; content remains sharp."
+                                                   FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock x:Name="OpacityValueText" HorizontalAlignment="Right" FontSize="11"
+                                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                                        <Slider x:Name="OpacitySlider" Minimum="35" Maximum="100" StepFrequency="1"
+                                                Value="86" ValueChanged="OpacitySlider_ValueChanged" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
                     </Grid>
                 </Grid>
             </Grid>

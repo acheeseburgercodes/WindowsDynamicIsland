@@ -1,6 +1,14 @@
 # Dynamic Island for Windows
 
-A small, always-on-top WinUI 3 island for Windows 11. It expands on hover to show the active Windows media session, album artwork, and previous/play-pause/next controls.
+A small, always-on-top WinUI 3 island for Windows 11. It expands into an activity surface for media, docked files, clipboard text, and appearance settings.
+
+## Features
+
+- Active Windows media-session preview with previous, play/pause, and next controls
+- File shelf with drag-and-drop, file picker, clipboard paste, open, copy, and remove actions
+- Editable Windows text clipboard view with copy and paste controls
+- Adjustable translucent island surface with locally persisted opacity
+- Borderless top-center window with composition-driven transitions
 
 ## Requirements
 
@@ -27,6 +35,8 @@ Start media in an app that publishes a Windows system media session (for example
 - `Core/IslandManager.cs` owns the extensible island state machine.
 - `Services/WindowService.cs` owns borderless, always-on-top window sizing and primary-display positioning.
 - `Services/MediaSessionService.cs` owns event-driven Windows media-session discovery and playback commands.
+- `Services/ConfigurationService.cs` persists opacity and docked-file references under local app data.
+- `Services/ClipboardService.cs` integrates text and normal Windows file clipboard formats.
 - `Models/MediaSnapshot.cs` is the UI-independent media model.
 - `MainWindow.xaml` and its code-behind render and animate the island.
 
