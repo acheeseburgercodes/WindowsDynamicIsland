@@ -35,6 +35,8 @@ The app uses the .NET Windows Desktop runtime and does not require the Windows A
 
 ## Build and run
 
+The GitHub Releases page provides a self-contained Windows x64 executable and a portable ZIP containing the same executable. Extract the ZIP before running it. These release downloads do not require a separate .NET installation. They are currently unsigned, so Windows Smart App Control may block them until a trusted signed build is available.
+
 Open `DynamicIsland.csproj` in Visual Studio, select `x64`, then build and run. From a Developer PowerShell with the .NET 10 SDK installed:
 
 ```powershell
