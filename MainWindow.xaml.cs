@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private const double PreviewHeight = 58;
     private const double ExpandedWidth = 740;
     private const double ExpandedHeight = 520;
+    private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
 
     private readonly IslandManager _islandManager = new();
     private readonly MediaSessionService _mediaService = new();
@@ -55,6 +56,7 @@ public partial class MainWindow : Window
     private bool _isAnimating;
     private bool _isPinnedToAllDesktops;
     private int _desktopPinAttempts;
+    private int _desktopPinTimerTicks;
     private readonly DispatcherTimer _topmostTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
     public MainWindow()
@@ -79,11 +81,18 @@ public partial class MainWindow : Window
         _topmostTimer.Tick += (_, _) =>
         {
             if (!IsVisible || WindowState == WindowState.Minimized) return;
-            if (!_isPinnedToAllDesktops && _desktopPinAttempts++ < 20)
+            if (++_desktopPinTimerTicks >= (_isPinnedToAllDesktops ? 60 : 10))
             {
-                _isPinnedToAllDesktops = _virtualDesktopService.TryPinIslandToAllDesktops();
-                if (!_isPinnedToAllDesktops && _desktopPinAttempts == 20)
-                    IslandSurface.ToolTip = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
+                _desktopPinTimerTicks = 0;
+                _isPinnedToAllDesktops = _virtualDesktopService.TryPinIslandToAllDesktops(this);
+                if (!_isPinnedToAllDesktops && ++_desktopPinAttempts == 20)
+                    IslandSurface.ToolTip = PinningUnavailableMessage;
+                else if (_isPinnedToAllDesktops)
+                {
+                    _desktopPinAttempts = 0;
+                    if (Equals(IslandSurface.ToolTip, PinningUnavailableMessage))
+                        IslandSurface.ToolTip = null;
+                }
             }
             _windowService.EnsureTopmost();
             if (!_isAnimating && _islandManager.State == IslandState.Expanded &&
@@ -100,7 +109,7 @@ public partial class MainWindow : Window
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         _windowService.RemoveNativeBorder();
-        _isPinnedToAllDesktops = _virtualDesktopService.TryPinIslandToAllDesktops();
+        _isPinnedToAllDesktops = _virtualDesktopService.TryPinIslandToAllDesktops(this);
         _topmostTimer.Start();
         _configuration = await _configurationService.LoadAsync();
         if (_configuration.ConfigurationVersion < 4)

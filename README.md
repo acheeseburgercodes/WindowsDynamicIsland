@@ -13,7 +13,7 @@ A small, always-on-top WPF island for Windows 11. Its per-pixel-transparent wind
 - Suspended panel sessions stay hidden when the island collapses and return only inside the Apps panel
 - Installed-app catalog sourced from Start menu shortcuts, packaged apps, and launchable running executables
 - One-session virtual-desktop following: the same app window moves to the island's desktop without relaunching or duplicating data
-- The island itself is pinned across Windows virtual desktops, so one running instance remains accessible after switching desktops
+- The island's actual window view is pinned across Windows virtual desktops, so one running instance remains accessible after switching desktops
 - Adjustable translucent island surface with locally persisted opacity, native accent color picker, and presets
 - Persisted dark and light appearance modes
 - Top, left, or right screen anchoring with start/center/end alignment and X/Y calibration

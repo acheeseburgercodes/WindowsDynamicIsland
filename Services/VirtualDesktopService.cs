@@ -8,14 +8,19 @@ public sealed class VirtualDesktopService
 {
     public const string IslandAppId = "ChatGPT.DynamicIsland";
 
-    // The documented desktop manager can move a window, but cannot keep it on
-    // every desktop. Explorer's pinned-app service provides that behavior.
-    public bool TryPinIslandToAllDesktops()
+    // Pin the actual window view. Pinning only the AppUserModelID is not enough
+    // for this taskbar-hidden WPF window on some Windows 11 builds.
+    public bool TryPinIslandToAllDesktops(Window islandWindow)
     {
         object? shell = null;
         object? pinnedAppsObject = null;
+        object? viewsObject = null;
+        nint view = 0;
         try
         {
+            var islandHandle = new WindowInteropHelper(islandWindow).Handle;
+            if (islandHandle == 0) return false;
+
             var shellType = Type.GetTypeFromCLSID(new Guid("C2F03A33-21F5-47FA-B4BB-156362A2F239"));
             if (shellType is null) return false;
 
@@ -27,12 +32,16 @@ public sealed class VirtualDesktopService
             shellServices.QueryService(ref pinnedAppsId, ref pinnedInterfaceId, out pinnedAppsObject);
             if (pinnedAppsObject is not IVirtualDesktopPinnedApps pinnedApps) return false;
 
-            if (!pinnedApps.IsAppIdPinned(IslandAppId))
-            {
-                pinnedApps.PinAppID(IslandAppId);
-            }
+            var viewsId = typeof(IApplicationViewCollection).GUID;
+            shellServices.QueryService(ref viewsId, ref viewsId, out viewsObject);
+            if (viewsObject is not IApplicationViewCollection views ||
+                views.GetViewForHwnd(islandHandle, out view) != 0 || view == 0)
+                return false;
 
-            return pinnedApps.IsAppIdPinned(IslandAppId);
+            if (!pinnedApps.IsViewPinned(view))
+                pinnedApps.PinView(view);
+
+            return pinnedApps.IsViewPinned(view);
         }
         catch (Exception)
         {
@@ -42,6 +51,10 @@ public sealed class VirtualDesktopService
         }
         finally
         {
+            if (view != 0)
+                _ = Marshal.Release(view);
+            if (viewsObject is not null && Marshal.IsComObject(viewsObject))
+                _ = Marshal.ReleaseComObject(viewsObject);
             if (pinnedAppsObject is not null && Marshal.IsComObject(pinnedAppsObject))
                 _ = Marshal.ReleaseComObject(pinnedAppsObject);
             if (shell is not null && Marshal.IsComObject(shell))
@@ -99,6 +112,25 @@ public sealed class VirtualDesktopService
         bool IsAppIdPinned([MarshalAs(UnmanagedType.LPWStr)] string appId);
         void PinAppID([MarshalAs(UnmanagedType.LPWStr)] string appId);
         void UnpinAppID([MarshalAs(UnmanagedType.LPWStr)] string appId);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        bool IsViewPinned(nint view);
+        void PinView(nint view);
+        void UnpinView(nint view);
+    }
+
+    [ComImport]
+    [Guid("1841C6D7-4F9D-42C0-AF41-8747538F10E5")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IApplicationViewCollection
+    {
+        [PreserveSig]
+        int GetViews(out nint views);
+        [PreserveSig]
+        int GetViewsByZOrder(out nint views);
+        [PreserveSig]
+        int GetViewsByAppUserModelId([MarshalAs(UnmanagedType.LPWStr)] string appId, out nint views);
+        [PreserveSig]
+        int GetViewForHwnd(nint window, out nint view);
     }
 
     [ComImport]
