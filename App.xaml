@@ -4,11 +4,48 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <Color x:Key="IslandSurfaceColor">#F2111113</Color>
+            <Color x:Key="IslandSurfaceColor">#A6111113</Color>
             <SolidColorBrush x:Key="IslandSurfaceBrush" Color="{StaticResource IslandSurfaceColor}" />
             <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF7F7F8" />
             <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFA5A5AA" />
-            <SolidColorBrush x:Key="ControlSurfaceBrush" Color="#FF29292E" />
+            <SolidColorBrush x:Key="ControlSurfaceBrush" Color="#E629292E" />
+            <SolidColorBrush x:Key="PanelSurfaceBrush" Color="#8029292E" />
+            <SolidColorBrush x:Key="InputSurfaceBrush" Color="#B329292E" />
+            <SolidColorBrush x:Key="SubtleSurfaceBrush" Color="#D629292E" />
+            <SolidColorBrush x:Key="DropSurfaceBrush" Color="#402F2F35" />
+            <SolidColorBrush x:Key="DividerBrush" Color="#665B5B63" />
+            <SolidColorBrush x:Key="HostSurfaceBrush" Color="#FF09090B" />
+            <SolidColorBrush x:Key="PrimaryActionBrush" Color="#FFF4F4F5" />
+            <SolidColorBrush x:Key="PrimaryActionTextBrush" Color="#FF111113" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#FF6ED6A9" />
+
+            <Style x:Key="IslandButton" TargetType="Button">
+                <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+                <Setter Property="Background" Value="{StaticResource ControlSurfaceBrush}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="10,6" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="ButtonBorder"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="10"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.82" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.35" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

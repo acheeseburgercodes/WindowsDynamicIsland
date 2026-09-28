@@ -1,23 +1,20 @@
-using Microsoft.UI.Xaml;
+using System.Windows;
+using System.Runtime.InteropServices;
+using DynamicIsland.Services;
 
 namespace DynamicIsland;
 
 public partial class App : Application
 {
-    private Window? _window;
-
-    public App()
+    protected override void OnStartup(StartupEventArgs e)
     {
-        InitializeComponent();
-        UnhandledException += (_, args) =>
-        {
-            System.Diagnostics.Debug.WriteLine(args.Exception);
-        };
+        // Give this process its own shell identity before its first window is created.
+        _ = SetCurrentProcessExplicitAppUserModelID(VirtualDesktopService.IslandAppId);
+        base.OnStartup(e);
+        MainWindow = new MainWindow();
+        MainWindow.Show();
     }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
-    {
-        _window = new MainWindow();
-        _window.Activate();
-    }
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
 }

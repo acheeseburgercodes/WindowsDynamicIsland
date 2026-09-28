@@ -6,3 +6,4 @@ obj/
 .nuget-packages/
 *.user
 *.suo
+/artifacts/
