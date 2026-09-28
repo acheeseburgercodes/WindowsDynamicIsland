@@ -333,7 +333,8 @@
                         <StackPanel Margin="4,4,12,8">
                             <TextBlock Text="Settings" FontSize="20" FontWeight="SemiBold"
                                        Foreground="{StaticResource PrimaryTextBrush}" />
-                            <TextBlock Text="Changes are saved automatically." FontSize="11" Margin="0,0,0,14"
+                            <TextBlock x:Name="SettingsSaveStatusText" Text="Changes are saved automatically."
+                                       FontSize="11" Margin="0,0,0,14" TextWrapping="Wrap"
                                        Foreground="{StaticResource SecondaryTextBrush}" />
 
                             <Border Padding="14" Background="{StaticResource PanelSurfaceBrush}" CornerRadius="14" Margin="0,0,0,10">

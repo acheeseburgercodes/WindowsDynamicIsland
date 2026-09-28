@@ -1225,7 +1225,19 @@ public partial class MainWindow : Window
     {
         _configuration.DockedFiles = _files.ToList();
         _configuration.Applications = _applications.ToList();
-        await _configurationService.SaveAsync(_configuration);
+        try
+        {
+            await _configurationService.SaveAsync(_configuration);
+            SettingsSaveStatusText.Text = "Changes are saved automatically.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // A protected or read-only profile must not prevent the island from opening.
+            // Keep the current settings in memory and make the persistence failure visible.
+            System.Diagnostics.Debug.WriteLine($"Could not save Dynamic Island settings: {exception}");
+            SettingsSaveStatusText.Text = "Settings could not be saved in this Windows profile; changes may be lost when the island exits.";
+            IslandSurface.ToolTip = SettingsSaveStatusText.Text;
+        }
     }
 
     private void Window_Closing(object? sender, CancelEventArgs e)
