@@ -17,4 +17,14 @@
     <Resource Include="Assets\island-logo.png" />
   </ItemGroup>
 
+  <Target Name="SignBuiltExecutable" AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Release' and '$(CodeSigningCertificateThumbprint)' != '' and Exists('$(TargetDir)$(AssemblyName).exe')">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File &quot;$(MSBuildProjectDirectory)\tools\Sign-Executable.ps1&quot; -FilePath &quot;$(TargetDir)$(AssemblyName).exe&quot; -CertificateThumbprint &quot;$(CodeSigningCertificateThumbprint)&quot;" />
+  </Target>
+
+  <Target Name="SignPublishedExecutable" AfterTargets="Publish"
+          Condition="'$(CodeSigningCertificateThumbprint)' != '' and Exists('$(PublishDir)$(AssemblyName).exe')">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File &quot;$(MSBuildProjectDirectory)\tools\Sign-Executable.ps1&quot; -FilePath &quot;$(PublishDir)$(AssemblyName).exe&quot; -CertificateThumbprint &quot;$(CodeSigningCertificateThumbprint)&quot;" />
+  </Target>
+
 </Project>

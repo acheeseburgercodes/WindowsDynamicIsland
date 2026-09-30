@@ -2,6 +2,8 @@
 
 A small, always-on-top WPF island for Windows 11. Its per-pixel-transparent window avoids the known WinUI transparent-window outline while preserving native Windows media, file, and clipboard integration.
 
+The application source is licensed under the [MIT License](LICENSE). Self-contained downloads also include the .NET runtime's license and third-party notices; see [third-party notices](THIRD-PARTY-NOTICES.md).
+
 ## Features
 
 - Active Windows media-session preview with previous, play/pause, and next controls
@@ -36,6 +38,14 @@ The app uses the .NET Windows Desktop runtime and does not require the Windows A
 ## Build and run
 
 The GitHub Releases page provides a self-contained Windows x64 executable and a portable ZIP containing the same executable. Extract the ZIP before running it. These release downloads do not require a separate .NET installation. They are currently unsigned, so Windows Smart App Control may block them until a trusted signed build is available.
+
+For a signed Release build, install an RSA code-signing certificate from a trusted certificate provider in `Cert:\CurrentUser\My`, then provide its thumbprint:
+
+```powershell
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:CodeSigningCertificateThumbprint=YOUR_CERTIFICATE_THUMBPRINT
+```
+
+The opt-in build target signs and verifies both the Release build executable and the published executable using `signtool.exe` from the Windows SDK. It does not create certificates or alter Windows trust stores. A locally self-signed certificate is not sufficient for Smart App Control; Microsoft requires a certificate issued by a trusted provider. `Unblock-File` only removes the Mark of the Web and cannot resolve a Code Integrity policy block.
 
 Open `DynamicIsland.csproj` in Visual Studio, select `x64`, then build and run. From a Developer PowerShell with the .NET 10 SDK installed:
 
