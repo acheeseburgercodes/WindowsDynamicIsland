@@ -22,6 +22,16 @@ public sealed class AppConfiguration
 
     public IslandTheme Theme { get; set; } = IslandTheme.Dark;
 
+    public IslandSurfaceStyle SurfaceStyle { get; set; } = IslandSurfaceStyle.Solid;
+
+    public string GradientStartColor { get; set; } = "#FF334654";
+
+    public string GradientEndColor { get; set; } = "#FF161821";
+
+    public IslandGradientDirection GradientDirection { get; set; } = IslandGradientDirection.Diagonal;
+
+    public string? MiniLogoImagePath { get; set; }
+
     public List<DockedFileItem> DockedFiles { get; set; } = [];
 
     public List<AppLauncherItem> Applications { get; set; } = [];

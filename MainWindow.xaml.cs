@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -32,8 +33,10 @@ public partial class MainWindow : Window
     private readonly BitmapImage _brandLogo = new(new Uri("pack://application:,,,/Assets/island-logo.png", UriKind.Absolute));
     private readonly ConfigurationService _configurationService = new();
     private readonly FileDockStorageService _fileDockStorage = new();
+    private readonly MiniLogoStorageService _miniLogoStorage = new();
     private readonly AppCatalogService _appCatalog = new();
     private readonly InteractiveAppPanelService _interactiveAppPanel = new();
+    private readonly LiveAppPreviewService _liveAppPreview = new();
     private readonly VirtualDesktopService _virtualDesktopService = new();
     private readonly ObservableCollection<DockedFileItem> _files = [];
     private readonly ObservableCollection<AppLauncherItem> _applications = [];
@@ -49,9 +52,12 @@ public partial class MainWindow : Window
     private bool _isFileDragInProgress;
     private DockedFileItem? _fileDragItem;
     private BitmapSource? _currentArtwork;
+    private BitmapSource? _customMiniLogo;
     private MediaSnapshot _currentMediaSnapshot = MediaSnapshot.Empty;
     private Point _fileDragStart;
     private int _resizeAnimationVersion;
+    private int _panelAnimationVersion;
+    private UIElement? _activePanel;
     private bool _installedAppsLoaded;
     private bool _isAnimating;
     private bool _isPinnedToAllDesktops;
@@ -62,6 +68,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _activePanel = MediaPanel;
         FileList.ItemsSource = _files;
         AppList.ItemsSource = _applications;
         RunningAppsComboBox.ItemsSource = _runningApplications;
@@ -96,12 +103,19 @@ public partial class MainWindow : Window
             }
             _windowService.EnsureTopmost();
             if (!_isAnimating && _islandManager.State == IslandState.Expanded &&
-                AppsPanel.Visibility == Visibility.Visible)
+                _activePanel == AppsPanel && AppsPanel.Visibility == Visibility.Visible)
+            {
                 _interactiveAppPanel.UpdateBounds(AppHostViewport);
+                _liveAppPreview.UpdateBounds(AppHostViewport);
+            }
         };
         StateChanged += (_, _) =>
         {
-            if (WindowState == WindowState.Minimized) _interactiveAppPanel.Suspend();
+            if (WindowState == WindowState.Minimized)
+            {
+                _interactiveAppPanel.Suspend();
+                _liveAppPreview.Suspend();
+            }
             else UpdateInteractivePanel();
         };
     }
@@ -131,8 +145,18 @@ public partial class MainWindow : Window
             _configuration.ConfigurationVersion = 7;
             _configuration.Theme = IslandTheme.Dark;
         }
+        if (_configuration.ConfigurationVersion < 8)
+            _configuration.ConfigurationVersion = 8;
 
         _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.1, 1);
+        if (!Enum.IsDefined(_configuration.SurfaceStyle))
+            _configuration.SurfaceStyle = IslandSurfaceStyle.Solid;
+        if (!Enum.IsDefined(_configuration.GradientDirection))
+            _configuration.GradientDirection = IslandGradientDirection.Diagonal;
+        if (!TryParseSurfaceColor(_configuration.GradientStartColor, out _))
+            _configuration.GradientStartColor = "#FF334654";
+        if (!TryParseSurfaceColor(_configuration.GradientEndColor, out _))
+            _configuration.GradientEndColor = "#FF161821";
         foreach (var file in _configuration.DockedFiles)
         {
             if (file.IsManagedCopy && _fileDockStorage.IsManagedPath(file.FullPath) && File.Exists(file.FullPath))
@@ -172,6 +196,23 @@ public partial class MainWindow : Window
         VerticalOffsetSlider.Value = _configuration.VerticalOffset;
         LogoStyleComboBox.SelectedIndex = (int)_configuration.LogoStyle;
         ThemeComboBox.SelectedIndex = (int)_configuration.Theme;
+        SurfaceStyleComboBox.SelectedIndex = (int)_configuration.SurfaceStyle;
+        GradientDirectionComboBox.SelectedIndex = (int)_configuration.GradientDirection;
+        GradientStartColorTextBox.Text = _configuration.GradientStartColor;
+        GradientEndColorTextBox.Text = _configuration.GradientEndColor;
+        GradientOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Gradient
+            ? Visibility.Visible : Visibility.Collapsed;
+        try
+        {
+            _customMiniLogo = _miniLogoStorage.Load(_configuration.MiniLogoImagePath);
+            MiniLogoStatusText.Text = _customMiniLogo is null
+                ? "Using the selected island logo." : "Using your saved mini picture.";
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _customMiniLogo = null;
+            MiniLogoStatusText.Text = "Saved picture could not be loaded; using the selected island logo.";
+        }
         if (!TryApplyAccent(_configuration.AccentColor))
         {
             _configuration.AccentColor = "#FF6ED6A9";
@@ -205,7 +246,7 @@ public partial class MainWindow : Window
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
         if (!_isDragging && !_isFileDragInProgress && _islandManager.State != IslandState.Collapsed &&
-            !_interactiveAppPanel.IsAttached)
+            !_interactiveAppPanel.IsAttached && !_liveAppPreview.IsAttached)
         {
             _collapseTimer.Start();
         }
@@ -298,7 +339,7 @@ public partial class MainWindow : Window
 
     private void CollapseTimer_Tick(object? sender, EventArgs e)
     {
-        if (_isDragging || _isFileDragInProgress || IsMouseOver || _interactiveAppPanel.IsAttached ||
+        if (_isDragging || _isFileDragInProgress || IsMouseOver || _interactiveAppPanel.IsAttached || _liveAppPreview.IsAttached ||
             EdgeComboBox.IsDropDownOpen || AlignmentComboBox.IsDropDownOpen)
         {
             _collapseTimer.Stop();
@@ -321,6 +362,7 @@ public partial class MainWindow : Window
 
         _isAnimating = true;
         _interactiveAppPanel.Suspend();
+        _liveAppPreview.Suspend();
         ShowStateContent(state);
         AnimateIslandResize(width, height, state);
     }
@@ -328,9 +370,9 @@ public partial class MainWindow : Window
     private void AnimateIslandResize(double targetWidth, double targetHeight, IslandState state)
     {
         var version = ++_resizeAnimationVersion;
-        var currentWidth = Math.Max(1, ActualWidth);
-        var currentHeight = Math.Max(1, ActualHeight);
         var scale = (ScaleTransform)IslandSurface.RenderTransform;
+        var currentWidth = Math.Max(1, ActualWidth * scale.ScaleX);
+        var currentHeight = Math.Max(1, ActualHeight * scale.ScaleY);
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         scale.ScaleX = 1;
@@ -344,7 +386,12 @@ public partial class MainWindow : Window
         };
 
         var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var duration = new Duration(TimeSpan.FromMilliseconds(235));
+        var duration = new Duration(TimeSpan.FromMilliseconds(state switch
+        {
+            IslandState.Expanded or IslandState.Interaction or IslandState.Notification => 350,
+            IslandState.Preview => 270,
+            _ => 220
+        }));
         var expanding = (targetWidth * targetHeight) >= (currentWidth * currentHeight);
 
         if (expanding)
@@ -360,8 +407,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        var targetScaleX = Math.Clamp(targetWidth / currentWidth, 0.05, 1);
-        var targetScaleY = Math.Clamp(targetHeight / currentHeight, 0.05, 1);
+        scale.ScaleX = Math.Clamp(currentWidth / Math.Max(1, ActualWidth), 0.05, 1);
+        scale.ScaleY = Math.Clamp(currentHeight / Math.Max(1, ActualHeight), 0.05, 1);
+        var targetScaleX = Math.Clamp(targetWidth / Math.Max(1, ActualWidth), 0.05, 1);
+        var targetScaleY = Math.Clamp(targetHeight / Math.Max(1, ActualHeight), 0.05, 1);
         var collapseX = new DoubleAnimation(targetScaleX, duration) { EasingFunction = easing };
         var collapseY = new DoubleAnimation(targetScaleY, duration) { EasingFunction = easing };
         collapseY.Completed += (_, _) => FinishResizeAnimation(version, targetWidth, targetHeight);
@@ -401,7 +450,21 @@ public partial class MainWindow : Window
             if (element == show)
             {
                 element.Visibility = Visibility.Visible;
-                element.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150)));
+                element.Opacity = 0;
+                var isFull = element == ExpandedContent;
+                element.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1,
+                    TimeSpan.FromMilliseconds(isFull ? 240 : 150))
+                {
+                    BeginTime = TimeSpan.FromMilliseconds(isFull ? 90 : 0)
+                });
+                var motion = new TranslateTransform();
+                element.RenderTransform = motion;
+                motion.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(
+                    isFull ? -12 : -4, 0, TimeSpan.FromMilliseconds(isFull ? 310 : 170))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                    FillBehavior = FillBehavior.Stop
+                });
             }
             else
             {
@@ -448,16 +511,64 @@ public partial class MainWindow : Window
 
     private void ShowPanel(UIElement panel)
     {
+        if (_activePanel == panel && panel.Visibility == Visibility.Visible)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(UpdateInteractivePanel));
+            return;
+        }
+
         if (panel != AppsPanel)
         {
             _interactiveAppPanel.Suspend();
+            _liveAppPreview.Suspend();
         }
-        MediaPanel.Visibility = panel == MediaPanel ? Visibility.Visible : Visibility.Collapsed;
-        FilesPanel.Visibility = panel == FilesPanel ? Visibility.Visible : Visibility.Collapsed;
-        ClipboardPanel.Visibility = panel == ClipboardPanel ? Visibility.Visible : Visibility.Collapsed;
-        SettingsPanel.Visibility = panel == SettingsPanel ? Visibility.Visible : Visibility.Collapsed;
-        AppsPanel.Visibility = panel == AppsPanel ? Visibility.Visible : Visibility.Collapsed;
-        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(UpdateInteractivePanel));
+
+        var outgoing = _activePanel;
+        _activePanel = panel;
+        var version = ++_panelAnimationVersion;
+        foreach (var other in new UIElement[] { MediaPanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
+        {
+            if (other == panel || other == outgoing) continue;
+            other.BeginAnimation(OpacityProperty, null);
+            other.IsHitTestVisible = false;
+            other.Visibility = Visibility.Collapsed;
+        }
+
+        if (outgoing is not null && outgoing != panel && outgoing.Visibility == Visibility.Visible)
+        {
+            outgoing.IsHitTestVisible = false;
+            var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(120));
+            fadeOut.Completed += (_, _) =>
+            {
+                if (version != _panelAnimationVersion || outgoing == _activePanel) return;
+                outgoing.BeginAnimation(OpacityProperty, null);
+                outgoing.Visibility = Visibility.Collapsed;
+            };
+            outgoing.BeginAnimation(OpacityProperty, fadeOut, HandoffBehavior.SnapshotAndReplace);
+        }
+
+        panel.BeginAnimation(OpacityProperty, null);
+        panel.Visibility = Visibility.Visible;
+        panel.IsHitTestVisible = true;
+        panel.Opacity = 0;
+        var slide = new TranslateTransform();
+        panel.RenderTransform = slide;
+        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(18, 0,
+            TimeSpan.FromMilliseconds(250))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.Stop
+        });
+        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(210))
+        {
+            BeginTime = TimeSpan.FromMilliseconds(35)
+        };
+        fadeIn.Completed += (_, _) =>
+        {
+            if (version == _panelAnimationVersion)
+                UpdateInteractivePanel();
+        };
+        panel.BeginAnimation(OpacityProperty, fadeIn, HandoffBehavior.SnapshotAndReplace);
     }
 
     private void OnMediaChanged(object? sender, MediaSnapshot snapshot) =>
@@ -472,8 +583,9 @@ public partial class MainWindow : Window
         AlbumTitle.Visibility = string.IsNullOrWhiteSpace(snapshot.Album) ? Visibility.Collapsed : Visibility.Visible;
         PreviewTitle.Text = snapshot.HasSession ? snapshot.Title : "Dynamic Island";
         PreviewArtist.Text = snapshot.HasSession ? snapshot.Artist : "Ready · drag to reposition";
-        PlayPauseIcon.Text = snapshot.IsPlaying ? "Ⅱ" : "▶";
-        PreviewPlayPauseText.Text = snapshot.IsPlaying ? "Ⅱ" : "▶";
+        var playbackIcon = (Geometry)Application.Current.Resources[snapshot.IsPlaying ? "IconPause" : "IconPlay"];
+        PlayPauseIcon.Data = playbackIcon;
+        PreviewPlayPauseIcon.Data = playbackIcon;
         PreviousButton.IsEnabled = snapshot.CanPrevious;
         PlayPauseButton.IsEnabled = snapshot.CanPlayPause;
         NextButton.IsEnabled = snapshot.CanNext;
@@ -825,11 +937,26 @@ public partial class MainWindow : Window
     private void UseWindowInPanel(nint window, string name)
     {
         _collapseTimer.Stop();
+        _interactiveAppPanel.Detach();
+        _liveAppPreview.Detach();
         _islandManager.TransitionTo(IslandState.Expanded);
         ShowPanel(AppsPanel);
         _ = _virtualDesktopService.MoveToIslandDesktop(window, this);
         AppHostPlaceholder.Visibility = Visibility.Collapsed;
         UpdateLayout();
+        if (RequiresLivePreview(window, name))
+        {
+            if (_liveAppPreview.Attach(window, this, AppHostViewport))
+            {
+                if (_isAnimating) _liveAppPreview.Suspend();
+                AppRunnerStatus.Text = $"Live preview of {name} · use Open externally to interact";
+                return;
+            }
+
+            ShowAppHostPlaceholder(_liveAppPreview.LastError ?? $"Could not preview {name}");
+            return;
+        }
+
         if (_interactiveAppPanel.Attach(window, AppHostViewport))
         {
             if (_isAnimating) _interactiveAppPanel.Suspend();
@@ -839,6 +966,26 @@ public partial class MainWindow : Window
 
         ShowAppHostPlaceholder(_interactiveAppPanel.LastError ?? $"Could not place {name} in interactive panel mode");
     }
+
+    private static bool RequiresLivePreview(nint window, string displayName)
+    {
+        if (displayName.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        _ = GetWindowThreadProcessId(window, out var processId);
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            return process.ProcessName.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint window, out uint processId);
 
     private static async Task<nint> FindMainWindowAsync(Process process)
     {
@@ -873,12 +1020,14 @@ public partial class MainWindow : Window
     private void DetachAppButton_Click(object sender, RoutedEventArgs e)
     {
         _interactiveAppPanel.Detach();
+        _liveAppPreview.Detach();
         ShowAppHostPlaceholder("The hosted application was detached");
     }
 
     private void ShowAppHostPlaceholder(string status)
     {
         _interactiveAppPanel.Detach();
+        _liveAppPreview.Detach();
         AppHostPlaceholder.Visibility = Visibility.Visible;
         AppRunnerStatus.Text = status;
     }
@@ -888,7 +1037,8 @@ public partial class MainWindow : Window
         if (_isAnimating || WindowState == WindowState.Minimized) return;
         if (_interactiveAppPanel.IsAttached)
         {
-            if (_islandManager.State == IslandState.Expanded && AppsPanel.Visibility == Visibility.Visible)
+            if (_islandManager.State == IslandState.Expanded && _activePanel == AppsPanel &&
+                AppsPanel.Visibility == Visibility.Visible)
             {
                 _interactiveAppPanel.Resume(AppHostViewport);
             }
@@ -896,6 +1046,14 @@ public partial class MainWindow : Window
             {
                 _interactiveAppPanel.Suspend();
             }
+        }
+        if (_liveAppPreview.IsAttached)
+        {
+            if (_islandManager.State == IslandState.Expanded && _activePanel == AppsPanel &&
+                AppsPanel.Visibility == Visibility.Visible)
+                _liveAppPreview.Resume(AppHostViewport);
+            else
+                _liveAppPreview.Suspend();
         }
     }
 
@@ -982,12 +1140,88 @@ public partial class MainWindow : Window
 
     private void ApplySurfaceOpacity(double opacity)
     {
+        var alpha = (byte)Math.Round(255 * opacity);
+        if (_configuration.SurfaceStyle == IslandSurfaceStyle.Gradient &&
+            TryParseSurfaceColor(_configuration.GradientStartColor, out var startColor) &&
+            TryParseSurfaceColor(_configuration.GradientEndColor, out var endColor))
+        {
+            var (start, end) = _configuration.GradientDirection switch
+            {
+                IslandGradientDirection.LeftToRight => (new Point(0, 0.5), new Point(1, 0.5)),
+                IslandGradientDirection.Diagonal => (new Point(0, 0), new Point(1, 1)),
+                _ => (new Point(0.5, 0), new Point(0.5, 1))
+            };
+            IslandSurface.Background = new LinearGradientBrush(
+                Color.FromArgb(alpha, startColor.R, startColor.G, startColor.B),
+                Color.FromArgb(alpha, endColor.R, endColor.G, endColor.B), start, end);
+            OpacityValueText.Text = $"{opacity:P0}";
+            return;
+        }
+
         var baseColor = _configuration.Theme == IslandTheme.Light
             ? Color.FromRgb(246, 246, 248)
             : Color.FromRgb(17, 17, 19);
         IslandSurface.Background = new SolidColorBrush(Color.FromArgb(
-            (byte)Math.Round(255 * opacity), baseColor.R, baseColor.G, baseColor.B));
+            alpha, baseColor.R, baseColor.G, baseColor.B));
         OpacityValueText.Text = $"{opacity:P0}";
+    }
+
+    private static bool TryParseSurfaceColor(string? value, out Color color)
+    {
+        color = default;
+        if (value is null || value.Length is not (7 or 9) || value[0] != '#' ||
+            value.Skip(1).Any(character => !Uri.IsHexDigit(character)))
+            return false;
+
+        color = (Color)ColorConverter.ConvertFromString(value);
+        return true;
+    }
+
+    private void SurfaceStyleComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_settingsLoaded || SurfaceStyleComboBox.SelectedIndex < 0) return;
+        _configuration.SurfaceStyle = (IslandSurfaceStyle)SurfaceStyleComboBox.SelectedIndex;
+        GradientOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Gradient
+            ? Visibility.Visible : Visibility.Collapsed;
+        ApplySurfaceOpacity(_configuration.SurfaceOpacity);
+        QueueSettingsSave();
+    }
+
+    private void GradientDirectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_settingsLoaded || GradientDirectionComboBox.SelectedIndex < 0) return;
+        _configuration.GradientDirection = (IslandGradientDirection)GradientDirectionComboBox.SelectedIndex;
+        ApplySurfaceOpacity(_configuration.SurfaceOpacity);
+        QueueSettingsSave();
+    }
+
+    private void PickGradientColorButton_Click(object sender, RoutedEventArgs e)
+    {
+        var target = (sender as FrameworkElement)?.Tag as string == "Start"
+            ? GradientStartColorTextBox : GradientEndColorTextBox;
+        var initial = TryParseSurfaceColor(target.Text, out var color)
+            ? color : Color.FromRgb(110, 214, 169);
+        if (!ColorPickerService.TryPick(this, initial, out var selected)) return;
+        target.Text = $"#{selected.R:X2}{selected.G:X2}{selected.B:X2}";
+        ApplyGradientButton_Click(sender, e);
+    }
+
+    private void ApplyGradientButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryParseSurfaceColor(GradientStartColorTextBox.Text, out var start) ||
+            !TryParseSurfaceColor(GradientEndColorTextBox.Text, out var end))
+        {
+            GradientStatusText.Text = "Enter two hex colors such as #334654 and #161821.";
+            return;
+        }
+
+        _configuration.GradientStartColor = $"#FF{start.R:X2}{start.G:X2}{start.B:X2}";
+        _configuration.GradientEndColor = $"#FF{end.R:X2}{end.G:X2}{end.B:X2}";
+        GradientStartColorTextBox.Text = _configuration.GradientStartColor;
+        GradientEndColorTextBox.Text = _configuration.GradientEndColor;
+        GradientStatusText.Text = "Gradient updated.";
+        ApplySurfaceOpacity(_configuration.SurfaceOpacity);
+        QueueSettingsSave();
     }
 
     private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1131,16 +1365,24 @@ public partial class MainWindow : Window
         var useArtwork = _configuration.LogoStyle == IslandLogoStyle.AlbumArtwork && _currentArtwork is not null;
         var useBrand = _configuration.LogoStyle == IslandLogoStyle.BrandMark;
         var showImage = useArtwork || useBrand;
-        MiniLogoArtwork.Source = useBrand ? _brandLogo : useArtwork ? _currentArtwork : null;
-        MiniLogoArtwork.Visibility = showImage ? Visibility.Visible : Visibility.Collapsed;
-        MiniLogoText.Visibility = showImage ? Visibility.Collapsed : Visibility.Visible;
+        var miniImage = _customMiniLogo ?? (useBrand ? _brandLogo : useArtwork ? _currentArtwork : null);
+        var useMusicGlyph = _configuration.LogoStyle is IslandLogoStyle.MusicNote or IslandLogoStyle.AlbumArtwork;
+        MiniLogoArtwork.Source = miniImage;
+        MiniLogoArtwork.Visibility = miniImage is not null ? Visibility.Visible : Visibility.Collapsed;
+        MiniLogoGlyph.Visibility = miniImage is null && useMusicGlyph ? Visibility.Visible : Visibility.Collapsed;
+        MiniLogoText.Visibility = miniImage is null && !useMusicGlyph ? Visibility.Visible : Visibility.Collapsed;
         PreviewArtwork.Source = useBrand ? _brandLogo : useArtwork ? _currentArtwork : null;
         PreviewArtwork.Visibility = showImage ? Visibility.Visible : Visibility.Collapsed;
-        PreviewFallbackIcon.Visibility = showImage ? Visibility.Collapsed : Visibility.Visible;
-        MiniLogoContainer.Background = useBrand
+        PreviewLogoGlyph.Visibility = !showImage && useMusicGlyph ? Visibility.Visible : Visibility.Collapsed;
+        PreviewFallbackIcon.Visibility = showImage || useMusicGlyph ? Visibility.Collapsed : Visibility.Visible;
+        MiniLogoContainer.Background = _customMiniLogo is not null
+            ? Brushes.Transparent
+            : useBrand
             ? new SolidColorBrush(Color.FromRgb(26, 28, 31))
             : (Brush)Application.Current.Resources["PrimaryActionBrush"];
-        MiniLogoContainer.Width = useBrand ? 22 : 16;
+        MiniLogoContainer.Width = _customMiniLogo is not null ? 18 : useBrand ? 22 : 16;
+        MiniLogoContainer.Height = _customMiniLogo is not null ? 18 : 16;
+        MiniLogoContainer.CornerRadius = new CornerRadius(_customMiniLogo is not null ? 9 : 8);
         PreviewLogoContainer.Background = useBrand
             ? new SolidColorBrush(Color.FromRgb(26, 28, 31))
             : (Brush)Application.Current.Resources["SubtleSurfaceBrush"];
@@ -1157,6 +1399,46 @@ public partial class MainWindow : Window
         MiniLogoText.FontSize = miniSize;
         PreviewFallbackIcon.Text = text;
         PreviewFallbackIcon.FontSize = previewSize;
+    }
+
+    private void ChooseMiniLogoButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Choose a picture for the minimized island",
+            Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff|All files|*.*"
+        };
+        if (dialog.ShowDialog(this) != true) return;
+
+        try
+        {
+            _customMiniLogo = _miniLogoStorage.Save(dialog.FileName);
+            _configuration.MiniLogoImagePath = _miniLogoStorage.StoredPath;
+            MiniLogoStatusText.Text = "Picture saved for the minimized island.";
+            ApplyLogoStyle();
+            QueueSettingsSave();
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            MiniLogoStatusText.Text = $"Could not use this picture: {exception.Message}";
+        }
+    }
+
+    private void ClearMiniLogoButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _miniLogoStorage.Clear();
+            _customMiniLogo = null;
+            _configuration.MiniLogoImagePath = null;
+            MiniLogoStatusText.Text = "Using the selected island logo.";
+            ApplyLogoStyle();
+            QueueSettingsSave();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            MiniLogoStatusText.Text = $"Could not remove the saved picture: {exception.Message}";
+        }
     }
 
     private void EdgeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1255,6 +1537,7 @@ public partial class MainWindow : Window
         _collapseTimer.Stop();
         _settingsSaveTimer.Stop();
         _interactiveAppPanel.Detach();
+        _liveAppPreview.Detach();
 
         _mediaService.Dispose();
     }

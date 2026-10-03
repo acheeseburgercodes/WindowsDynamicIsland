@@ -30,7 +30,10 @@
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
                     <Border x:Name="MiniLogoContainer" Width="16" Height="16" Background="{StaticResource PrimaryActionBrush}" CornerRadius="8">
                         <Grid>
-                            <Image x:Name="MiniLogoArtwork" Visibility="Collapsed" Stretch="UniformToFill" />
+                            <Image x:Name="MiniLogoArtwork" Visibility="Collapsed" Stretch="Uniform" />
+                            <Path x:Name="MiniLogoGlyph" Data="{StaticResource IconMusic}" Width="10" Height="10"
+                                  Fill="{StaticResource PrimaryActionTextBrush}" HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" Visibility="Collapsed" />
                             <TextBlock x:Name="MiniLogoText" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Text="DI" FontSize="7" FontWeight="Bold" Foreground="{StaticResource PrimaryActionTextBrush}" />
                         </Grid>
@@ -51,6 +54,9 @@
                         Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="10">
                     <Grid>
                         <Image x:Name="PreviewArtwork" Stretch="Uniform" />
+                        <Path x:Name="PreviewLogoGlyph" Data="{StaticResource IconMusic}" Width="20" Height="20"
+                              Fill="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center"
+                              VerticalAlignment="Center" Visibility="Collapsed" />
                         <TextBlock x:Name="PreviewFallbackIcon" Text="DI" FontSize="12" FontWeight="Bold"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{StaticResource PrimaryTextBrush}" />
@@ -66,20 +72,20 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="PreviewPreviousButton" Style="{StaticResource IslandButton}"
                             Width="28" Height="28" Padding="0" Margin="0,0,4,0"
-                            ToolTip="Previous" Click="PreviousButton_Click" Content="◀" />
+                            ToolTip="Previous" Click="PreviousButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconPrevious}" Width="13" Height="13" /></Button>
                     <Button x:Name="PreviewPlayPauseButton" Style="{StaticResource IslandButton}"
                             Width="30" Height="30" Padding="0" Margin="0,0,4,0"
                             Background="{StaticResource PrimaryActionBrush}" Foreground="{StaticResource PrimaryActionTextBrush}"
                             ToolTip="Play or pause" Click="PlayPauseButton_Click">
-                        <TextBlock x:Name="PreviewPlayPauseText" Text="▶" FontSize="11" />
+                        <Path x:Name="PreviewPlayPauseIcon" Style="{StaticResource IslandIcon}" Data="{StaticResource IconPlay}" Width="13" Height="13" />
                     </Button>
                     <Button x:Name="PreviewNextButton" Style="{StaticResource IslandButton}"
                             Width="28" Height="28" Padding="0"
-                            ToolTip="Next" Click="NextButton_Click" Content="▶|" />
+                            ToolTip="Next" Click="NextButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconNext}" Width="13" Height="13" /></Button>
                 </StackPanel>
                 <Button Grid.Column="3" Width="30" Height="30" Padding="0"
                         Style="{StaticResource IslandButton}" ToolTip="Open full island"
-                        Click="FullExpandButton_Click" Content="↗" />
+                        Click="FullExpandButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconExpand}" Width="14" Height="14" /></Button>
             </Grid>
 
             <Grid x:Name="ExpandedContent" Visibility="Collapsed" Opacity="0">
@@ -93,17 +99,17 @@
                         <Image Source="pack://application:,,,/Assets/island-logo.png" Width="26" Height="26"
                                Margin="0,0,8,0" VerticalAlignment="Center" Stretch="Uniform"
                                ToolTip="Dynamic Island" />
-                        <Button Style="{StaticResource IslandButton}" Margin="0,0,5,0" Click="MediaNavButton_Click" Content="♪  Media" />
-                        <Button Style="{StaticResource IslandButton}" Margin="0,0,5,0" Click="FilesNavButton_Click" Content="▤  Files" />
-                        <Button Style="{StaticResource IslandButton}" Margin="0,0,5,0" Click="ClipboardNavButton_Click" Content="▣  Clipboard" />
-                        <Button Style="{StaticResource IslandButton}" Margin="0,0,5,0" Click="AppsNavButton_Click" Content="▶  Apps" />
-                        <Button Style="{StaticResource IslandButton}" Click="SettingsNavButton_Click" Content="⚙  Settings" />
+                        <Button Style="{StaticResource IslandButton}" Margin="0,0,5,0" Click="MediaNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconMusic}" /><TextBlock Text="Media" Margin="6,0,0,0" /></StackPanel></Button>
+                        <Button Style="{StaticResource IslandButton}" Margin="0,0,5,0" Click="FilesNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconFiles}" /><TextBlock Text="Files" Margin="6,0,0,0" /></StackPanel></Button>
+                        <Button Style="{StaticResource IslandButton}" Margin="0,0,5,0" Click="ClipboardNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconClipboard}" /><TextBlock Text="Clipboard" Margin="6,0,0,0" /></StackPanel></Button>
+                        <Button Style="{StaticResource IslandButton}" Margin="0,0,5,0" Click="AppsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconApps}" /><TextBlock Text="Apps" Margin="6,0,0,0" /></StackPanel></Button>
+                        <Button Style="{StaticResource IslandButton}" Click="SettingsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconSettings}" /><TextBlock Text="Settings" Margin="6,0,0,0" /></StackPanel></Button>
                     </StackPanel>
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                         <Button Style="{StaticResource IslandButton}" Width="32" Padding="0" Margin="0,0,4,0"
-                                Foreground="#FFFF9A9A" ToolTip="Exit" Click="ExitButton_Click" Content="×" />
+                                Foreground="#FFFF9A9A" ToolTip="Exit" Click="ExitButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconClose}" Width="13" Height="13" /></Button>
                         <Button Style="{StaticResource IslandButton}" Width="32" Padding="0"
-                                ToolTip="Collapse" Click="CollapseButton_Click" Content="⌃" />
+                                ToolTip="Collapse" Click="CollapseButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconCollapse}" Width="13" Height="13" /></Button>
                     </StackPanel>
                 </Grid>
 
@@ -117,9 +123,9 @@
                                 Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="18">
                             <Grid>
                                 <Image x:Name="Artwork" Stretch="Uniform" />
-                                <TextBlock x:Name="ArtworkFallbackIcon" Text="DI" FontSize="32" FontWeight="Bold"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{StaticResource SecondaryTextBrush}" />
+                                <Path x:Name="ArtworkFallbackIcon" Data="{StaticResource IconMusic}" Width="52" Height="52"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Fill="{StaticResource SecondaryTextBrush}" />
                             </Grid>
                         </Border>
                         <Grid Grid.Column="1" Margin="18,12,12,12">
@@ -141,15 +147,15 @@
                             </StackPanel>
                             <StackPanel Grid.Row="2" Orientation="Horizontal">
                                 <Button x:Name="PreviousButton" Style="{StaticResource IslandButton}" Width="44" Height="44"
-                                        Padding="0" Margin="0,0,10,0" Click="PreviousButton_Click" Content="◀" />
+                                        Padding="0" Margin="0,0,10,0" Click="PreviousButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconPrevious}" Width="19" Height="19" /></Button>
                                 <Button x:Name="PlayPauseButton" Style="{StaticResource IslandButton}" Width="52" Height="52"
                                         Padding="0" Margin="0,0,10,0" Background="{StaticResource PrimaryActionBrush}"
                                         Foreground="{StaticResource PrimaryActionTextBrush}"
                                         Click="PlayPauseButton_Click">
-                                    <TextBlock x:Name="PlayPauseIcon" Text="▶" FontSize="18" />
+                                    <Path x:Name="PlayPauseIcon" Style="{StaticResource IslandIcon}" Data="{StaticResource IconPlay}" Width="21" Height="21" />
                                 </Button>
                                 <Button x:Name="NextButton" Style="{StaticResource IslandButton}" Width="44" Height="44"
-                                        Padding="0" Click="NextButton_Click" Content="▶|" />
+                                        Padding="0" Click="NextButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconNext}" Width="19" Height="19" /></Button>
                             </StackPanel>
                         </Grid>
                     </Grid>
@@ -198,7 +204,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <Border Width="30" Height="30" Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8">
-                                            <TextBlock Text="▤" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <Path Data="{StaticResource IconFiles}" Width="17" Height="17" Fill="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
                                         <StackPanel Grid.Column="1" Margin="9,0" VerticalAlignment="Center">
                                             <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
@@ -263,7 +269,7 @@
                         <StackPanel Grid.ColumnSpan="3" Margin="0,0,0,10">
                             <TextBlock Text="App runner" FontSize="20" FontWeight="SemiBold"
                                        Foreground="{StaticResource PrimaryTextBrush}" />
-                            <TextBlock Text="Use applications directly here. Open externally restores their desktop window."
+                            <TextBlock Text="Desktop apps can be interactive here; packaged apps such as WhatsApp use a live preview. Open externally restores their window."
                                        FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
                         </StackPanel>
 
@@ -375,6 +381,52 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="260" /></Grid.ColumnDefinitions>
                                     <StackPanel>
+                                        <TextBlock Text="Island surface" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource PrimaryTextBrush}" />
+                                        <TextBlock Text="Use the theme color or your own two-color gradient."
+                                                   FontSize="11" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <ComboBox x:Name="SurfaceStyleComboBox"
+                                                  SelectionChanged="SurfaceStyleComboBox_SelectionChanged">
+                                            <ComboBoxItem Content="Solid theme color" />
+                                            <ComboBoxItem Content="Custom gradient" />
+                                        </ComboBox>
+                                        <StackPanel x:Name="GradientOptions" Margin="0,8,0,0" Visibility="Collapsed">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBox x:Name="GradientStartColorTextBox" Width="130" Height="28" Padding="7,3"
+                                                         VerticalContentAlignment="Center" Background="{StaticResource InputSurfaceBrush}"
+                                                         Foreground="{StaticResource PrimaryTextBrush}" BorderThickness="0" />
+                                                <Button Style="{StaticResource IslandButton}" Tag="Start" Margin="8,0,0,0"
+                                                        Click="PickGradientColorButton_Click" Content="Pick start" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBox x:Name="GradientEndColorTextBox" Width="130" Height="28" Padding="7,3"
+                                                         VerticalContentAlignment="Center" Background="{StaticResource InputSurfaceBrush}"
+                                                         Foreground="{StaticResource PrimaryTextBrush}" BorderThickness="0" />
+                                                <Button Style="{StaticResource IslandButton}" Tag="End" Margin="8,0,0,0"
+                                                        Click="PickGradientColorButton_Click" Content="Pick end" />
+                                            </StackPanel>
+                                            <ComboBox x:Name="GradientDirectionComboBox"
+                                                      SelectionChanged="GradientDirectionComboBox_SelectionChanged">
+                                                <ComboBoxItem Content="Top to bottom" />
+                                                <ComboBoxItem Content="Left to right" />
+                                                <ComboBoxItem Content="Diagonal" />
+                                            </ComboBox>
+                                            <Button Style="{StaticResource IslandButton}" Margin="0,7,0,0"
+                                                    HorizontalAlignment="Left" Click="ApplyGradientButton_Click" Content="Apply colors" />
+                                            <TextBlock x:Name="GradientStatusText" Margin="0,5,0,0" FontSize="10"
+                                                       Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border Padding="14" Background="{StaticResource PanelSurfaceBrush}" CornerRadius="14" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="260" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
                                         <TextBlock Text="Accent color" FontWeight="SemiBold"
                                                    Foreground="{StaticResource PrimaryTextBrush}" />
                                         <TextBlock Text="Use a hex color or choose a preset." FontSize="11"
@@ -424,6 +476,29 @@
                                         <ComboBoxItem Content="Album artwork" />
                                         <ComboBoxItem Content="Island mark" />
                                     </ComboBox>
+                                </Grid>
+                            </Border>
+
+                            <Border Padding="14" Background="{StaticResource PanelSurfaceBrush}" CornerRadius="14" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="260" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Custom mini logo" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource PrimaryTextBrush}" />
+                                        <TextBlock Text="Shown only when the island is fully minimized. A copy is saved locally."
+                                                   FontSize="11" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Style="{StaticResource IslandButton}" Margin="0,0,8,0"
+                                                    Click="ChooseMiniLogoButton_Click" Content="Choose picture" />
+                                            <Button Style="{StaticResource IslandButton}"
+                                                    Click="ClearMiniLogoButton_Click" Content="Clear" />
+                                        </StackPanel>
+                                        <TextBlock x:Name="MiniLogoStatusText" Margin="0,6,0,0" FontSize="10"
+                                                   TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
+                                    </StackPanel>
                                 </Grid>
                             </Border>
 
