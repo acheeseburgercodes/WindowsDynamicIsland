@@ -8,6 +8,7 @@ public sealed class MediaSessionService : IDisposable
 {
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
     private GlobalSystemMediaTransportControlsSession? _session;
+    private MediaSnapshot _latestSnapshot = MediaSnapshot.Empty;
     private bool _disposed;
 
     public event EventHandler<MediaSnapshot>? MediaChanged;
@@ -47,6 +48,32 @@ public sealed class MediaSessionService : IDisposable
         ? Task.CompletedTask
         : _session.TrySkipNextAsync().AsTask();
 
+    public async Task<bool> SeekAsync(TimeSpan requestedPosition)
+    {
+        var session = _session;
+        if (session?.GetPlaybackInfo()?.Controls?.IsPlaybackPositionEnabled != true)
+            return false;
+
+        try
+        {
+            var timeline = session.GetTimelineProperties();
+            if (timeline.EndTime <= timeline.StartTime) return false;
+            var minimum = timeline.MinSeekTime > timeline.StartTime
+                ? timeline.MinSeekTime : timeline.StartTime;
+            var maximum = timeline.MaxSeekTime > minimum
+                ? timeline.MaxSeekTime : timeline.EndTime;
+            var position = TimeSpan.FromTicks(Math.Clamp(requestedPosition.Ticks,
+                minimum.Ticks, maximum.Ticks));
+            var succeeded = await session.TryChangePlaybackPositionAsync(position.Ticks);
+            if (succeeded) PublishTimelineSnapshot(session);
+            return succeeded;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private void OnCurrentSessionChanged(
         GlobalSystemMediaTransportControlsSessionManager sender,
         CurrentSessionChangedEventArgs args)
@@ -69,14 +96,17 @@ public sealed class MediaSessionService : IDisposable
         {
             _session.MediaPropertiesChanged -= OnMediaPropertiesChanged;
             _session.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+            _session.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
         }
 
         _session = session;
+        _latestSnapshot = MediaSnapshot.Empty;
 
         if (_session is not null)
         {
             _session.MediaPropertiesChanged += OnMediaPropertiesChanged;
             _session.PlaybackInfoChanged += OnPlaybackInfoChanged;
+            _session.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
         }
     }
 
@@ -88,12 +118,42 @@ public sealed class MediaSessionService : IDisposable
         GlobalSystemMediaTransportControlsSession sender,
         PlaybackInfoChangedEventArgs args) => _ = PublishSnapshotAsync();
 
+    private void OnTimelinePropertiesChanged(
+        GlobalSystemMediaTransportControlsSession sender,
+        TimelinePropertiesChangedEventArgs args) => PublishTimelineSnapshot(sender);
+
+    private void PublishTimelineSnapshot(GlobalSystemMediaTransportControlsSession session)
+    {
+        if (session != _session || !_latestSnapshot.HasSession) return;
+        try
+        {
+            var timeline = session.GetTimelineProperties();
+            PublishSnapshot(_latestSnapshot with
+            {
+                StartTime = timeline.StartTime,
+                EndTime = timeline.EndTime,
+                Position = timeline.Position,
+                TimelineUpdatedAt = timeline.LastUpdatedTime
+            });
+        }
+        catch
+        {
+            // Some players briefly invalidate the timeline while changing tracks.
+        }
+    }
+
+    private void PublishSnapshot(MediaSnapshot snapshot)
+    {
+        _latestSnapshot = snapshot;
+        MediaChanged?.Invoke(this, snapshot);
+    }
+
     private async Task PublishSnapshotAsync()
     {
         var session = _session;
         if (session is null)
         {
-            MediaChanged?.Invoke(this, MediaSnapshot.Empty);
+            PublishSnapshot(MediaSnapshot.Empty);
             return;
         }
 
@@ -101,6 +161,7 @@ public sealed class MediaSessionService : IDisposable
         {
             var properties = await session.TryGetMediaPropertiesAsync();
             var playback = session.GetPlaybackInfo();
+            var timeline = session.GetTimelineProperties();
             byte[]? thumbnail = null;
 
             if (properties.Thumbnail is not null)
@@ -116,7 +177,8 @@ public sealed class MediaSessionService : IDisposable
             }
 
             var controls = playback?.Controls;
-            MediaChanged?.Invoke(this, new MediaSnapshot(
+            if (session != _session) return;
+            PublishSnapshot(new MediaSnapshot(
                 true,
                 string.IsNullOrWhiteSpace(properties.Title) ? "Unknown title" : properties.Title,
                 string.IsNullOrWhiteSpace(properties.Artist) ? "Unknown artist" : properties.Artist,
@@ -125,11 +187,20 @@ public sealed class MediaSessionService : IDisposable
                 controls?.IsPlayEnabled == true || controls?.IsPauseEnabled == true,
                 controls?.IsPreviousEnabled == true,
                 controls?.IsNextEnabled == true,
-                thumbnail));
+                thumbnail)
+            {
+                SourceAppUserModelId = session.SourceAppUserModelId ?? string.Empty,
+                CanSeek = controls?.IsPlaybackPositionEnabled == true &&
+                          timeline.EndTime > timeline.StartTime,
+                StartTime = timeline.StartTime,
+                EndTime = timeline.EndTime,
+                Position = timeline.Position,
+                TimelineUpdatedAt = timeline.LastUpdatedTime
+            });
         }
         catch (Exception) when (!_disposed)
         {
-            MediaChanged?.Invoke(this, MediaSnapshot.Empty);
+            if (session == _session) PublishSnapshot(MediaSnapshot.Empty);
         }
     }
 

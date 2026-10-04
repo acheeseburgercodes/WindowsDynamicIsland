@@ -20,6 +20,7 @@
         DragOver="Window_DragOver"
         Drop="Window_Drop">
 
+    <Grid>
     <Border x:Name="IslandSurface"
             Padding="6,4"
             Background="{StaticResource IslandSurfaceBrush}"
@@ -85,7 +86,7 @@
                 </StackPanel>
                 <Button Grid.Column="3" Width="30" Height="30" Padding="0"
                         Style="{StaticResource IslandButton}" ToolTip="Open full island"
-                        Click="FullExpandButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconExpand}" Width="14" Height="14" /></Button>
+                        Click="FullExpandButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconExpand}" Width="14" Height="14" Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" /></Button>
             </Grid>
 
             <Grid x:Name="ExpandedContent" Visibility="Collapsed" Opacity="0">
@@ -107,9 +108,9 @@
                     </StackPanel>
                     <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                         <Button Style="{StaticResource IslandButton}" Width="32" Padding="0" Margin="0,0,4,0"
-                                Foreground="#FFFF9A9A" ToolTip="Exit" Click="ExitButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconClose}" Width="13" Height="13" /></Button>
+                                Foreground="#FFFF9A9A" ToolTip="Exit" Click="ExitButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconClose}" Width="13" Height="13" Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Button>
                         <Button Style="{StaticResource IslandButton}" Width="32" Padding="0"
-                                ToolTip="Collapse" Click="CollapseButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconCollapse}" Width="13" Height="13" /></Button>
+                                ToolTip="Collapse" Click="CollapseButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconCollapse}" Width="13" Height="13" Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" /></Button>
                     </StackPanel>
                 </Grid>
 
@@ -133,9 +134,16 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource AccentBrush}" />
+                            <Grid>
+                                <TextBlock Text="NOW PLAYING" FontSize="10" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}" />
+                                <Button x:Name="OpenPlayerButton" Style="{StaticResource IslandButton}"
+                                        HorizontalAlignment="Right" Padding="8,5" FontSize="10"
+                                        Click="OpenPlayerButton_Click" Content="Open player" />
+                            </Grid>
                             <StackPanel Grid.Row="1" VerticalAlignment="Center">
                                 <TextBlock x:Name="TrackTitle" Text="Nothing playing" FontSize="24" FontWeight="SemiBold"
                                            Foreground="{StaticResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis" />
@@ -145,7 +153,22 @@
                                 <TextBlock x:Name="AlbumTitle" Margin="0,3,0,0" FontSize="11"
                                            Foreground="#FF717178" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
-                            <StackPanel Grid.Row="2" Orientation="Horizontal">
+                            <Grid Grid.Row="2" Margin="0,0,0,16">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid>
+                                    <TextBlock x:Name="CurrentTimeText" Text="0:00" FontSize="10"
+                                               Foreground="{StaticResource SecondaryTextBrush}" />
+                                    <TextBlock x:Name="DurationText" Text="0:00" FontSize="10" HorizontalAlignment="Right"
+                                               Foreground="{StaticResource SecondaryTextBrush}" />
+                                </Grid>
+                                <Slider x:Name="SeekSlider" Grid.Row="1" Minimum="0" Maximum="1" Value="0"
+                                        IsEnabled="False" Margin="0,5,0,0"
+                                        ValueChanged="SeekSlider_ValueChanged"
+                                        PreviewMouseLeftButtonDown="SeekSlider_PreviewMouseLeftButtonDown"
+                                        PreviewMouseLeftButtonUp="SeekSlider_PreviewMouseLeftButtonUp"
+                                        PreviewKeyUp="SeekSlider_PreviewKeyUp" />
+                            </Grid>
+                            <StackPanel Grid.Row="3" Orientation="Horizontal">
                                 <Button x:Name="PreviousButton" Style="{StaticResource IslandButton}" Width="44" Height="44"
                                         Padding="0" Margin="0,0,10,0" Click="PreviousButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconPrevious}" Width="19" Height="19" /></Button>
                                 <Button x:Name="PlayPauseButton" Style="{StaticResource IslandButton}" Width="52" Height="52"
@@ -157,6 +180,8 @@
                                 <Button x:Name="NextButton" Style="{StaticResource IslandButton}" Width="44" Height="44"
                                         Padding="0" Click="NextButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconNext}" Width="19" Height="19" /></Button>
                             </StackPanel>
+                            <TextBlock x:Name="MediaStatusText" Grid.Row="4" Margin="0,8,0,0" FontSize="10"
+                                       Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                         </Grid>
                     </Grid>
 
@@ -354,7 +379,7 @@
                                     <StackPanel Grid.Column="1">
                                         <TextBlock x:Name="OpacityValueText" HorizontalAlignment="Right"
                                                    Foreground="{StaticResource SecondaryTextBrush}" />
-                                        <Slider x:Name="OpacitySlider" Minimum="10" Maximum="100" Value="42"
+                                        <Slider x:Name="OpacitySlider" Style="{StaticResource BeUiOpacitySlider}" Minimum="10" Maximum="100" Value="42"
                                                 ValueChanged="OpacitySlider_ValueChanged" />
                                     </StackPanel>
                                 </Grid>
@@ -485,7 +510,7 @@
                                     <StackPanel>
                                         <TextBlock Text="Custom mini logo" FontWeight="SemiBold"
                                                    Foreground="{StaticResource PrimaryTextBrush}" />
-                                        <TextBlock Text="Shown only when the island is fully minimized. A copy is saved locally."
+                                        <TextBlock Text="Crop and rotate a picture for the minimized island. A copy is saved locally."
                                                    FontSize="11" TextWrapping="Wrap"
                                                    Foreground="{StaticResource SecondaryTextBrush}" />
                                     </StackPanel>
@@ -550,4 +575,23 @@
             </Grid>
         </Grid>
     </Border>
+    <Border x:Name="LiquidBorder" IsHitTestVisible="False" CornerRadius="13" BorderThickness="1.5"
+            SnapsToDevicePixels="True">
+        <Border.BorderBrush>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <LinearGradientBrush.RelativeTransform>
+                    <RotateTransform CenterX="0.5" CenterY="0.5" />
+                </LinearGradientBrush.RelativeTransform>
+                <GradientStop Color="#FF30343A" Offset="0" />
+                <GradientStop Color="#FFB9C4CE" Offset="0.16" />
+                <GradientStop Color="#FFF7FCFF" Offset="0.23" />
+                <GradientStop Color="#FF71818D" Offset="0.33" />
+                <GradientStop Color="#FF252A30" Offset="0.52" />
+                <GradientStop Color="#FFDAE3EB" Offset="0.72" />
+                <GradientStop Color="#FF56616C" Offset="0.85" />
+                <GradientStop Color="#FF30343A" Offset="1" />
+            </LinearGradientBrush>
+        </Border.BorderBrush>
+    </Border>
+    </Grid>
 </Window>

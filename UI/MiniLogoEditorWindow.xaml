@@ -1,0 +1,48 @@
+<Window x:Class="DynamicIsland.UI.MiniLogoEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit mini logo" Width="600" Height="520" MinWidth="600" MinHeight="520"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False"
+        Background="{DynamicResource HostSurfaceBrush}" Foreground="{DynamicResource PrimaryTextBrush}">
+    <Grid Margin="22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="320" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock Text="Crop your mini logo" FontSize="21" FontWeight="SemiBold" />
+        <TextBlock Grid.Row="1" Margin="0,4,0,12" Text="Drag on the photo to select the part to keep. Rotate it before saving if needed."
+                   FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" />
+        <Border Grid.Row="2" Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="14" ClipToBounds="True">
+            <Canvas x:Name="CropCanvas" Width="540" Height="320" Background="Transparent"
+                    MouseLeftButtonDown="CropCanvas_MouseLeftButtonDown"
+                    MouseMove="CropCanvas_MouseMove" MouseLeftButtonUp="CropCanvas_MouseLeftButtonUp">
+                <Image x:Name="SourceImage" Width="540" Height="320" Stretch="Uniform" IsHitTestVisible="False" />
+                <Rectangle x:Name="SelectionRectangle" Stroke="{DynamicResource AccentBrush}" StrokeThickness="2"
+                           Fill="#15000000" IsHitTestVisible="False" />
+            </Canvas>
+        </Border>
+        <Grid Grid.Row="3" Margin="0,14,0,0">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource IslandButton}" Click="RotateLeft_Click" Content="Rotate left" Margin="0,0,8,0" />
+                <Button Style="{StaticResource IslandButton}" Click="RotateRight_Click" Content="Rotate right" Margin="0,0,8,0" />
+                <Button Style="{StaticResource IslandButton}" Click="ResetSelection_Click" Content="Select all" />
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                <TextBlock Text="Mini preview" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"
+                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                <Border Width="38" Height="38" CornerRadius="10" Background="{DynamicResource SubtleSurfaceBrush}"
+                        ClipToBounds="True">
+                    <Image x:Name="CropPreview" Stretch="Uniform" />
+                </Border>
+            </StackPanel>
+        </Grid>
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+            <Button Style="{StaticResource IslandButton}" Width="80" Margin="0,0,8,0" Click="Cancel_Click" Content="Cancel" />
+            <Button Style="{StaticResource IslandButton}" Width="104" Background="{DynamicResource PrimaryActionBrush}"
+                    Foreground="{DynamicResource PrimaryActionTextBrush}" Click="UseCrop_Click" Content="Use this crop" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -6,7 +6,7 @@ The application source is licensed under the [MIT License](LICENSE). Self-contai
 
 ## Features
 
-- Active Windows media-session preview with previous, play/pause, and next controls
+- Album artwork, live timeline and seeking where supported, media controls, and a button to open the source player
 - Durable file shelf with drag-in and drag-out, file picker, clipboard paste, open, copy, and remove actions
 - Global island drop target: files can be dropped on the idle pill and are copied into app-managed storage
 - Editable Windows text clipboard view with copy and paste controls
@@ -23,6 +23,8 @@ The application source is licensed under the [MIT License](LICENSE). Self-contai
 - Three-stage interaction: mini idle pill, compact hover preview, and animated full expansion
 - Fade-and-slide animations when switching the full island's tabs
 - Optional custom picture for the minimized mini logo, copied into local app storage
+- Photo crop-and-rotate editor before saving a custom mini logo
+- Liquid-metal border on the mini pill and compact music preview, fluid-style native dropdowns, and a ticked opacity slider
 - Resolution-independent vector icons for navigation, playback, and the music-logo option
 - Click-and-hold dragging with saved screen position, automatic collapse, and an explicit Exit control
 - Per-pixel-transparent, borderless top-center window with top-center-origin eased scale transitions

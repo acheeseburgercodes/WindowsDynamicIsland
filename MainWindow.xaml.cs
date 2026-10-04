@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -14,6 +15,7 @@ using System.Windows.Threading;
 using DynamicIsland.Core;
 using DynamicIsland.Models;
 using DynamicIsland.Services;
+using DynamicIsland.UI;
 using Microsoft.Win32;
 
 namespace DynamicIsland;
@@ -45,11 +47,16 @@ public partial class MainWindow : Window
     private readonly WindowService _windowService;
     private readonly DispatcherTimer _collapseTimer = new() { Interval = TimeSpan.FromMilliseconds(900) };
     private readonly DispatcherTimer _settingsSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
+    private readonly DispatcherTimer _mediaProgressTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
     private AppConfiguration _configuration = new();
     private bool _settingsLoaded;
     private bool _isDragging;
     private bool _isFileDragInProgress;
+    private bool _isLogoEditorOpen;
+    private bool _suppressHoverUntilPointerLeaves;
+    private bool _isSeeking;
+    private bool _isUpdatingSeek;
     private DockedFileItem? _fileDragItem;
     private BitmapSource? _currentArtwork;
     private BitmapSource? _customMiniLogo;
@@ -73,8 +80,18 @@ public partial class MainWindow : Window
         AppList.ItemsSource = _applications;
         RunningAppsComboBox.ItemsSource = _runningApplications;
         InstalledAppsComboBox.ItemsSource = _installedApplications;
+        OpacitySlider.AddHandler(Thumb.DragCompletedEvent,
+            new DragCompletedEventHandler(OpacitySlider_DragCompleted));
+        SeekSlider.AddHandler(Thumb.DragCompletedEvent,
+            new DragCompletedEventHandler((thumb, args) =>
+            {
+                if (_isSeeking) _ = CommitSeekAsync();
+            }));
         IslandSurface.RenderTransformOrigin = new Point(0.5, 0);
         IslandSurface.RenderTransform = new ScaleTransform(1, 1);
+        LiquidBorder.RenderTransformOrigin = IslandSurface.RenderTransformOrigin;
+        LiquidBorder.RenderTransform = IslandSurface.RenderTransform;
+        UpdateLiquidBorder(IslandState.Collapsed);
         LocationChanged += (_, _) => UpdateInteractivePanel();
         SizeChanged += (_, _) => UpdateInteractivePanel();
         AppHostViewport.SizeChanged += (_, _) => UpdateInteractivePanel();
@@ -85,6 +102,8 @@ public partial class MainWindow : Window
         _mediaService.MediaChanged += OnMediaChanged;
         _collapseTimer.Tick += CollapseTimer_Tick;
         _settingsSaveTimer.Tick += SettingsSaveTimer_Tick;
+        _mediaProgressTimer.Tick += (_, _) => ApplyMediaProgress();
+        _mediaProgressTimer.Start();
         _topmostTimer.Tick += (_, _) =>
         {
             if (!IsVisible || WindowState == WindowState.Minimized) return;
@@ -237,6 +256,7 @@ public partial class MainWindow : Window
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
         _collapseTimer.Stop();
+        if (_suppressHoverUntilPointerLeaves) return;
         if (_islandManager.State == IslandState.Collapsed)
         {
             _islandManager.TransitionTo(IslandState.Preview);
@@ -245,7 +265,11 @@ public partial class MainWindow : Window
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
-        if (!_isDragging && !_isFileDragInProgress && _islandManager.State != IslandState.Collapsed &&
+        if (_suppressHoverUntilPointerLeaves && !_isAnimating &&
+            _islandManager.State == IslandState.Collapsed)
+            _suppressHoverUntilPointerLeaves = false;
+
+        if (!_isDragging && !_isFileDragInProgress && !_isLogoEditorOpen && _islandManager.State != IslandState.Collapsed &&
             !_interactiveAppPanel.IsAttached && !_liveAppPreview.IsAttached)
         {
             _collapseTimer.Start();
@@ -339,7 +363,7 @@ public partial class MainWindow : Window
 
     private void CollapseTimer_Tick(object? sender, EventArgs e)
     {
-        if (_isDragging || _isFileDragInProgress || IsMouseOver || _interactiveAppPanel.IsAttached || _liveAppPreview.IsAttached ||
+        if (_isDragging || _isFileDragInProgress || _isLogoEditorOpen || IsMouseOver || _interactiveAppPanel.IsAttached || _liveAppPreview.IsAttached ||
             EdgeComboBox.IsDropDownOpen || AlignmentComboBox.IsDropDownOpen)
         {
             _collapseTimer.Stop();
@@ -352,6 +376,7 @@ public partial class MainWindow : Window
 
     private void OnIslandStateChanged(object? sender, IslandState state)
     {
+        UpdateLiquidBorder(state);
         var (width, height) = state switch
         {
             IslandState.Preview => (PreviewWidth, PreviewHeight),
@@ -365,6 +390,34 @@ public partial class MainWindow : Window
         _liveAppPreview.Suspend();
         ShowStateContent(state);
         AnimateIslandResize(width, height, state);
+    }
+
+    private void UpdateLiquidBorder(IslandState state)
+    {
+        var showBorder = state is IslandState.Collapsed or IslandState.Preview;
+        LiquidBorder.Visibility = showBorder ? Visibility.Visible : Visibility.Collapsed;
+        LiquidBorder.CornerRadius = state switch
+        {
+            IslandState.Collapsed => new CornerRadius(13),
+            IslandState.Preview => new CornerRadius(22),
+            _ => new CornerRadius(32)
+        };
+        if (LiquidBorder.BorderBrush is not LinearGradientBrush brush ||
+            brush.RelativeTransform is not RotateTransform rotation) return;
+
+        if (brush.IsFrozen || rotation.IsFrozen)
+        {
+            brush = brush.CloneCurrentValue();
+            LiquidBorder.BorderBrush = brush;
+            rotation = (RotateTransform)brush.RelativeTransform;
+        }
+
+        rotation.BeginAnimation(RotateTransform.AngleProperty,
+            showBorder ? new DoubleAnimation(0, 360, TimeSpan.FromSeconds(5))
+            {
+                RepeatBehavior = RepeatBehavior.Forever,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+            } : null);
     }
 
     private void AnimateIslandResize(double targetWidth, double targetHeight, IslandState state)
@@ -433,6 +486,8 @@ public partial class MainWindow : Window
         _windowService.ResizeAndPosition(targetWidth, targetHeight);
         _windowService.RemoveNativeBorder();
         _isAnimating = false;
+        if (_islandManager.State == IslandState.Collapsed && !IsMouseOver)
+            _suppressHoverUntilPointerLeaves = false;
         UpdateInteractivePanel();
     }
 
@@ -481,8 +536,12 @@ public partial class MainWindow : Window
         _islandManager.TransitionTo(IslandState.Expanded);
     }
 
-    private void CollapseButton_Click(object sender, RoutedEventArgs e) =>
+    private void CollapseButton_Click(object sender, RoutedEventArgs e)
+    {
+        _collapseTimer.Stop();
+        _suppressHoverUntilPointerLeaves = true;
         _islandManager.TransitionTo(IslandState.Collapsed);
+    }
 
     private async void ExitButton_Click(object sender, RoutedEventArgs e)
     {
@@ -576,6 +635,7 @@ public partial class MainWindow : Window
 
     private void ApplyMediaSnapshot(MediaSnapshot snapshot)
     {
+        var thumbnailChanged = !ReferenceEquals(_currentMediaSnapshot.Thumbnail, snapshot.Thumbnail);
         _currentMediaSnapshot = snapshot;
         TrackTitle.Text = snapshot.Title;
         TrackArtist.Text = snapshot.Artist;
@@ -592,10 +652,16 @@ public partial class MainWindow : Window
         PreviewPreviousButton.IsEnabled = snapshot.CanPrevious;
         PreviewPlayPauseButton.IsEnabled = snapshot.CanPlayPause;
         PreviewNextButton.IsEnabled = snapshot.CanNext;
+        OpenPlayerButton.IsEnabled = snapshot.HasSession &&
+                                     !string.IsNullOrWhiteSpace(snapshot.SourceAppUserModelId);
+        ApplyMediaProgress();
         ApplyPlaybackIndicator();
 
-        _currentArtwork = CreateImage(snapshot.Thumbnail);
-        Artwork.Source = _currentArtwork;
+        if (thumbnailChanged)
+        {
+            _currentArtwork = CreateImage(snapshot.Thumbnail);
+            Artwork.Source = _currentArtwork;
+        }
         ArtworkFallbackIcon.Visibility = _currentArtwork is null ? Visibility.Visible : Visibility.Collapsed;
         ApplyLogoStyle();
     }
@@ -620,6 +686,89 @@ public partial class MainWindow : Window
     private async void PreviousButton_Click(object sender, RoutedEventArgs e) => await _mediaService.PreviousAsync();
     private async void PlayPauseButton_Click(object sender, RoutedEventArgs e) => await _mediaService.TogglePlayPauseAsync();
     private async void NextButton_Click(object sender, RoutedEventArgs e) => await _mediaService.NextAsync();
+
+    private void ApplyMediaProgress()
+    {
+        var snapshot = _currentMediaSnapshot;
+        var duration = snapshot.EndTime - snapshot.StartTime;
+        var hasTimeline = snapshot.HasSession && duration > TimeSpan.Zero;
+        SeekSlider.IsEnabled = hasTimeline && snapshot.CanSeek;
+        if (_isSeeking) return;
+
+        var elapsed = snapshot.Position - snapshot.StartTime;
+        if (snapshot.IsPlaying && snapshot.TimelineUpdatedAt != default)
+        {
+            var sinceUpdate = DateTimeOffset.UtcNow - snapshot.TimelineUpdatedAt;
+            if (sinceUpdate > TimeSpan.Zero)
+                elapsed += sinceUpdate;
+        }
+
+        var durationSeconds = hasTimeline ? duration.TotalSeconds : 0;
+        var elapsedSeconds = Math.Clamp(elapsed.TotalSeconds, 0, durationSeconds);
+        _isUpdatingSeek = true;
+        try
+        {
+            SeekSlider.Maximum = Math.Max(1, durationSeconds);
+            SeekSlider.Value = elapsedSeconds;
+            CurrentTimeText.Text = FormatMediaTime(TimeSpan.FromSeconds(elapsedSeconds));
+            DurationText.Text = FormatMediaTime(hasTimeline ? duration : TimeSpan.Zero);
+        }
+        finally
+        {
+            _isUpdatingSeek = false;
+        }
+    }
+
+    private static string FormatMediaTime(TimeSpan time) => time.TotalHours >= 1
+        ? time.ToString(@"h\:mm\:ss")
+        : time.ToString(@"m\:ss");
+
+    private void SeekSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_isUpdatingSeek && CurrentTimeText is not null)
+            CurrentTimeText.Text = FormatMediaTime(TimeSpan.FromSeconds(Math.Max(0, e.NewValue)));
+    }
+
+    private void SeekSlider_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) =>
+        _isSeeking = SeekSlider.IsEnabled;
+
+    private void SeekSlider_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isSeeking) return;
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (_isSeeking) _ = CommitSeekAsync();
+        }));
+    }
+
+    private void SeekSlider_PreviewKeyUp(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Left or Key.Right or Key.Home or Key.End or Key.PageUp or Key.PageDown)
+            _ = CommitSeekAsync();
+    }
+
+    private async Task CommitSeekAsync()
+    {
+        if (!_currentMediaSnapshot.CanSeek)
+        {
+            _isSeeking = false;
+            return;
+        }
+
+        var requested = _currentMediaSnapshot.StartTime + TimeSpan.FromSeconds(SeekSlider.Value);
+        _isSeeking = false;
+        var succeeded = await _mediaService.SeekAsync(requested);
+        MediaStatusText.Text = succeeded ? string.Empty : "This player did not accept the seek request.";
+        if (!succeeded) ApplyMediaProgress();
+    }
+
+    private void OpenPlayerButton_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MediaAppWindowService.Open(_currentMediaSnapshot.SourceAppUserModelId);
+        MediaStatusText.Text = result.Message;
+        if (result.Opened)
+            _islandManager.TransitionTo(IslandState.Collapsed);
+    }
 
     private async void AddFilesButton_Click(object sender, RoutedEventArgs e)
     {
@@ -1138,6 +1287,25 @@ public partial class MainWindow : Window
         QueueSettingsSave();
     }
 
+    private void OpacitySlider_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        if (OpacitySlider.Template.FindName("OpacityThumb", OpacitySlider) is not Thumb thumb ||
+            thumb.RenderTransform is not ScaleTransform scale) return;
+
+        // Template-created Freezables may be shared and frozen; animate a local copy.
+        if (scale.IsFrozen)
+        {
+            scale = scale.CloneCurrentValue();
+            thumb.RenderTransform = scale;
+        }
+
+        var bounce = new DoubleAnimationUsingKeyFrames();
+        bounce.KeyFrames.Add(new EasingDoubleKeyFrame(0.78, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(50))));
+        bounce.KeyFrames.Add(new EasingDoubleKeyFrame(1.13, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140))));
+        bounce.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260))));
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, bounce);
+    }
+
     private void ApplySurfaceOpacity(double opacity)
     {
         var alpha = (byte)Math.Round(255 * opacity);
@@ -1408,19 +1576,28 @@ public partial class MainWindow : Window
             Title = "Choose a picture for the minimized island",
             Filter = "Image files|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff|All files|*.*"
         };
-        if (dialog.ShowDialog(this) != true) return;
-
+        _isLogoEditorOpen = true;
+        _collapseTimer.Stop();
         try
         {
-            _customMiniLogo = _miniLogoStorage.Save(dialog.FileName);
+            if (dialog.ShowDialog(this) != true) return;
+            var source = _miniLogoStorage.LoadSource(dialog.FileName);
+            var editor = new MiniLogoEditorWindow(source) { Owner = this };
+            if (editor.ShowDialog() != true || editor.EditedImage is null) return;
+
+            _customMiniLogo = _miniLogoStorage.Save(editor.EditedImage);
             _configuration.MiniLogoImagePath = _miniLogoStorage.StoredPath;
-            MiniLogoStatusText.Text = "Picture saved for the minimized island.";
+            MiniLogoStatusText.Text = "Edited picture saved for the minimized island.";
             ApplyLogoStyle();
             QueueSettingsSave();
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             MiniLogoStatusText.Text = $"Could not use this picture: {exception.Message}";
+        }
+        finally
+        {
+            _isLogoEditorOpen = false;
         }
     }
 
@@ -1503,6 +1680,7 @@ public partial class MainWindow : Window
     private void QueueSettingsSave()
     {
         _settingsSaveTimer.Stop();
+        _mediaProgressTimer.Stop();
         _settingsSaveTimer.Start();
     }
 

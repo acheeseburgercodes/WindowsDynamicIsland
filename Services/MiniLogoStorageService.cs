@@ -28,21 +28,28 @@ public sealed class MiniLogoStorageService
 
     public BitmapSource Save(string sourcePath)
     {
+        return Save(LoadSource(sourcePath));
+    }
+
+    public BitmapSource LoadSource(string sourcePath)
+    {
         var source = new FileInfo(sourcePath);
         if (!source.Exists || source.Length > 16 * 1024 * 1024)
             throw new InvalidDataException("Choose an image smaller than 16 MB.");
-        if (string.Equals(source.FullName, _storedPath, StringComparison.OrdinalIgnoreCase))
-            return Load(_storedPath)!;
 
         using var stream = File.OpenRead(source.FullName);
         var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat,
-            BitmapCacheOption.OnDemand);
+            BitmapCacheOption.OnLoad);
         var frame = decoder.Frames[0];
-        if (frame.PixelWidth <= 0 || frame.PixelHeight <= 0 ||
-            frame.PixelWidth > 8192 || frame.PixelHeight > 8192 ||
-            (long)frame.PixelWidth * frame.PixelHeight > 32_000_000)
-            throw new InvalidDataException("Choose an image smaller than 32 megapixels.");
+        ValidateDimensions(frame);
+        frame.Freeze();
+        return frame;
+    }
 
+    public BitmapSource Save(BitmapSource source)
+    {
+        ValidateDimensions(source);
+        var frame = source;
         var scale = Math.Min(1.0, 128.0 / Math.Max(frame.PixelWidth, frame.PixelHeight));
         BitmapSource image = scale < 1
             ? new TransformedBitmap(frame, new ScaleTransform(scale, scale))
@@ -65,6 +72,14 @@ public sealed class MiniLogoStorageService
         }
 
         return Load(_storedPath)!;
+    }
+
+    private static void ValidateDimensions(BitmapSource frame)
+    {
+        if (frame.PixelWidth <= 0 || frame.PixelHeight <= 0 ||
+            frame.PixelWidth > 8192 || frame.PixelHeight > 8192 ||
+            (long)frame.PixelWidth * frame.PixelHeight > 32_000_000)
+            throw new InvalidDataException("Choose an image smaller than 32 megapixels.");
     }
 
     public void Clear()

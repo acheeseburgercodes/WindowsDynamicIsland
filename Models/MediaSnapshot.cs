@@ -11,6 +11,13 @@ public sealed record MediaSnapshot(
     bool CanNext,
     byte[]? Thumbnail)
 {
+    public string SourceAppUserModelId { get; init; } = string.Empty;
+    public bool CanSeek { get; init; }
+    public TimeSpan StartTime { get; init; }
+    public TimeSpan EndTime { get; init; }
+    public TimeSpan Position { get; init; }
+    public DateTimeOffset TimelineUpdatedAt { get; init; }
+
     public static MediaSnapshot Empty { get; } = new(
         false,
         "Nothing playing",

@@ -29,9 +29,9 @@
             <Geometry x:Key="IconNext">M17,5 L19,5 19,19 17,19 Z M6,5 L16,12 6,19 Z</Geometry>
             <Geometry x:Key="IconPlay">M7,4 L20,12 7,20 Z</Geometry>
             <Geometry x:Key="IconPause">M6,4 L10,4 10,20 6,20 Z M14,4 L18,4 18,20 14,20 Z</Geometry>
-            <Geometry x:Key="IconExpand">M13,3 L21,3 21,11 19,11 19,6.4 7,18.4 5.6,17 17.6,5 13,5 Z M3,7 L5,7 5,19 17,19 17,21 3,21 Z</Geometry>
-            <Geometry x:Key="IconClose">M5.5,4 L12,10.5 18.5,4 20,5.5 13.5,12 20,18.5 18.5,20 12,13.5 5.5,20 4,18.5 10.5,12 4,5.5 Z</Geometry>
-            <Geometry x:Key="IconCollapse">M4,14 L12,6 20,14 18.5,15.5 12,9 5.5,15.5 Z</Geometry>
+            <Geometry x:Key="IconExpand">M8,4 L4,4 4,8 M4,4 L10,10 M16,4 L20,4 20,8 M20,4 L14,10 M8,20 L4,20 4,16 M4,20 L10,14 M16,20 L20,20 20,16 M20,20 L14,14</Geometry>
+            <Geometry x:Key="IconClose">M5,5 L19,19 M19,5 L5,19</Geometry>
+            <Geometry x:Key="IconCollapse">M4,10 L10,10 10,4 M10,10 L4,4 M20,10 L14,10 14,4 M14,10 L20,4 M4,14 L10,14 10,20 M10,14 L4,20 M20,14 L14,14 14,20 M14,14 L20,20</Geometry>
             <Style x:Key="IslandIcon" TargetType="Path">
                 <Setter Property="Width" Value="16" />
                 <Setter Property="Height" Value="16" />
@@ -63,6 +63,155 @@
                                     <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.35" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="FluidComboBoxItem" TargetType="ComboBoxItem">
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+                <Setter Property="Padding" Value="10,7" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBoxItem">
+                            <Border x:Name="ItemSurface" Background="Transparent" CornerRadius="9" Padding="{TemplateBinding Padding}" Margin="3,2">
+                                <ContentPresenter />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource PanelSurfaceBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style TargetType="ComboBox">
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+                <Setter Property="Background" Value="{DynamicResource InputSurfaceBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="MinHeight" Value="32" />
+                <Setter Property="ItemContainerStyle" Value="{StaticResource FluidComboBoxItem}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ComboBox">
+                            <Grid>
+                                <Border x:Name="ControlFrame" Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="12" />
+                                <ContentPresenter Margin="12,0,33,0" VerticalAlignment="Center"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  IsHitTestVisible="False" />
+                                <Path x:Name="Chevron" Data="M4,8 L12,16 20,8" Width="12" Height="12"
+                                      Stroke="{TemplateBinding Foreground}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" Fill="Transparent" HorizontalAlignment="Right"
+                                      VerticalAlignment="Center" Margin="0,0,11,0">
+                                    <Path.RenderTransform><RotateTransform CenterX="6" CenterY="6" /></Path.RenderTransform>
+                                </Path>
+                                <ToggleButton Focusable="False" Background="Transparent" BorderThickness="0"
+                                              IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent" CornerRadius="12" />
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                </ToggleButton>
+                                <Popup x:Name="PART_Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=ControlFrame}"
+                                       AllowsTransparency="True" PopupAnimation="Fade" Focusable="False"
+                                       IsOpen="{TemplateBinding IsDropDownOpen}">
+                                    <Border x:Name="PopupFrame" MinWidth="{Binding ActualWidth, ElementName=ControlFrame}"
+                                            Margin="0,4,0,0" Padding="4" CornerRadius="14"
+                                            Background="{DynamicResource HostSurfaceBrush}"
+                                            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                        <Border.RenderTransform>
+                                            <ScaleTransform CenterX="0.5" CenterY="0" />
+                                        </Border.RenderTransform>
+                                        <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                                      CanContentScroll="True" VerticalScrollBarVisibility="Auto">
+                                            <ItemsPresenter />
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="ControlFrame" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsDropDownOpen" Value="True">
+                                    <Setter TargetName="ControlFrame" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                    <Setter TargetName="Chevron" Property="RenderTransform">
+                                        <Setter.Value><RotateTransform Angle="180" CenterX="6" CenterY="6" /></Setter.Value>
+                                    </Setter>
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="PopupFrame"
+                                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                                 From="0.94" To="1" Duration="0:0:0.18" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="ControlFrame" Property="Opacity" Value="0.45" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="BeUiOpacitySlider" TargetType="Slider">
+                <Setter Property="Height" Value="30" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Slider">
+                            <Grid Height="30" VerticalAlignment="Center">
+                                <UniformGrid Columns="10" Height="4" Margin="4,4,4,0" VerticalAlignment="Top" IsHitTestVisible="False">
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                    <Ellipse Width="3" Height="3" Fill="{DynamicResource SecondaryTextBrush}" />
+                                </UniformGrid>
+                                <Track x:Name="PART_Track" Margin="4,0" VerticalAlignment="Center">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                            <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="3" CornerRadius="2" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center" /></ControlTemplate></RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb x:Name="OpacityThumb" Width="8" Height="24">
+                                            <Thumb.RenderTransform><ScaleTransform CenterX="4" CenterY="12" /></Thumb.RenderTransform>
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border Width="8" Height="24" CornerRadius="4" Background="{DynamicResource PrimaryActionBrush}"
+                                                            BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
+                                                        <Border.RenderTransform><ScaleTransform CenterX="4" CenterY="12" /></Border.RenderTransform>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                            <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="3" CornerRadius="2" Background="{DynamicResource DividerBrush}" VerticalAlignment="Center" /></ControlTemplate></RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.IncreaseRepeatButton>
+                                </Track>
+                            </Grid>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
