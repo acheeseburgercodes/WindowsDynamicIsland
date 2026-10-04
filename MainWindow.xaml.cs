@@ -48,6 +48,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _collapseTimer = new() { Interval = TimeSpan.FromMilliseconds(900) };
     private readonly DispatcherTimer _settingsSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DispatcherTimer _mediaProgressTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private readonly DispatcherTimer _powerTimer = new() { Interval = TimeSpan.FromSeconds(5) };
+    private readonly ClipboardService _clipboardService = new();
 
     private AppConfiguration _configuration = new();
     private bool _settingsLoaded;
@@ -60,17 +62,25 @@ public partial class MainWindow : Window
     private DockedFileItem? _fileDragItem;
     private BitmapSource? _currentArtwork;
     private BitmapSource? _customMiniLogo;
+    private BitmapSource? _clipboardImage;
+    private List<string> _clipboardFiles = [];
+    private ClipboardKind _clipboardKind = ClipboardKind.Text;
+    private bool _chargingBorderActive;
+    private bool _isCharging;
     private MediaSnapshot _currentMediaSnapshot = MediaSnapshot.Empty;
     private Point _fileDragStart;
     private int _resizeAnimationVersion;
     private int _panelAnimationVersion;
     private UIElement? _activePanel;
+    private FrameworkElement? _visibleStateContent;
     private bool _installedAppsLoaded;
     private bool _isAnimating;
     private bool _isPinnedToAllDesktops;
     private int _desktopPinAttempts;
     private int _desktopPinTimerTicks;
     private readonly DispatcherTimer _topmostTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+
+    private enum ClipboardKind { Text, Image, Files }
 
     public MainWindow()
     {
@@ -104,6 +114,7 @@ public partial class MainWindow : Window
         _settingsSaveTimer.Tick += SettingsSaveTimer_Tick;
         _mediaProgressTimer.Tick += (_, _) => ApplyMediaProgress();
         _mediaProgressTimer.Start();
+        _powerTimer.Tick += (_, _) => RefreshChargingBorder();
         _topmostTimer.Tick += (_, _) =>
         {
             if (!IsVisible || WindowState == WindowState.Minimized) return;
@@ -144,6 +155,8 @@ public partial class MainWindow : Window
         _windowService.RemoveNativeBorder();
         _isPinnedToAllDesktops = _virtualDesktopService.TryPinIslandToAllDesktops(this);
         _topmostTimer.Start();
+        RefreshChargingBorder();
+        _powerTimer.Start();
         _configuration = await _configurationService.LoadAsync();
         if (_configuration.ConfigurationVersion < 4)
         {
@@ -395,6 +408,7 @@ public partial class MainWindow : Window
     private void UpdateLiquidBorder(IslandState state)
     {
         var showBorder = state is IslandState.Collapsed or IslandState.Preview;
+        var charging = state == IslandState.Collapsed && _isCharging;
         LiquidBorder.Visibility = showBorder ? Visibility.Visible : Visibility.Collapsed;
         LiquidBorder.CornerRadius = state switch
         {
@@ -402,6 +416,11 @@ public partial class MainWindow : Window
             IslandState.Preview => new CornerRadius(22),
             _ => new CornerRadius(32)
         };
+        if (charging != _chargingBorderActive)
+        {
+            _chargingBorderActive = charging;
+            LiquidBorder.BorderBrush = CreateLiquidBorderBrush(charging);
+        }
         if (LiquidBorder.BorderBrush is not LinearGradientBrush brush ||
             brush.RelativeTransform is not RotateTransform rotation) return;
 
@@ -418,6 +437,35 @@ public partial class MainWindow : Window
                 RepeatBehavior = RepeatBehavior.Forever,
                 EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
             } : null);
+        LiquidBorder.BeginAnimation(OpacityProperty, charging
+            ? new DoubleAnimation(0.68, 1, TimeSpan.FromMilliseconds(850))
+            {
+                AutoReverse = true,
+                RepeatBehavior = RepeatBehavior.Forever
+            }
+            : null);
+        if (!charging) LiquidBorder.Opacity = 1;
+    }
+
+    private void RefreshChargingBorder()
+    {
+        var charging = PowerStatusService.IsCharging();
+        if (charging == _isCharging) return;
+        _isCharging = charging;
+        UpdateLiquidBorder(_islandManager.State);
+    }
+
+    private static LinearGradientBrush CreateLiquidBorderBrush(bool charging)
+    {
+        string[] colors = charging
+            ? ["#FF154B32", "#FF42D98B", "#FFB8FFD6", "#FF25A862", "#FF103D29", "#FF7BFFC0", "#FF218354", "#FF154B32"]
+            : ["#FF30343A", "#FFB9C4CE", "#FFF7FCFF", "#FF71818D", "#FF252A30", "#FFDAE3EB", "#FF56616C", "#FF30343A"];
+        double[] offsets = [0, 0.16, 0.23, 0.33, 0.52, 0.72, 0.85, 1];
+        var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1),
+            RelativeTransform = new RotateTransform(0, 0.5, 0.5) };
+        for (var i = 0; i < colors.Length; i++)
+            brush.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(colors[i])!, offsets[i]));
+        return brush;
     }
 
     private void AnimateIslandResize(double targetWidth, double targetHeight, IslandState state)
@@ -428,8 +476,15 @@ public partial class MainWindow : Window
         var currentHeight = Math.Max(1, ActualHeight * scale.ScaleY);
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        scale.ScaleX = 1;
-        scale.ScaleY = 1;
+
+        if (Math.Abs(currentWidth - targetWidth) < 0.5 &&
+            Math.Abs(currentHeight - targetHeight) < 0.5 &&
+            Math.Abs(ActualWidth - targetWidth) < 0.5 &&
+            Math.Abs(ActualHeight - targetHeight) < 0.5)
+        {
+            FinishResizeAnimation(version, targetWidth, targetHeight);
+            return;
+        }
 
         IslandSurface.CornerRadius = state switch
         {
@@ -449,9 +504,9 @@ public partial class MainWindow : Window
 
         if (expanding)
         {
-            _windowService.ResizeAndPosition(targetWidth, targetHeight);
             scale.ScaleX = Math.Clamp(currentWidth / targetWidth, 0.05, 1);
             scale.ScaleY = Math.Clamp(currentHeight / targetHeight, 0.05, 1);
+            _windowService.ResizeAndPosition(targetWidth, targetHeight);
             var xAnimation = new DoubleAnimation(1, duration) { EasingFunction = easing };
             var yAnimation = new DoubleAnimation(1, duration) { EasingFunction = easing };
             yAnimation.Completed += (_, _) => FinishResizeAnimation(version, targetWidth, targetHeight);
@@ -479,11 +534,14 @@ public partial class MainWindow : Window
         }
 
         var scale = (ScaleTransform)IslandSurface.RenderTransform;
+        // Keep the last rendered size while changing the actual window dimensions.
+        // Resetting the scale first briefly exposes the full-sized surface.
+        if (Math.Abs(ActualWidth - targetWidth) > 0.5 || Math.Abs(ActualHeight - targetHeight) > 0.5)
+            _windowService.ResizeAndPosition(targetWidth, targetHeight);
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         scale.ScaleX = 1;
         scale.ScaleY = 1;
-        _windowService.ResizeAndPosition(targetWidth, targetHeight);
         _windowService.RemoveNativeBorder();
         _isAnimating = false;
         if (_islandManager.State == IslandState.Collapsed && !IsMouseOver)
@@ -499,6 +557,9 @@ public partial class MainWindow : Window
             IslandState.Expanded or IslandState.Interaction or IslandState.Notification => ExpandedContent,
             _ => CollapsedContent
         };
+
+        if (_visibleStateContent == show) return;
+        _visibleStateContent = show;
 
         foreach (var element in new FrameworkElement[] { CollapsedContent, PreviewContent, ExpandedContent })
         {
@@ -565,7 +626,7 @@ public partial class MainWindow : Window
     private void ClipboardNavButton_Click(object sender, RoutedEventArgs e)
     {
         ShowPanel(ClipboardPanel);
-        PasteClipboardText(false);
+        _ = PasteClipboardContentAsync(false);
     }
 
     private void ShowPanel(UIElement panel)
@@ -1257,25 +1318,121 @@ public partial class MainWindow : Window
         }
     }
 
-    private void PasteTextButton_Click(object sender, RoutedEventArgs e) => PasteClipboardText(true);
+    private async void PasteTextButton_Click(object sender, RoutedEventArgs e) =>
+        await PasteClipboardContentAsync(true);
 
-    private void PasteClipboardText(bool showEmptyMessage)
+    private async Task PasteClipboardContentAsync(bool showEmptyMessage)
     {
-        if (Clipboard.ContainsText())
+        try
         {
-            ClipboardTextBox.Text = Clipboard.GetText();
-            ClipboardStatus.Text = "Pasted from Windows clipboard";
+            if (Clipboard.ContainsFileDropList())
+            {
+                var paths = Clipboard.GetFileDropList().Cast<string>()
+                    .Where(File.Exists).ToList();
+                if (paths.Count > 0)
+                {
+                    ShowClipboardFiles(paths);
+                    return;
+                }
+            }
+
+            // Explorer and some modern apps expose copied documents as StorageItems.
+            List<string> modernPaths;
+            try
+            {
+                var storageFiles = await _clipboardService.GetFilesAsync();
+                modernPaths = storageFiles.Select(file => file.Path).Where(File.Exists).ToList();
+            }
+            catch
+            {
+                modernPaths = [];
+            }
+            if (modernPaths.Count > 0)
+            {
+                ShowClipboardFiles(modernPaths);
+                return;
+            }
+
+            if (Clipboard.ContainsImage())
+            {
+                _clipboardImage = Clipboard.GetImage();
+                ClipboardImagePreview.Source = _clipboardImage;
+                SetClipboardKind(ClipboardKind.Image);
+                ClipboardStatus.Text = "Image ready to copy";
+                return;
+            }
+
+            if (Clipboard.ContainsText())
+            {
+                ClipboardTextBox.Text = Clipboard.GetText();
+                SetClipboardKind(ClipboardKind.Text);
+                ClipboardStatus.Text = "Pasted text from Windows clipboard";
+                return;
+            }
+
+            if (showEmptyMessage) ClipboardStatus.Text = "No supported clipboard content found";
         }
-        else if (showEmptyMessage)
+        catch (Exception exception)
         {
-            ClipboardStatus.Text = "No text is currently on the clipboard";
+            ClipboardStatus.Text = $"Could not read clipboard: {exception.Message}";
         }
+    }
+
+    private void ShowClipboardFiles(List<string> paths)
+    {
+        _clipboardFiles = paths;
+        ClipboardFilesList.ItemsSource = paths.Select(Path.GetFileName).ToList();
+        SetClipboardKind(ClipboardKind.Files);
+        ClipboardStatus.Text = $"{paths.Count} file{(paths.Count == 1 ? "" : "s")} ready to copy";
+    }
+
+    private void SetClipboardKind(ClipboardKind kind)
+    {
+        _clipboardKind = kind;
+        ClipboardTextBox.Visibility = kind == ClipboardKind.Text ? Visibility.Visible : Visibility.Collapsed;
+        ClipboardImagePanel.Visibility = kind == ClipboardKind.Image ? Visibility.Visible : Visibility.Collapsed;
+        ClipboardFilesPanel.Visibility = kind == ClipboardKind.Files ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void EditClipboardTextButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetClipboardKind(ClipboardKind.Text);
+        ClipboardTextBox.Focus();
+        ClipboardStatus.Text = "Edit text, then choose Copy";
     }
 
     private void CopyTextButton_Click(object sender, RoutedEventArgs e)
     {
-        Clipboard.SetText(ClipboardTextBox.Text);
-        ClipboardStatus.Text = "Copied to Windows clipboard";
+        try
+        {
+            switch (_clipboardKind)
+            {
+                case ClipboardKind.Image when _clipboardImage is not null:
+                    Clipboard.SetImage(_clipboardImage);
+                    ClipboardStatus.Text = "Copied image to Windows clipboard";
+                    break;
+                case ClipboardKind.Files when _clipboardFiles.Count > 0:
+                    var existing = _clipboardFiles.Where(File.Exists).ToList();
+                    if (existing.Count == 0)
+                    {
+                        ClipboardStatus.Text = "These files are no longer available";
+                        break;
+                    }
+                    var paths = new StringCollection();
+                    paths.AddRange(existing.ToArray());
+                    Clipboard.SetFileDropList(paths);
+                    ClipboardStatus.Text = $"Copied {existing.Count} file{(existing.Count == 1 ? "" : "s")} to Windows clipboard";
+                    break;
+                default:
+                    Clipboard.SetText(ClipboardTextBox.Text);
+                    ClipboardStatus.Text = "Copied text to Windows clipboard";
+                    break;
+            }
+        }
+        catch (Exception exception)
+        {
+            ClipboardStatus.Text = $"Could not copy: {exception.Message}";
+        }
     }
 
     private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -1712,6 +1869,7 @@ public partial class MainWindow : Window
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         _topmostTimer.Stop();
+        _powerTimer.Stop();
         _collapseTimer.Stop();
         _settingsSaveTimer.Stop();
         _interactiveAppPanel.Detach();

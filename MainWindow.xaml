@@ -115,7 +115,7 @@
                 </Grid>
 
                 <Grid Grid.Row="1">
-                    <Grid x:Name="MediaPanel">
+                    <Grid x:Name="MediaPanel" Margin="14,0" VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="160" />
                             <ColumnDefinition Width="*" />
@@ -129,10 +129,10 @@
                                       Fill="{StaticResource SecondaryTextBrush}" />
                             </Grid>
                         </Border>
-                        <Grid Grid.Column="1" Margin="18,12,12,12">
+                        <Grid Grid.Column="1" Margin="18,0,0,0" VerticalAlignment="Center">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -144,7 +144,7 @@
                                         HorizontalAlignment="Right" Padding="8,5" FontSize="10"
                                         Click="OpenPlayerButton_Click" Content="Open player" />
                             </Grid>
-                            <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                            <StackPanel Grid.Row="1" Margin="0,18,0,0">
                                 <TextBlock x:Name="TrackTitle" Text="Nothing playing" FontSize="24" FontWeight="SemiBold"
                                            Foreground="{StaticResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis" />
                                 <TextBlock x:Name="TrackArtist" Text="Start music in a supported app" Margin="0,5,0,0"
@@ -153,22 +153,24 @@
                                 <TextBlock x:Name="AlbumTitle" Margin="0,3,0,0" FontSize="11"
                                            Foreground="#FF717178" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
-                            <Grid Grid.Row="2" Margin="0,0,0,16">
-                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                <Grid>
+                            <Grid Grid.Row="2" Margin="0,22,0,0">
+                                <Grid.RowDefinitions><RowDefinition Height="30" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Slider x:Name="SeekSlider" Style="{StaticResource MediaSeekSlider}"
+                                        Minimum="0" Maximum="1" Value="0" IsEnabled="False"
+                                        IsMoveToPointEnabled="True"
+                                        ValueChanged="SeekSlider_ValueChanged"
+                                        PreviewMouseLeftButtonDown="SeekSlider_PreviewMouseLeftButtonDown"
+                                        PreviewMouseLeftButtonUp="SeekSlider_PreviewMouseLeftButtonUp"
+                                        PreviewKeyUp="SeekSlider_PreviewKeyUp" />
+                                <Grid Grid.Row="1" Margin="2,1,2,0">
                                     <TextBlock x:Name="CurrentTimeText" Text="0:00" FontSize="10"
                                                Foreground="{StaticResource SecondaryTextBrush}" />
                                     <TextBlock x:Name="DurationText" Text="0:00" FontSize="10" HorizontalAlignment="Right"
                                                Foreground="{StaticResource SecondaryTextBrush}" />
                                 </Grid>
-                                <Slider x:Name="SeekSlider" Grid.Row="1" Minimum="0" Maximum="1" Value="0"
-                                        IsEnabled="False" Margin="0,5,0,0"
-                                        ValueChanged="SeekSlider_ValueChanged"
-                                        PreviewMouseLeftButtonDown="SeekSlider_PreviewMouseLeftButtonDown"
-                                        PreviewMouseLeftButtonUp="SeekSlider_PreviewMouseLeftButtonUp"
-                                        PreviewKeyUp="SeekSlider_PreviewKeyUp" />
                             </Grid>
-                            <StackPanel Grid.Row="3" Orientation="Horizontal">
+                            <StackPanel Grid.Row="3" Margin="0,18,0,0" Orientation="Horizontal"
+                                        HorizontalAlignment="Center">
                                 <Button x:Name="PreviousButton" Style="{StaticResource IslandButton}" Width="44" Height="44"
                                         Padding="0" Margin="0,0,10,0" Click="PreviousButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconPrevious}" Width="19" Height="19" /></Button>
                                 <Button x:Name="PlayPauseButton" Style="{StaticResource IslandButton}" Width="52" Height="52"
@@ -259,17 +261,30 @@
                         <StackPanel>
                             <TextBlock Text="Clipboard" FontSize="20" FontWeight="SemiBold"
                                        Foreground="{StaticResource PrimaryTextBrush}" />
-                            <TextBlock Text="Paste, edit, and copy text through the Windows clipboard." FontSize="11"
+                            <TextBlock Text="Paste and copy text, images, and files from the Windows clipboard." FontSize="11"
                                        Foreground="{StaticResource SecondaryTextBrush}" />
                         </StackPanel>
-                        <TextBox x:Name="ClipboardTextBox" Grid.Row="1" Margin="0,12" Padding="12"
-                                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                                 Background="{StaticResource InputSurfaceBrush}" Foreground="{StaticResource PrimaryTextBrush}"
-                                 BorderThickness="0" />
+                        <Grid Grid.Row="1" Margin="0,12">
+                            <TextBox x:Name="ClipboardTextBox" Padding="12"
+                                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                     Background="{StaticResource InputSurfaceBrush}" Foreground="{StaticResource PrimaryTextBrush}"
+                                     BorderThickness="0" />
+                            <Border x:Name="ClipboardImagePanel" Visibility="Collapsed" Padding="12"
+                                    Background="{StaticResource InputSurfaceBrush}" CornerRadius="10">
+                                <Image x:Name="ClipboardImagePreview" Stretch="Uniform" />
+                            </Border>
+                            <Border x:Name="ClipboardFilesPanel" Visibility="Collapsed" Padding="12"
+                                    Background="{StaticResource InputSurfaceBrush}" CornerRadius="10">
+                                <ListBox x:Name="ClipboardFilesList" BorderThickness="0" Background="Transparent"
+                                         Foreground="{StaticResource PrimaryTextBrush}" />
+                            </Border>
+                        </Grid>
                         <Grid Grid.Row="2">
                             <TextBlock x:Name="ClipboardStatus" VerticalAlignment="Center" FontSize="11"
                                        Foreground="{StaticResource SecondaryTextBrush}" />
                             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                <Button Style="{StaticResource IslandButton}" Margin="0,0,8,0"
+                                        Click="EditClipboardTextButton_Click" Content="Edit text" />
                                 <Button Style="{StaticResource IslandButton}" Margin="0,0,8,0"
                                         Click="PasteTextButton_Click" Content="Paste" />
                                 <Button Style="{StaticResource IslandButton}" Background="{StaticResource PrimaryActionBrush}"
