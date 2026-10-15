@@ -30,6 +30,8 @@ public partial class MainWindow : Window
     private const double NotificationHeight = 78;
     private const double ExpandedWidth = 760;
     private const double ExpandedHeight = 530;
+    private const double StandardPanelWidth = 650;
+    private const double StandardPanelHeight = 400;
     private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
 
     private readonly IslandManager _islandManager = new();
@@ -484,14 +486,10 @@ public partial class MainWindow : Window
         AnimateIslandResize(width, height, state);
     }
 
-    private (double Width, double Height) GetExpandedSize() => _activePanel switch
-    {
-        var panel when panel == MediaPanel => (600, 340),
-        var panel when panel == FilesPanel => (640, 390),
-        var panel when panel == ClipboardPanel => (580, 350),
-        var panel when panel == SettingsPanel => (670, 470),
-        _ => (ExpandedWidth, ExpandedHeight)
-    };
+    private (double Width, double Height) GetExpandedSize() =>
+        _activePanel == AppsPanel
+            ? (ExpandedWidth, ExpandedHeight)
+            : (StandardPanelWidth, StandardPanelHeight);
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
@@ -767,7 +765,17 @@ public partial class MainWindow : Window
         if (outgoing is not null && outgoing != panel && outgoing.Visibility == Visibility.Visible)
         {
             outgoing.IsHitTestVisible = false;
-            var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(120));
+            var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(115))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            var outgoingMotion = new TranslateTransform();
+            outgoing.RenderTransform = outgoingMotion;
+            outgoingMotion.BeginAnimation(TranslateTransform.XProperty,
+                new DoubleAnimation(-8, TimeSpan.FromMilliseconds(115))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+                });
             fadeOut.Completed += (_, _) =>
             {
                 if (version != _panelAnimationVersion || outgoing == _activePanel) return;
@@ -782,16 +790,26 @@ public partial class MainWindow : Window
         panel.IsHitTestVisible = true;
         panel.Opacity = 0;
         var slide = new TranslateTransform();
-        panel.RenderTransform = slide;
-        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(8, 0,
-            TimeSpan.FromMilliseconds(220))
+        var scale = new ScaleTransform(0.985, 0.985);
+        panel.RenderTransformOrigin = new Point(0.5, 0.5);
+        panel.RenderTransform = new TransformGroup { Children = new TransformCollection { scale, slide } };
+        var entrance = new Duration(TimeSpan.FromMilliseconds(245));
+        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(14, 0, entrance)
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
             FillBehavior = FillBehavior.Stop
         });
-        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(190))
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, entrance)
         {
-            BeginTime = TimeSpan.FromMilliseconds(35)
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        });
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, entrance)
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        });
+        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(205))
+        {
+            BeginTime = TimeSpan.FromMilliseconds(20)
         };
         fadeIn.Completed += (_, _) =>
         {
