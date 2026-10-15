@@ -24,7 +24,7 @@ public partial class MainWindow : Window
 {
     private const double CollapsedWidth = 112;
     private const double CollapsedHeight = 30;
-    private const double PreviewWidth = 430;
+    private const double PreviewWidth = 500;
     private const double PreviewHeight = 58;
     private const double NotificationWidth = 430;
     private const double NotificationHeight = 78;
@@ -58,6 +58,8 @@ public partial class MainWindow : Window
     private AppConfiguration _configuration = new();
     private bool _settingsLoaded;
     private bool _isDragging;
+    private bool _pendingExpandClick;
+    private Point _expandPressPoint;
     private bool _isFileDragInProgress;
     private bool _isLogoEditorOpen;
     private bool _isModalDialogOpen;
@@ -95,11 +97,6 @@ public partial class MainWindow : Window
         AppList.ItemsSource = _applications;
         RunningAppsComboBox.ItemsSource = _runningApplications;
         InstalledAppsComboBox.ItemsSource = _installedApplications;
-        PreviewContent.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler((_, _) =>
-        {
-            if (_islandManager.State == IslandState.Preview)
-                _islandManager.TransitionTo(IslandState.Expanded);
-        }));
         SeekSlider.AddHandler(Thumb.DragCompletedEvent,
             new DragCompletedEventHandler((thumb, args) =>
             {
@@ -369,7 +366,7 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private async void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed || IsInteractiveSource(e.OriginalSource as DependencyObject))
         {
@@ -377,18 +374,52 @@ public partial class MainWindow : Window
         }
 
         _collapseTimer.Stop();
+        if (_islandManager.State is IslandState.Collapsed or IslandState.Preview or IslandState.Notification)
+        {
+            _expandPressPoint = PointToScreen(e.GetPosition(this));
+            _pendingExpandClick = CaptureMouse();
+            e.Handled = _pendingExpandClick;
+            return;
+        }
+
+        _ = DragIslandAsync();
+    }
+
+    private void Window_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_pendingExpandClick) return;
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            _pendingExpandClick = false;
+            ReleaseMouseCapture();
+            return;
+        }
+
+        var pointer = PointToScreen(e.GetPosition(this));
+        if ((pointer - _expandPressPoint).Length < 6) return;
+
+        _pendingExpandClick = false;
+        ReleaseMouseCapture();
+        _ = DragIslandAsync();
+        e.Handled = true;
+    }
+
+    private void Window_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_pendingExpandClick) return;
+        _pendingExpandClick = false;
+        ReleaseMouseCapture();
+        if (_islandManager.State is IslandState.Collapsed or IslandState.Preview or IslandState.Notification)
+            _islandManager.TransitionTo(IslandState.Expanded);
+        e.Handled = true;
+    }
+
+    private async Task DragIslandAsync()
+    {
         _isDragging = true;
-        var pressPoint = PointToScreen(e.GetPosition(this));
         try
         {
             DragMove();
-            var releasePoint = PointToScreen(Mouse.GetPosition(this));
-            if ((releasePoint - pressPoint).Length < 6)
-            {
-                if (_islandManager.State is IslandState.Collapsed or IslandState.Preview or IslandState.Notification)
-                    _islandManager.TransitionTo(IslandState.Expanded);
-                return;
-            }
             var offsets = _windowService.CaptureDraggedPosition(ActualWidth, ActualHeight);
             _configuration.HorizontalOffset = offsets.HorizontalOffset;
             _configuration.VerticalOffset = offsets.VerticalOffset;
@@ -411,7 +442,7 @@ public partial class MainWindow : Window
         var current = source;
         while (current is not null)
         {
-            if (current is Button or Slider or ComboBox or TextBox or ListViewItem)
+            if (current is Button or Slider or ComboBox or TextBox or ListViewItem or ListBoxItem or ScrollBar)
             {
                 return true;
             }

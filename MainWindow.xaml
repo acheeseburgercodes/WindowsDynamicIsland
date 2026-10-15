@@ -17,6 +17,8 @@
         MouseLeave="Window_MouseLeave"
         Deactivated="Window_Deactivated"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseLeftButtonUp="Window_MouseLeftButtonUp"
+        MouseMove="Window_MouseMove"
         DragEnter="Window_DragEnter"
         DragOver="Window_DragOver"
         Drop="Window_Drop">
@@ -28,7 +30,7 @@
             CornerRadius="0,0,15,15"
             SnapsToDevicePixels="True">
         <Grid>
-            <Grid x:Name="CollapsedContent">
+            <Grid x:Name="CollapsedContent" Cursor="Hand">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
                     <Border x:Name="MiniLogoContainer" Width="16" Height="16" Background="{StaticResource PrimaryActionBrush}" CornerRadius="8">
                         <Grid>
@@ -45,7 +47,7 @@
                 </StackPanel>
             </Grid>
 
-            <Grid x:Name="PreviewContent" Visibility="Collapsed" Opacity="0">
+            <Grid x:Name="PreviewContent" Visibility="Collapsed" Opacity="0" Cursor="Hand">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="42" />
                     <ColumnDefinition Width="*" />
@@ -87,7 +89,7 @@
                 </StackPanel>
             </Grid>
 
-            <Grid x:Name="NotificationContent" Visibility="Collapsed" Opacity="0">
+            <Grid x:Name="NotificationContent" Visibility="Collapsed" Opacity="0" Cursor="Hand">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="46" />
                     <ColumnDefinition Width="*" />
