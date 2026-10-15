@@ -30,7 +30,7 @@ public sealed class InteractiveAppPanelService
     public bool IsAttached => _window != 0 && IsWindow(_window);
     public string? LastError { get; private set; }
 
-    public bool Attach(nint window, FrameworkElement viewport)
+    public bool Attach(nint window, FrameworkElement viewport, bool startSuspended = false)
     {
         Detach();
         LastError = null;
@@ -46,7 +46,8 @@ public sealed class InteractiveAppPanelService
         _ = GetWindowRect(window, out _originalBounds);
 
         var panelStyle = _style & ~(WsCaption | WsThickFrame | WsSysMenu | WsMinimizeBox | WsMaximizeBox);
-        _ = ShowWindow(window, 9);
+        // Never restore the original full-size window in view before fitting it to the panel.
+        _ = ShowWindow(window, 0);
         Marshal.SetLastPInvokeError(0);
         var previousStyle = SetWindowLongPtr(window, GwlStyle, panelStyle);
         if (previousStyle == 0 && Marshal.GetLastPInvokeError() != 0)
@@ -55,8 +56,9 @@ public sealed class InteractiveAppPanelService
             Detach();
             return false;
         }
-        _isSuspended = false;
-        UpdateBounds(viewport);
+        _isSuspended = startSuspended;
+        if (!startSuspended)
+            UpdateBounds(viewport);
         if (LastError is not null)
         {
             Detach();

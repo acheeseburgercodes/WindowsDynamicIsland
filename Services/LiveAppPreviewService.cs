@@ -18,6 +18,8 @@ public sealed class LiveAppPreviewService
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpNoSize = 0x0001;
     private const uint SwpNoZOrder = 0x0004;
+    private const uint SwpShowWindow = 0x0040;
+    private const uint SwpHideWindow = 0x0080;
     private const int GwlExStyle = -20;
     private const long WsExTransparent = 0x20;
     private const long WsExNoActivate = 0x08000000;
@@ -27,11 +29,13 @@ public sealed class LiveAppPreviewService
     private nint _thumbnail;
     private NativeRect _originalBounds;
     private bool _wasMinimized;
+    private NativeRect _lastDestination;
+    private bool _hasThumbnailLayout;
 
     public bool IsAttached => _source != 0 && IsWindow(_source);
     public string? LastError { get; private set; }
 
-    public bool Attach(nint source, Window owner, FrameworkElement viewport)
+    public bool Attach(nint source, Window owner, FrameworkElement viewport, bool startSuspended = false)
     {
         Detach();
         LastError = null;
@@ -43,8 +47,23 @@ public sealed class LiveAppPreviewService
 
         _source = source;
         _wasMinimized = IsIconic(source);
+        _hasThumbnailLayout = false;
         try
         {
+            // Park the source in one hidden move before it can visibly shrink or slide.
+            // DWM still needs it shown afterward, but it is then already off-screen.
+            var parkedX = (int)SystemParameters.VirtualScreenLeft -
+                          Math.Max(800, _originalBounds.Right - _originalBounds.Left) - 100;
+            var parkedY = (int)SystemParameters.VirtualScreenTop;
+            if (!SetWindowPos(source, 0, parkedX, parkedY, 0, 0,
+                    SwpHideWindow | SwpNoSize | SwpNoZOrder | SwpNoActivate))
+            {
+                LastError = "Windows would not move the application out of view for preview.";
+                Detach();
+                return false;
+            }
+            _ = ShowWindow(source, _wasMinimized ? 9 : 4);
+
             _host = new Window
             {
                 Owner = owner,
@@ -60,8 +79,7 @@ public sealed class LiveAppPreviewService
                 WindowStartupLocation = WindowStartupLocation.Manual
             };
             PositionHost(viewport);
-            _host.Show();
-            var hostHandle = new WindowInteropHelper(_host).Handle;
+            var hostHandle = new WindowInteropHelper(_host).EnsureHandle();
             var extendedStyle = GetWindowLongPtr(hostHandle, GwlExStyle).ToInt64();
             _ = SetWindowLongPtr(hostHandle, GwlExStyle,
                 new nint(extendedStyle | WsExTransparent | WsExNoActivate));
@@ -74,26 +92,16 @@ public sealed class LiveAppPreviewService
                 return false;
             }
 
-            // DWM requires a visible source. Keep it on the current virtual desktop but off screen.
-            var parkedX = (int)SystemParameters.VirtualScreenLeft -
-                          Math.Max(800, _originalBounds.Right - _originalBounds.Left) - 100;
-            var parkedY = (int)SystemParameters.VirtualScreenTop;
-            if (!SetWindowPos(source, 0, parkedX, parkedY, 0, 0,
-                    SwpNoSize | SwpNoZOrder | SwpNoActivate))
-            {
-                LastError = "Windows would not move the application out of view for preview.";
-                Detach();
-                return false;
-            }
-
-            if (_wasMinimized)
-                _ = ShowWindow(source, 9);
-
             UpdateBounds(viewport);
             if (LastError is not null)
             {
                 Detach();
                 return false;
+            }
+            if (!startSuspended)
+            {
+                _host.Show();
+                UpdateBounds(viewport, force: true);
             }
             return true;
         }
@@ -105,13 +113,13 @@ public sealed class LiveAppPreviewService
         }
     }
 
-    public void UpdateBounds(FrameworkElement viewport)
+    public void UpdateBounds(FrameworkElement viewport, bool force = false)
     {
         if (_host is null || _thumbnail == 0 || !viewport.IsVisible ||
             viewport.ActualWidth < 1 || viewport.ActualHeight < 1)
             return;
 
-        PositionHost(viewport);
+        var hostChanged = PositionHost(viewport);
         var dpi = VisualTreeHelper.GetDpi(_host);
         var width = Math.Max(1, (int)Math.Round(_host.Width * dpi.DpiScaleX));
         var height = Math.Max(1, (int)Math.Round(_host.Height * dpi.DpiScaleY));
@@ -128,6 +136,11 @@ public sealed class LiveAppPreviewService
             destination.Bottom = destination.Top + fittedHeight;
         }
 
+        if (!force && !hostChanged && _hasThumbnailLayout &&
+            destination.Left == _lastDestination.Left && destination.Top == _lastDestination.Top &&
+            destination.Right == _lastDestination.Right && destination.Bottom == _lastDestination.Bottom)
+            return;
+
         var properties = new ThumbnailProperties
         {
             Flags = TnpRectDestination | TnpVisible | TnpSourceClientAreaOnly,
@@ -138,16 +151,30 @@ public sealed class LiveAppPreviewService
         var result = DwmUpdateThumbnailProperties(_thumbnail, ref properties);
         if (result < 0)
             LastError = $"Windows could not update the live preview (0x{result:X8}).";
+        else
+        {
+            _lastDestination = destination;
+            _hasThumbnailLayout = true;
+        }
     }
 
-    public void Suspend() => _host?.Hide();
+    public void Suspend()
+    {
+        if (_host?.IsVisible == true)
+            _host.Hide();
+    }
 
     public void Resume(FrameworkElement viewport)
     {
         if (!IsAttached || _host is null) return;
-        PositionHost(viewport);
-        _host.Show();
-        UpdateBounds(viewport);
+        if (!_host.IsVisible)
+        {
+            PositionHost(viewport);
+            _host.Show();
+            UpdateBounds(viewport, force: true);
+        }
+        else
+            UpdateBounds(viewport);
     }
 
     public void Detach()
@@ -163,23 +190,33 @@ public sealed class LiveAppPreviewService
         if (_source != 0 && IsWindow(_source))
         {
             _ = SetWindowPos(_source, 0, _originalBounds.Left, _originalBounds.Top, 0, 0,
-                SwpNoSize | SwpNoZOrder | SwpNoActivate);
+                SwpNoSize | SwpNoZOrder | SwpNoActivate | SwpShowWindow);
             if (_wasMinimized)
                 _ = ShowWindow(_source, 6);
         }
         _source = 0;
         _wasMinimized = false;
+        _hasThumbnailLayout = false;
     }
 
-    private void PositionHost(FrameworkElement viewport)
+    private bool PositionHost(FrameworkElement viewport)
     {
-        if (_host is null) return;
+        if (_host is null) return false;
         var point = viewport.PointToScreen(new Point(0, 0));
         var dpi = VisualTreeHelper.GetDpi(viewport);
-        _host.Left = point.X / dpi.DpiScaleX;
-        _host.Top = point.Y / dpi.DpiScaleY;
-        _host.Width = Math.Max(1, viewport.ActualWidth);
-        _host.Height = Math.Max(1, viewport.ActualHeight);
+        var left = point.X / dpi.DpiScaleX;
+        var top = point.Y / dpi.DpiScaleY;
+        var width = Math.Max(1, viewport.ActualWidth);
+        var height = Math.Max(1, viewport.ActualHeight);
+        var changed = !double.IsFinite(_host.Left) || !double.IsFinite(_host.Top) ||
+                      Math.Abs(_host.Left - left) > 0.5 || Math.Abs(_host.Top - top) > 0.5 ||
+                      Math.Abs(_host.Width - width) > 0.5 || Math.Abs(_host.Height - height) > 0.5;
+        if (!changed) return false;
+        _host.Left = left;
+        _host.Top = top;
+        _host.Width = width;
+        _host.Height = height;
+        return true;
     }
 
     [DllImport("dwmapi.dll")]

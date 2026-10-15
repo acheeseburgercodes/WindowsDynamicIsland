@@ -14,7 +14,9 @@ public sealed class AppConfiguration
 
     public int HorizontalOffset { get; set; }
 
-    public int VerticalOffset { get; set; } = 8;
+    public int VerticalOffset { get; set; }
+
+    public bool NotificationsEnabled { get; set; }
 
     public IslandLogoStyle LogoStyle { get; set; } = IslandLogoStyle.BrandMark;
 

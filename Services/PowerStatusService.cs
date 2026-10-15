@@ -19,12 +19,9 @@ internal static class PowerStatusService
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetSystemPowerStatus(out SystemPowerStatus status);
 
-    public static bool IsCharging()
+    public static bool IsOnAcPower()
     {
         return GetSystemPowerStatus(out var status) &&
-               status.AcLineStatus == 1 &&
-               status.BatteryFlag != 255 &&
-               (status.BatteryFlag & 128) == 0 &&
-               (status.BatteryFlag & 8) != 0;
+               status.AcLineStatus == 1;
     }
 }

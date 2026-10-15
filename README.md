@@ -63,6 +63,12 @@ dotnet run -c Release -p:Platform=x64
 
 Start media in an app that publishes a Windows system media session (for example Spotify or a browser playing supported audio/video). The island updates automatically.
 
+The default top-center placement is a screen-edge notch. Hover to reveal the media strip and click the notch or strip to open the full panel. Clicking outside returns it to the smallest state. Each tab uses its own compact size. A new track briefly reveals the media strip. The Settings tab includes a notification-animation test.
+
+System-wide notification reading requires an MSIX-packaged build declaring the User Notification Listener capability and a separate permission grant from the user. The portable EXE cannot access other apps' notifications; its Settings tab reports this and disables the permission button. Notification content is not written to the island's configuration.
+
+The `Packaging/DynamicIsland.Package.wapproj` project and manifest define an optional MSIX with that capability. To build it, install Visual Studio with the Windows Application Packaging Project / Desktop Bridge tools and a Windows SDK, run `Packaging/Generate-Assets.ps1` if the logo changes, then open the packaging project in Visual Studio and build Release x64. The package is unsigned by default; installation requires signing with a trusted certificate whose subject matches the manifest `Publisher` value. The .NET CLI alone cannot build this WAP project. The packaged app asks for Windows notification access only when **Enable alerts** is clicked in Settings.
+
 ## Structure
 
 - `Core/IslandManager.cs` owns the extensible island state machine.

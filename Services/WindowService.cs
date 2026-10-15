@@ -23,7 +23,7 @@ public sealed class WindowService
 
     public int HorizontalOffset { get; set; }
 
-    public int VerticalOffset { get; set; } = 8;
+    public int VerticalOffset { get; set; }
 
     public void Configure()
     {
@@ -88,7 +88,8 @@ public sealed class WindowService
         var horizontalStart = workArea.Left + margin;
         var horizontalCenter = workArea.Left + ((workArea.Width - width) / 2);
         var horizontalEnd = workArea.Right - width - margin;
-        var verticalStart = workArea.Top + margin;
+        // The top-edge mode grows directly out of the screen edge like a notch.
+        var verticalStart = workArea.Top;
         var verticalCenter = workArea.Top + ((workArea.Height - height) / 2);
         var verticalEnd = workArea.Bottom - height - margin;
 

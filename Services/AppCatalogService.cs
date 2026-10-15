@@ -104,8 +104,8 @@ public sealed class AppCatalogService
 
     public async Task<nint> LaunchAndFindWindowAsync(InstalledApplicationInfo application)
     {
-        var existing = EnumerateWindows();
-        var existingHandles = existing.Select(item => item.Handle).ToHashSet();
+        var includeHidden = application.Kind == InstalledApplicationKind.StartMenuShortcut;
+        Process? launchedProcess = null;
 
         try
         {
@@ -119,7 +119,11 @@ public sealed class AppCatalogService
             }
             else
             {
-                _ = Process.Start(new ProcessStartInfo(application.LaunchTarget) { UseShellExecute = true });
+                launchedProcess = Process.Start(new ProcessStartInfo(application.LaunchTarget)
+                {
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
             }
         }
         catch
@@ -127,25 +131,30 @@ public sealed class AppCatalogService
             return 0;
         }
 
-        for (var attempt = 0; attempt < 60; attempt++)
+        for (var attempt = 0; attempt < 180; attempt++)
         {
-            await Task.Delay(150);
-            var windows = EnumerateWindows();
-            var match = windows.FirstOrDefault(item =>
-                item.Title.Contains(application.Name, StringComparison.CurrentCultureIgnoreCase));
+            await Task.Delay(50);
+            var windows = EnumerateWindows(includeHidden);
+            var match = launchedProcess is not null && !launchedProcess.HasExited
+                ? windows.FirstOrDefault(item => GetWindowProcessId(item.Handle) == launchedProcess.Id)
+                : default;
+            if (match.Handle == 0)
+                match = windows.FirstOrDefault(item =>
+                    item.Title.Contains(application.Name, StringComparison.CurrentCultureIgnoreCase));
             if (match.Handle != 0)
             {
-                return match.Handle;
-            }
-
-            match = windows.FirstOrDefault(item => !existingHandles.Contains(item.Handle));
-            if (match.Handle != 0)
-            {
+                _ = ShowWindow(match.Handle, 0);
                 return match.Handle;
             }
         }
 
         return 0;
+    }
+
+    private static int GetWindowProcessId(nint handle)
+    {
+        _ = GetWindowThreadProcessId(handle, out var processId);
+        return (int)processId;
     }
 
     private static List<InstalledApplicationInfo> DiscoverStartMenuShortcuts()
@@ -216,12 +225,12 @@ public sealed class AppCatalogService
         }
     }
 
-    private static List<(nint Handle, string Title)> EnumerateWindows()
+    private static List<(nint Handle, string Title)> EnumerateWindows(bool includeHidden)
     {
         var windows = new List<(nint, string)>();
         _ = EnumWindows((handle, unusedParameter) =>
         {
-            if (!IsWindowVisible(handle) || GetWindowTextLength(handle) == 0)
+            if ((!includeHidden && !IsWindowVisible(handle)) || GetWindowTextLength(handle) == 0)
             {
                 return true;
             }
@@ -247,6 +256,10 @@ public sealed class AppCatalogService
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindow(nint window, int command);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetWindowText(nint window, StringBuilder text, int maximumCount);

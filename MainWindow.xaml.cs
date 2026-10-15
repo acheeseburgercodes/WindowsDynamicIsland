@@ -22,12 +22,14 @@ namespace DynamicIsland;
 
 public partial class MainWindow : Window
 {
-    private const double CollapsedWidth = 72;
-    private const double CollapsedHeight = 26;
+    private const double CollapsedWidth = 112;
+    private const double CollapsedHeight = 30;
     private const double PreviewWidth = 430;
     private const double PreviewHeight = 58;
-    private const double ExpandedWidth = 740;
-    private const double ExpandedHeight = 520;
+    private const double NotificationWidth = 430;
+    private const double NotificationHeight = 78;
+    private const double ExpandedWidth = 760;
+    private const double ExpandedHeight = 530;
     private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
 
     private readonly IslandManager _islandManager = new();
@@ -40,6 +42,7 @@ public partial class MainWindow : Window
     private readonly InteractiveAppPanelService _interactiveAppPanel = new();
     private readonly LiveAppPreviewService _liveAppPreview = new();
     private readonly VirtualDesktopService _virtualDesktopService = new();
+    private readonly SystemNotificationService _notificationService = new();
     private readonly ObservableCollection<DockedFileItem> _files = [];
     private readonly ObservableCollection<AppLauncherItem> _applications = [];
     private readonly ObservableCollection<RunningApplicationInfo> _runningApplications = [];
@@ -48,7 +51,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _collapseTimer = new() { Interval = TimeSpan.FromMilliseconds(900) };
     private readonly DispatcherTimer _settingsSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DispatcherTimer _mediaProgressTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
-    private readonly DispatcherTimer _powerTimer = new() { Interval = TimeSpan.FromSeconds(5) };
+    private readonly DispatcherTimer _powerTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _ambientTimer = new() { Interval = TimeSpan.FromSeconds(4) };
     private readonly ClipboardService _clipboardService = new();
 
     private AppConfiguration _configuration = new();
@@ -56,6 +60,7 @@ public partial class MainWindow : Window
     private bool _isDragging;
     private bool _isFileDragInProgress;
     private bool _isLogoEditorOpen;
+    private bool _isModalDialogOpen;
     private bool _suppressHoverUntilPointerLeaves;
     private bool _isSeeking;
     private bool _isUpdatingSeek;
@@ -65,8 +70,8 @@ public partial class MainWindow : Window
     private BitmapSource? _clipboardImage;
     private List<string> _clipboardFiles = [];
     private ClipboardKind _clipboardKind = ClipboardKind.Text;
-    private bool _chargingBorderActive;
-    private bool _isCharging;
+    private bool _accentBorderActive;
+    private bool _isPluggedIn;
     private MediaSnapshot _currentMediaSnapshot = MediaSnapshot.Empty;
     private Point _fileDragStart;
     private int _resizeAnimationVersion;
@@ -90,8 +95,11 @@ public partial class MainWindow : Window
         AppList.ItemsSource = _applications;
         RunningAppsComboBox.ItemsSource = _runningApplications;
         InstalledAppsComboBox.ItemsSource = _installedApplications;
-        OpacitySlider.AddHandler(Thumb.DragCompletedEvent,
-            new DragCompletedEventHandler(OpacitySlider_DragCompleted));
+        PreviewContent.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler((_, _) =>
+        {
+            if (_islandManager.State == IslandState.Preview)
+                _islandManager.TransitionTo(IslandState.Expanded);
+        }));
         SeekSlider.AddHandler(Thumb.DragCompletedEvent,
             new DragCompletedEventHandler((thumb, args) =>
             {
@@ -108,13 +116,16 @@ public partial class MainWindow : Window
 
         _windowService = new WindowService(this);
         _windowService.Configure();
+        DetachAppButton.IsEnabled = false;
         _islandManager.StateChanged += OnIslandStateChanged;
         _mediaService.MediaChanged += OnMediaChanged;
+        _notificationService.NotificationReceived += OnNotificationReceived;
         _collapseTimer.Tick += CollapseTimer_Tick;
+        _ambientTimer.Tick += AmbientTimer_Tick;
         _settingsSaveTimer.Tick += SettingsSaveTimer_Tick;
         _mediaProgressTimer.Tick += (_, _) => ApplyMediaProgress();
         _mediaProgressTimer.Start();
-        _powerTimer.Tick += (_, _) => RefreshChargingBorder();
+        _powerTimer.Tick += (_, _) => RefreshPowerBorder();
         _topmostTimer.Tick += (_, _) =>
         {
             if (!IsVisible || WindowState == WindowState.Minimized) return;
@@ -131,13 +142,8 @@ public partial class MainWindow : Window
                         IslandSurface.ToolTip = null;
                 }
             }
-            _windowService.EnsureTopmost();
-            if (!_isAnimating && _islandManager.State == IslandState.Expanded &&
-                _activePanel == AppsPanel && AppsPanel.Visibility == Visibility.Visible)
-            {
-                _interactiveAppPanel.UpdateBounds(AppHostViewport);
-                _liveAppPreview.UpdateBounds(AppHostViewport);
-            }
+            // Topmost is established when the window is created. Reordering it or
+            // rewriting the DWM thumbnail every 500 ms makes live previews flicker.
         };
         StateChanged += (_, _) =>
         {
@@ -155,7 +161,7 @@ public partial class MainWindow : Window
         _windowService.RemoveNativeBorder();
         _isPinnedToAllDesktops = _virtualDesktopService.TryPinIslandToAllDesktops(this);
         _topmostTimer.Start();
-        RefreshChargingBorder();
+        RefreshPowerBorder();
         _powerTimer.Start();
         _configuration = await _configurationService.LoadAsync();
         if (_configuration.ConfigurationVersion < 4)
@@ -179,6 +185,13 @@ public partial class MainWindow : Window
         }
         if (_configuration.ConfigurationVersion < 8)
             _configuration.ConfigurationVersion = 8;
+        if (_configuration.ConfigurationVersion < 9)
+        {
+            _configuration.ConfigurationVersion = 9;
+            if (_configuration.Edge == IslandEdge.Top &&
+                _configuration.VerticalOffset is 8 or -8)
+                _configuration.VerticalOffset = 0;
+        }
 
         _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.1, 1);
         if (!Enum.IsDefined(_configuration.SurfaceStyle))
@@ -253,8 +266,16 @@ public partial class MainWindow : Window
         ApplyTheme();
         ApplyLogoStyle();
         _windowService.ResizeAndPosition(CollapsedWidth, CollapsedHeight);
+        UpdateLiquidBorder(IslandState.Collapsed);
         _settingsLoaded = true;
         await SaveConfigurationAsync();
+
+        EnableNotificationsButton.IsEnabled = _notificationService.IsSupported;
+        NotificationPermissionStatus.Text = !_notificationService.IsSupported
+            ? "Windows alerts need the MSIX build; this portable EXE cannot request notification access."
+            : _configuration.NotificationsEnabled
+                ? await _notificationService.StartAsync(requestAccess: false)
+                : "Off. Choose Enable alerts to request Windows access.";
 
         try
         {
@@ -282,10 +303,29 @@ public partial class MainWindow : Window
             _islandManager.State == IslandState.Collapsed)
             _suppressHoverUntilPointerLeaves = false;
 
-        if (!_isDragging && !_isFileDragInProgress && !_isLogoEditorOpen && _islandManager.State != IslandState.Collapsed &&
+        if (!_isDragging && !_isFileDragInProgress && !_isLogoEditorOpen &&
+            _islandManager.State is not (IslandState.Collapsed or IslandState.Notification) &&
             !_interactiveAppPanel.IsAttached && !_liveAppPreview.IsAttached)
         {
             _collapseTimer.Start();
+        }
+    }
+
+    private async void Window_Deactivated(object? sender, EventArgs e)
+    {
+        // A hosted native window can take focus while the pointer is still inside
+        // the island. Only an actual click elsewhere should dismiss the panel.
+        await Task.Delay(90);
+        if (!IsLoaded || IsActive || _isDragging || _isFileDragInProgress || _isLogoEditorOpen || _isModalDialogOpen)
+            return;
+        var pointer = Mouse.GetPosition(this);
+        if (pointer.X >= 0 && pointer.Y >= 0 && pointer.X < ActualWidth && pointer.Y < ActualHeight)
+            return;
+        if (_islandManager.State is IslandState.Expanded or IslandState.Interaction or IslandState.Preview or IslandState.Notification)
+        {
+            _collapseTimer.Stop();
+            _suppressHoverUntilPointerLeaves = true;
+            _islandManager.TransitionTo(IslandState.Collapsed);
         }
     }
 
@@ -338,9 +378,17 @@ public partial class MainWindow : Window
 
         _collapseTimer.Stop();
         _isDragging = true;
+        var pressPoint = PointToScreen(e.GetPosition(this));
         try
         {
             DragMove();
+            var releasePoint = PointToScreen(Mouse.GetPosition(this));
+            if ((releasePoint - pressPoint).Length < 6)
+            {
+                if (_islandManager.State is IslandState.Collapsed or IslandState.Preview or IslandState.Notification)
+                    _islandManager.TransitionTo(IslandState.Expanded);
+                return;
+            }
             var offsets = _windowService.CaptureDraggedPosition(ActualWidth, ActualHeight);
             _configuration.HorizontalOffset = offsets.HorizontalOffset;
             _configuration.VerticalOffset = offsets.VerticalOffset;
@@ -393,8 +441,8 @@ public partial class MainWindow : Window
         var (width, height) = state switch
         {
             IslandState.Preview => (PreviewWidth, PreviewHeight),
-            IslandState.Expanded or IslandState.Interaction or IslandState.Notification =>
-                (ExpandedWidth, ExpandedHeight),
+            IslandState.Notification => (NotificationWidth, NotificationHeight),
+            IslandState.Expanded or IslandState.Interaction => GetExpandedSize(),
             _ => (CollapsedWidth, CollapsedHeight)
         };
 
@@ -405,21 +453,30 @@ public partial class MainWindow : Window
         AnimateIslandResize(width, height, state);
     }
 
-    private void UpdateLiquidBorder(IslandState state)
+    private (double Width, double Height) GetExpandedSize() => _activePanel switch
+    {
+        var panel when panel == MediaPanel => (600, 300),
+        var panel when panel == FilesPanel => (640, 390),
+        var panel when panel == ClipboardPanel => (580, 350),
+        var panel when panel == SettingsPanel => (670, 470),
+        _ => (ExpandedWidth, ExpandedHeight)
+    };
+
+    private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
         var showBorder = state is IslandState.Collapsed or IslandState.Preview;
-        var charging = state == IslandState.Collapsed && _isCharging;
+        var accentBorder = state == IslandState.Collapsed && _isPluggedIn;
         LiquidBorder.Visibility = showBorder ? Visibility.Visible : Visibility.Collapsed;
-        LiquidBorder.CornerRadius = state switch
+        var thickness = accentBorder ? 2 : 1.5;
+        LiquidBorder.BorderThickness = _configuration.Edge == IslandEdge.Top && _configuration.VerticalOffset <= 0
+            ? new Thickness(thickness, 0, thickness, thickness)
+            : new Thickness(thickness);
+        LiquidBorder.CornerRadius = GetIslandCorners(state);
+        IslandSurface.CornerRadius = GetIslandCorners(state);
+        if (accentBorder != _accentBorderActive || (accentBorder && accentChanged))
         {
-            IslandState.Collapsed => new CornerRadius(13),
-            IslandState.Preview => new CornerRadius(22),
-            _ => new CornerRadius(32)
-        };
-        if (charging != _chargingBorderActive)
-        {
-            _chargingBorderActive = charging;
-            LiquidBorder.BorderBrush = CreateLiquidBorderBrush(charging);
+            _accentBorderActive = accentBorder;
+            LiquidBorder.BorderBrush = CreateLiquidBorderBrush(accentBorder);
         }
         if (LiquidBorder.BorderBrush is not LinearGradientBrush brush ||
             brush.RelativeTransform is not RotateTransform rotation) return;
@@ -437,35 +494,62 @@ public partial class MainWindow : Window
                 RepeatBehavior = RepeatBehavior.Forever,
                 EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
             } : null);
-        LiquidBorder.BeginAnimation(OpacityProperty, charging
+        LiquidBorder.BeginAnimation(OpacityProperty, accentBorder
             ? new DoubleAnimation(0.68, 1, TimeSpan.FromMilliseconds(850))
             {
                 AutoReverse = true,
                 RepeatBehavior = RepeatBehavior.Forever
             }
             : null);
-        if (!charging) LiquidBorder.Opacity = 1;
+        if (!accentBorder) LiquidBorder.Opacity = 1;
     }
 
-    private void RefreshChargingBorder()
+    private void RefreshPowerBorder()
     {
-        var charging = PowerStatusService.IsCharging();
-        if (charging == _isCharging) return;
-        _isCharging = charging;
+        var pluggedIn = PowerStatusService.IsOnAcPower();
+        if (pluggedIn == _isPluggedIn) return;
+        _isPluggedIn = pluggedIn;
         UpdateLiquidBorder(_islandManager.State);
     }
 
-    private static LinearGradientBrush CreateLiquidBorderBrush(bool charging)
+    private static LinearGradientBrush CreateLiquidBorderBrush(bool accentBorder)
     {
-        string[] colors = charging
-            ? ["#FF154B32", "#FF42D98B", "#FFB8FFD6", "#FF25A862", "#FF103D29", "#FF7BFFC0", "#FF218354", "#FF154B32"]
-            : ["#FF30343A", "#FFB9C4CE", "#FFF7FCFF", "#FF71818D", "#FF252A30", "#FFDAE3EB", "#FF56616C", "#FF30343A"];
+        var accent = Application.Current.Resources["AccentBrush"] is SolidColorBrush accentBrush
+            ? Color.FromRgb(accentBrush.Color.R, accentBrush.Color.G, accentBrush.Color.B)
+            : Color.FromRgb(110, 214, 169);
+        Color[] colors = accentBorder
+            ? [Mix(accent, Colors.Black, 0.62), accent, Mix(accent, Colors.White, 0.65),
+               Mix(accent, Colors.White, 0.2), Mix(accent, Colors.Black, 0.72),
+               Mix(accent, Colors.White, 0.5), Mix(accent, Colors.Black, 0.25),
+               Mix(accent, Colors.Black, 0.62)]
+            : [Color.FromRgb(48, 52, 58), Color.FromRgb(185, 196, 206), Color.FromRgb(247, 252, 255),
+               Color.FromRgb(113, 129, 141), Color.FromRgb(37, 42, 48), Color.FromRgb(218, 227, 235),
+               Color.FromRgb(86, 97, 108), Color.FromRgb(48, 52, 58)];
         double[] offsets = [0, 0.16, 0.23, 0.33, 0.52, 0.72, 0.85, 1];
         var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1),
             RelativeTransform = new RotateTransform(0, 0.5, 0.5) };
         for (var i = 0; i < colors.Length; i++)
-            brush.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(colors[i])!, offsets[i]));
+            brush.GradientStops.Add(new GradientStop(colors[i], offsets[i]));
         return brush;
+    }
+
+    private static Color Mix(Color source, Color target, double amount) => Color.FromRgb(
+        (byte)Math.Round(source.R + (target.R - source.R) * amount),
+        (byte)Math.Round(source.G + (target.G - source.G) * amount),
+        (byte)Math.Round(source.B + (target.B - source.B) * amount));
+
+    private CornerRadius GetIslandCorners(IslandState state)
+    {
+        var radius = state switch
+        {
+            IslandState.Collapsed => 15,
+            IslandState.Preview => 22,
+            IslandState.Notification => 24,
+            _ => 32
+        };
+        return _configuration.Edge == IslandEdge.Top && _configuration.VerticalOffset <= 0
+            ? new CornerRadius(0, 0, radius, radius)
+            : new CornerRadius(radius);
     }
 
     private void AnimateIslandResize(double targetWidth, double targetHeight, IslandState state)
@@ -486,19 +570,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        IslandSurface.CornerRadius = state switch
-        {
-            IslandState.Collapsed => new CornerRadius(13),
-            IslandState.Preview => new CornerRadius(22),
-            _ => new CornerRadius(32)
-        };
+        IslandSurface.CornerRadius = GetIslandCorners(state);
 
-        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var easing = new QuarticEase { EasingMode = EasingMode.EaseOut };
         var duration = new Duration(TimeSpan.FromMilliseconds(state switch
         {
-            IslandState.Expanded or IslandState.Interaction or IslandState.Notification => 350,
-            IslandState.Preview => 270,
-            _ => 220
+            IslandState.Expanded or IslandState.Interaction => 390,
+            IslandState.Notification => 310,
+            IslandState.Preview => 290,
+            _ => 240
         }));
         var expanding = (targetWidth * targetHeight) >= (currentWidth * currentHeight);
 
@@ -554,14 +634,15 @@ public partial class MainWindow : Window
         var show = state switch
         {
             IslandState.Preview => PreviewContent,
-            IslandState.Expanded or IslandState.Interaction or IslandState.Notification => ExpandedContent,
+            IslandState.Notification => NotificationContent,
+            IslandState.Expanded or IslandState.Interaction => ExpandedContent,
             _ => CollapsedContent
         };
 
         if (_visibleStateContent == show) return;
         _visibleStateContent = show;
 
-        foreach (var element in new FrameworkElement[] { CollapsedContent, PreviewContent, ExpandedContent })
+        foreach (var element in new FrameworkElement[] { CollapsedContent, PreviewContent, NotificationContent, ExpandedContent })
         {
             if (element == show)
             {
@@ -569,14 +650,14 @@ public partial class MainWindow : Window
                 element.Opacity = 0;
                 var isFull = element == ExpandedContent;
                 element.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1,
-                    TimeSpan.FromMilliseconds(isFull ? 240 : 150))
+                    TimeSpan.FromMilliseconds(isFull ? 230 : 170))
                 {
-                    BeginTime = TimeSpan.FromMilliseconds(isFull ? 90 : 0)
+                    BeginTime = TimeSpan.FromMilliseconds(isFull ? 50 : 0)
                 });
                 var motion = new TranslateTransform();
                 element.RenderTransform = motion;
                 motion.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(
-                    isFull ? -12 : -4, 0, TimeSpan.FromMilliseconds(isFull ? 310 : 170))
+                    isFull ? -6 : -4, 0, TimeSpan.FromMilliseconds(isFull ? 280 : 190))
                 {
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
                     FillBehavior = FillBehavior.Stop
@@ -589,19 +670,6 @@ public partial class MainWindow : Window
                 element.Visibility = Visibility.Collapsed;
             }
         }
-    }
-
-    private void FullExpandButton_Click(object sender, RoutedEventArgs e)
-    {
-        _collapseTimer.Stop();
-        _islandManager.TransitionTo(IslandState.Expanded);
-    }
-
-    private void CollapseButton_Click(object sender, RoutedEventArgs e)
-    {
-        _collapseTimer.Stop();
-        _suppressHoverUntilPointerLeaves = true;
-        _islandManager.TransitionTo(IslandState.Collapsed);
     }
 
     private async void ExitButton_Click(object sender, RoutedEventArgs e)
@@ -645,6 +713,17 @@ public partial class MainWindow : Window
 
         var outgoing = _activePanel;
         _activePanel = panel;
+        if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
+        {
+            var (width, height) = GetExpandedSize();
+            if (Math.Abs(ActualWidth - width) > 0.5 || Math.Abs(ActualHeight - height) > 0.5)
+            {
+                _isAnimating = true;
+                _interactiveAppPanel.Suspend();
+                _liveAppPreview.Suspend();
+                AnimateIslandResize(width, height, _islandManager.State);
+            }
+        }
         var version = ++_panelAnimationVersion;
         foreach (var other in new UIElement[] { MediaPanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
         {
@@ -673,13 +752,13 @@ public partial class MainWindow : Window
         panel.Opacity = 0;
         var slide = new TranslateTransform();
         panel.RenderTransform = slide;
-        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(18, 0,
-            TimeSpan.FromMilliseconds(250))
+        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(8, 0,
+            TimeSpan.FromMilliseconds(220))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
             FillBehavior = FillBehavior.Stop
         });
-        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(210))
+        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(190))
         {
             BeginTime = TimeSpan.FromMilliseconds(35)
         };
@@ -694,8 +773,61 @@ public partial class MainWindow : Window
     private void OnMediaChanged(object? sender, MediaSnapshot snapshot) =>
         Dispatcher.InvokeAsync(() => ApplyMediaSnapshot(snapshot));
 
+    private void OnNotificationReceived(object? sender, NotificationPreview notification) =>
+        Dispatcher.InvokeAsync(() => ShowNotification(notification));
+
+    private void ShowNotification(NotificationPreview notification)
+    {
+        NotificationAppText.Text = string.IsNullOrWhiteSpace(notification.AppName)
+            ? "WINDOWS ALERT" : notification.AppName.ToUpperInvariant();
+        NotificationTitleText.Text = notification.Title;
+        NotificationBodyText.Text = notification.Body;
+        NotificationBodyText.Visibility = string.IsNullOrWhiteSpace(notification.Body)
+            ? Visibility.Collapsed : Visibility.Visible;
+        ExpandedNotificationHint.Text = notification.AppName;
+        ExpandedNotificationHint.Visibility = _islandManager.State is IslandState.Expanded or IslandState.Interaction
+            ? Visibility.Visible : Visibility.Collapsed;
+
+        if (_islandManager.State is IslandState.Collapsed or IslandState.Preview or IslandState.Notification)
+        {
+            _collapseTimer.Stop();
+            _islandManager.TransitionTo(IslandState.Notification);
+        }
+        _ambientTimer.Stop();
+        _ambientTimer.Start();
+    }
+
+    private void AmbientTimer_Tick(object? sender, EventArgs e)
+    {
+        _ambientTimer.Stop();
+        ExpandedNotificationHint.Visibility = Visibility.Collapsed;
+        if (_islandManager.State == IslandState.Notification)
+            _islandManager.TransitionTo(IsMouseOver ? IslandState.Preview : IslandState.Collapsed);
+        else if (_islandManager.State == IslandState.Preview && !IsMouseOver)
+            _islandManager.TransitionTo(IslandState.Collapsed);
+    }
+
+    private async void EnableNotificationsButton_Click(object sender, RoutedEventArgs e)
+    {
+        NotificationPermissionStatus.Text = await _notificationService.StartAsync(requestAccess: true);
+        _configuration.NotificationsEnabled = _notificationService.IsListening;
+        await SaveConfigurationAsync();
+    }
+
+    private async void TestNotificationButton_Click(object sender, RoutedEventArgs e)
+    {
+        _suppressHoverUntilPointerLeaves = true;
+        _islandManager.TransitionTo(IslandState.Collapsed);
+        await Task.Delay(250);
+        ShowNotification(new NotificationPreview("Dynamic Island", "Notch animation is ready",
+            "New alerts will drop down here."));
+    }
+
     private void ApplyMediaSnapshot(MediaSnapshot snapshot)
     {
+        var newTrack = snapshot.HasSession &&
+            (!_currentMediaSnapshot.HasSession ||
+             !string.Equals(_currentMediaSnapshot.Title, snapshot.Title, StringComparison.Ordinal));
         var thumbnailChanged = !ReferenceEquals(_currentMediaSnapshot.Thumbnail, snapshot.Thumbnail);
         _currentMediaSnapshot = snapshot;
         TrackTitle.Text = snapshot.Title;
@@ -725,6 +857,12 @@ public partial class MainWindow : Window
         }
         ArtworkFallbackIcon.Visibility = _currentArtwork is null ? Visibility.Visible : Visibility.Collapsed;
         ApplyLogoStyle();
+        if (newTrack && _islandManager.State == IslandState.Collapsed && !_isDragging)
+        {
+            _islandManager.TransitionTo(IslandState.Preview);
+            _ambientTimer.Stop();
+            _ambientTimer.Start();
+        }
     }
 
     private static BitmapImage? CreateImage(byte[]? bytes)
@@ -834,7 +972,7 @@ public partial class MainWindow : Window
     private async void AddFilesButton_Click(object sender, RoutedEventArgs e)
     {
         var picker = new OpenFileDialog { Multiselect = true, CheckFileExists = true };
-        if (picker.ShowDialog(this) == true)
+        if (ShowOpenFileDialog(picker) == true)
         {
             await AddFilesAsync(picker.FileNames);
         }
@@ -988,7 +1126,7 @@ public partial class MainWindow : Window
             Multiselect = false,
             CheckFileExists = true
         };
-        if (picker.ShowDialog(this) != true)
+        if (ShowOpenFileDialog(picker) != true)
         {
             return;
         }
@@ -1024,22 +1162,6 @@ public partial class MainWindow : Window
         _applications.Remove(item);
         AppRunnerStatus.Text = $"Removed {item.Name} from the runner";
         await SaveConfigurationAsync();
-    }
-
-    private void LaunchAppButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (AppList.SelectedItem is not AppLauncherItem item)
-        {
-            AppRunnerStatus.Text = "Select an application first";
-            return;
-        }
-
-        Process.Start(new ProcessStartInfo(item.ExecutablePath, item.Arguments)
-        {
-            UseShellExecute = true,
-            WorkingDirectory = Path.GetDirectoryName(item.ExecutablePath)
-        });
-        AppRunnerStatus.Text = $"Opened {item.Name} normally";
     }
 
     private void RefreshRunningAppsButton_Click(object sender, RoutedEventArgs e) => RefreshRunningApplications();
@@ -1124,7 +1246,8 @@ public partial class MainWindow : Window
         {
             process = Process.Start(new ProcessStartInfo(item.ExecutablePath, item.Arguments)
             {
-                UseShellExecute = false,
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
                 WorkingDirectory = Path.GetDirectoryName(item.ExecutablePath)
             });
         }
@@ -1135,6 +1258,13 @@ public partial class MainWindow : Window
         }
 
         var window = process is null ? 0 : await FindMainWindowAsync(process);
+        if (window == 0)
+        {
+            var matchingWindow = _appCatalog.DiscoverRunningWindows(Environment.ProcessId)
+                .FirstOrDefault(candidate => candidate.DisplayName.Contains(item.Name,
+                    StringComparison.CurrentCultureIgnoreCase));
+            window = matchingWindow?.WindowHandle ?? 0;
+        }
         if (window == 0)
         {
             AppRunnerStatus.Text = $"{item.Name} did not expose a usable desktop window";
@@ -1149,6 +1279,7 @@ public partial class MainWindow : Window
         _collapseTimer.Stop();
         _interactiveAppPanel.Detach();
         _liveAppPreview.Detach();
+        DetachAppButton.IsEnabled = false;
         _islandManager.TransitionTo(IslandState.Expanded);
         ShowPanel(AppsPanel);
         _ = _virtualDesktopService.MoveToIslandDesktop(window, this);
@@ -1156,10 +1287,10 @@ public partial class MainWindow : Window
         UpdateLayout();
         if (RequiresLivePreview(window, name))
         {
-            if (_liveAppPreview.Attach(window, this, AppHostViewport))
+            if (_liveAppPreview.Attach(window, this, AppHostViewport, _isAnimating))
             {
-                if (_isAnimating) _liveAppPreview.Suspend();
-                AppRunnerStatus.Text = $"Live preview of {name} · use Open externally to interact";
+                DetachAppButton.IsEnabled = true;
+                AppRunnerStatus.Text = $"View-only preview of {name} · release the window to interact on the desktop";
                 return;
             }
 
@@ -1167,9 +1298,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_interactiveAppPanel.Attach(window, AppHostViewport))
+        if (_interactiveAppPanel.Attach(window, AppHostViewport, _isAnimating))
         {
-            if (_isAnimating) _interactiveAppPanel.Suspend();
+            DetachAppButton.IsEnabled = true;
             AppRunnerStatus.Text = $"Using {name} in the panel";
             return;
         }
@@ -1212,14 +1343,17 @@ public partial class MainWindow : Window
         {
             if (process.HasExited)
             {
-                return 0;
+                break;
             }
 
             process.Refresh();
             if (process.MainWindowHandle != 0)
-            {
                 return process.MainWindowHandle;
-            }
+
+            // Hidden-start windows are omitted by Process.MainWindowHandle.
+            var hiddenWindow = FindTopLevelWindow(process.Id);
+            if (hiddenWindow != 0)
+                return hiddenWindow;
 
             await Task.Delay(125);
         }
@@ -1227,10 +1361,38 @@ public partial class MainWindow : Window
         return 0;
     }
 
+    private static nint FindTopLevelWindow(int processId)
+    {
+        nint found = 0;
+        _ = EnumWindows((window, parameter) =>
+        {
+            _ = GetWindowThreadProcessId(window, out var ownerProcessId);
+            if (ownerProcessId != processId || GetWindow(window, 4) != 0 || GetWindowTextLength(window) == 0)
+                return true;
+
+            found = window;
+            return false;
+        }, 0);
+        return found;
+    }
+
+    private delegate bool EnumWindowsCallback(nint window, nint parameter);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumWindows(EnumWindowsCallback callback, nint parameter);
+
+    [DllImport("user32.dll")]
+    private static extern nint GetWindow(nint window, uint command);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowTextLength(nint window);
+
     private void DetachAppButton_Click(object sender, RoutedEventArgs e)
     {
         _interactiveAppPanel.Detach();
         _liveAppPreview.Detach();
+        DetachAppButton.IsEnabled = false;
         ShowAppHostPlaceholder("The hosted application was detached");
     }
 
@@ -1238,6 +1400,7 @@ public partial class MainWindow : Window
     {
         _interactiveAppPanel.Detach();
         _liveAppPreview.Detach();
+        DetachAppButton.IsEnabled = false;
         AppHostPlaceholder.Visibility = Visibility.Visible;
         AppRunnerStatus.Text = status;
     }
@@ -1444,25 +1607,6 @@ public partial class MainWindow : Window
         QueueSettingsSave();
     }
 
-    private void OpacitySlider_DragCompleted(object sender, DragCompletedEventArgs e)
-    {
-        if (OpacitySlider.Template.FindName("OpacityThumb", OpacitySlider) is not Thumb thumb ||
-            thumb.RenderTransform is not ScaleTransform scale) return;
-
-        // Template-created Freezables may be shared and frozen; animate a local copy.
-        if (scale.IsFrozen)
-        {
-            scale = scale.CloneCurrentValue();
-            thumb.RenderTransform = scale;
-        }
-
-        var bounce = new DoubleAnimationUsingKeyFrames();
-        bounce.KeyFrames.Add(new EasingDoubleKeyFrame(0.78, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(50))));
-        bounce.KeyFrames.Add(new EasingDoubleKeyFrame(1.13, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(140))));
-        bounce.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260))));
-        scale.BeginAnimation(ScaleTransform.ScaleYProperty, bounce);
-    }
-
     private void ApplySurfaceOpacity(double opacity)
     {
         var alpha = (byte)Math.Round(255 * opacity);
@@ -1526,7 +1670,7 @@ public partial class MainWindow : Window
             ? GradientStartColorTextBox : GradientEndColorTextBox;
         var initial = TryParseSurfaceColor(target.Text, out var color)
             ? color : Color.FromRgb(110, 214, 169);
-        if (!ColorPickerService.TryPick(this, initial, out var selected)) return;
+        if (!TryPickColor(initial, out var selected)) return;
         target.Text = $"#{selected.R:X2}{selected.G:X2}{selected.B:X2}";
         ApplyGradientButton_Click(sender, e);
     }
@@ -1638,7 +1782,7 @@ public partial class MainWindow : Window
         var current = Application.Current.Resources["AccentBrush"] is SolidColorBrush brush
             ? brush.Color
             : Color.FromRgb(110, 214, 169);
-        if (!ColorPickerService.TryPick(this, current, out var selected))
+        if (!TryPickColor(current, out var selected))
         {
             return;
         }
@@ -1656,6 +1800,8 @@ public partial class MainWindow : Window
             Application.Current.Resources["AccentBrush"] = new SolidColorBrush(color);
             AccentColorTextBox.Text = normalized;
             _configuration.AccentColor = normalized;
+            if (_isPluggedIn && _islandManager.State == IslandState.Collapsed)
+                UpdateLiquidBorder(IslandState.Collapsed, accentChanged: true);
             return true;
         }
         catch
@@ -1818,6 +1964,7 @@ public partial class MainWindow : Window
         _windowService.HorizontalOffset = _configuration.HorizontalOffset;
         _windowService.VerticalOffset = _configuration.VerticalOffset;
         _windowService.ResizeAndPosition(ActualWidth, ActualHeight);
+        UpdateLiquidBorder(_islandManager.State);
     }
 
     private void ResetPositionButton_Click(object sender, RoutedEventArgs e)
@@ -1825,19 +1972,32 @@ public partial class MainWindow : Window
         _configuration.Edge = IslandEdge.Top;
         _configuration.Alignment = IslandAlignment.Center;
         _configuration.HorizontalOffset = 0;
-        _configuration.VerticalOffset = 8;
+        _configuration.VerticalOffset = 0;
         EdgeComboBox.SelectedIndex = 0;
         AlignmentComboBox.SelectedIndex = 1;
         HorizontalOffsetSlider.Value = 0;
-        VerticalOffsetSlider.Value = 8;
+        VerticalOffsetSlider.Value = 0;
         ApplyWindowPlacement();
         QueueSettingsSave();
+    }
+
+    private bool? ShowOpenFileDialog(OpenFileDialog dialog)
+    {
+        _isModalDialogOpen = true;
+        try { return dialog.ShowDialog(this); }
+        finally { _isModalDialogOpen = false; }
+    }
+
+    private bool TryPickColor(Color initial, out Color selected)
+    {
+        _isModalDialogOpen = true;
+        try { return ColorPickerService.TryPick(this, initial, out selected); }
+        finally { _isModalDialogOpen = false; }
     }
 
     private void QueueSettingsSave()
     {
         _settingsSaveTimer.Stop();
-        _mediaProgressTimer.Stop();
         _settingsSaveTimer.Start();
     }
 
@@ -1869,6 +2029,7 @@ public partial class MainWindow : Window
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         _topmostTimer.Stop();
+        _ambientTimer.Stop();
         _powerTimer.Stop();
         _collapseTimer.Stop();
         _settingsSaveTimer.Stop();
@@ -1876,5 +2037,6 @@ public partial class MainWindow : Window
         _liveAppPreview.Detach();
 
         _mediaService.Dispose();
+        _notificationService.Dispose();
     }
 }
