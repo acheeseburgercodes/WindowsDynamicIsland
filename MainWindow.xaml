@@ -432,11 +432,11 @@
                                     <StackPanel>
                                         <TextBlock Text="Island Control Center" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource PrimaryTextBrush}" />
-                                        <TextBlock Text="Configure position, colors, opacity, and TempVault in the separate Windows app."
+                                        <TextBlock x:Name="ControlCenterStatusText" Text="Configure position, colors, opacity, and TempVault in the separate Windows app."
                                                    FontSize="11" TextWrapping="Wrap" MaxWidth="390"
                                                    Foreground="{DynamicResource SecondaryTextBrush}" />
                                     </StackPanel>
-                                    <Button Grid.Column="1" Style="{StaticResource AppRunnerPrimaryButton}"
+                                    <Button x:Name="OpenControlCenterButton" Grid.Column="1" Style="{StaticResource AppRunnerPrimaryButton}"
                                             VerticalAlignment="Center" Margin="12,0,0,0"
                                             Click="OpenSettingsAppButton_Click" Content="Open control center" />
                                 </Grid>
@@ -470,7 +470,7 @@
 
                             <!-- Legacy controls remain instantiated for existing bindings and
                                  configuration migration; their live editing now lives in the companion. -->
-                            <StackPanel Visibility="Collapsed">
+                            <StackPanel x:Name="LegacyAppearanceControls" Visibility="Collapsed">
                             <Border Padding="14" Background="{StaticResource PanelSurfaceBrush}" CornerRadius="14" Margin="0,0,0,10">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="260" /></Grid.ColumnDefinitions>
@@ -631,7 +631,7 @@
                                 </Grid>
                             </Border>
 
-                            <StackPanel Visibility="Collapsed">
+                            <StackPanel x:Name="LegacyPositionControls" Visibility="Collapsed">
                             <Border Padding="14" Background="{StaticResource PanelSurfaceBrush}" CornerRadius="14" Margin="0,0,0,10">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="190" /><ColumnDefinition Width="190" /></Grid.ColumnDefinitions>

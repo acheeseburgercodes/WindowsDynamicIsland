@@ -724,18 +724,36 @@ public partial class MainWindow : Window
     private void SettingsNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(SettingsPanel);
     private void OpenSettingsAppButton_Click(object sender, RoutedEventArgs e)
     {
+        if (LegacyAppearanceControls.Visibility == Visibility.Visible)
+        {
+            LegacyAppearanceControls.Visibility = Visibility.Collapsed;
+            LegacyPositionControls.Visibility = Visibility.Collapsed;
+            OpenControlCenterButton.Content = "Open control center";
+            ControlCenterStatusText.Text = "Quick settings hidden. Install the separate control center to use it here.";
+            return;
+        }
+
         var companion = Path.Combine(AppContext.BaseDirectory, "IslandSettings.exe");
-        try
+        var hasPackagedCompanion = Registry.ClassesRoot.OpenSubKey("dynamicisland-settings") is not null;
+        if (File.Exists(companion) || hasPackagedCompanion)
         {
-            // A packaged React Native Windows install registers this protocol.
-            // A self-contained local build can instead be placed next to the island.
-            var target = File.Exists(companion) ? companion : "dynamicisland-settings:";
-            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+            try
+            {
+                var target = File.Exists(companion) ? companion : "dynamicisland-settings:";
+                Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+                return;
+            }
+            catch (Exception exception) when (exception is IOException or System.ComponentModel.Win32Exception)
+            {
+                ControlCenterStatusText.Text = $"Could not launch the companion: {exception.Message}. Quick settings are available below.";
+            }
         }
-        catch (Exception exception) when (exception is IOException or System.ComponentModel.Win32Exception)
-        {
-            SettingsSaveStatusText.Text = $"Install the React Native Windows control center first. {exception.Message}";
-        }
+
+        LegacyAppearanceControls.Visibility = Visibility.Visible;
+        LegacyPositionControls.Visibility = Visibility.Visible;
+        OpenControlCenterButton.Content = "Hide quick settings";
+        if (!File.Exists(companion) && !hasPackagedCompanion)
+            ControlCenterStatusText.Text = "The separate app is not installed yet. Use these settings here for now; Windows will not open the Store.";
     }
     private async void AppsNavButton_Click(object sender, RoutedEventArgs e)
     {
