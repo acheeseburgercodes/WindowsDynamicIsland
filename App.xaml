@@ -51,43 +51,61 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="ButtonBorder"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="11"
-                                    Padding="{TemplateBinding Padding}"
-                                    RenderTransformOrigin="0.5,0.5">
-                                <Border.RenderTransform><TranslateTransform /></Border.RenderTransform>
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </Border>
+                            <Grid x:Name="ButtonFrame" RenderTransformOrigin="0.5,0.5">
+                                <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
+                                <Border x:Name="ButtonBorder"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="11" />
+                                <Border x:Name="HoverGlass" CornerRadius="11" Opacity="0"
+                                        BorderThickness="1" BorderBrush="#30FFFFFF"
+                                        IsHitTestVisible="False">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0.8,1">
+                                            <GradientStop Color="#32FFFFFF" Offset="0" />
+                                            <GradientStop Color="#14FFFFFF" Offset="0.42" />
+                                            <GradientStop Color="#00FFFFFF" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}" />
+                            </Grid>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                     <Trigger.EnterActions>
                                         <BeginStoryboard>
                                             <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetName="ButtonBorder"
+                                                <DoubleAnimation Storyboard.TargetName="ButtonFrame"
                                                                  Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
                                                                  To="-1" Duration="0:0:0.14" />
+                                                <DoubleAnimation Storyboard.TargetName="HoverGlass"
+                                                                 Storyboard.TargetProperty="Opacity"
+                                                                 To="1" Duration="0:0:0.18" />
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </Trigger.EnterActions>
                                     <Trigger.ExitActions>
                                         <BeginStoryboard>
                                             <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetName="ButtonBorder"
+                                                <DoubleAnimation Storyboard.TargetName="ButtonFrame"
                                                                  Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
                                                                  To="0" Duration="0:0:0.14" />
+                                                <DoubleAnimation Storyboard.TargetName="HoverGlass"
+                                                                 Storyboard.TargetProperty="Opacity"
+                                                                 To="0" Duration="0:0:0.18" />
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </Trigger.ExitActions>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.72" />
+                                    <Setter TargetName="ButtonFrame" Property="Opacity" Value="0.78" />
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.4" />
+                                    <Setter TargetName="ButtonFrame" Property="Opacity" Value="0.4" />
+                                    <Setter TargetName="HoverGlass" Property="Opacity" Value="0" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

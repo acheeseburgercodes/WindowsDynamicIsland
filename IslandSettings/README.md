@@ -4,7 +4,7 @@ React Native Windows + TypeScript companion for the WPF Dynamic Island.
 
 ## Build
 
-Install Visual Studio 2022 with the Desktop development with C++ and Universal Windows Platform workloads, plus a current Windows SDK. This is required for the generated `windows/IslandSettings.sln`; the .NET SDK alone cannot compile it.
+Install [Visual Studio 2022 Community](https://aka.ms/vs/17/release/vs_community.exe) (or use **Modify** in Visual Studio Installer if it is already installed). Select the **.NET desktop development**, **Desktop development with C++**, and **Universal Windows Platform development** workloads. In individual/optional components, include **MSVC v143 x64/x86**, **C++ (v143) Universal Windows Platform tools**, and **Windows 10 SDK 10.0.22621.0**. Enable **Developer Mode** in Windows Settings → System → For developers. This is required for the generated `windows/IslandSettings.sln`; the .NET SDK alone cannot compile it.
 
 ```powershell
 cd IslandSettings

@@ -593,14 +593,19 @@ public partial class MainWindow : Window
             : new CornerRadius(radius);
     }
 
-    private void AnimateIslandResize(double targetWidth, double targetHeight, IslandState state)
+    private void AnimateIslandResize(double targetWidth, double targetHeight, IslandState state,
+        bool prelayoutTarget = false)
     {
         var version = ++_resizeAnimationVersion;
         var scale = (ScaleTransform)IslandSurface.RenderTransform;
-        var currentWidth = Math.Max(1, ActualWidth * scale.ScaleX);
-        var currentHeight = Math.Max(1, ActualHeight * scale.ScaleY);
+        var currentWidth = Math.Max(1, IslandSurface.ActualWidth * scale.ScaleX);
+        var currentHeight = Math.Max(1, IslandSurface.ActualHeight * scale.ScaleY);
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        IslandSurface.Width = double.NaN;
+        IslandSurface.Height = double.NaN;
+        IslandSurface.HorizontalAlignment = HorizontalAlignment.Stretch;
+        IslandSurface.VerticalAlignment = VerticalAlignment.Stretch;
 
         if (Math.Abs(currentWidth - targetWidth) < 0.5 &&
             Math.Abs(currentHeight - targetHeight) < 0.5 &&
@@ -636,10 +641,23 @@ public partial class MainWindow : Window
             return;
         }
 
-        scale.ScaleX = Math.Clamp(currentWidth / Math.Max(1, ActualWidth), 0.05, 1);
-        scale.ScaleY = Math.Clamp(currentHeight / Math.Max(1, ActualHeight), 0.05, 1);
-        var targetScaleX = Math.Clamp(targetWidth / Math.Max(1, ActualWidth), 0.05, 1);
-        var targetScaleY = Math.Clamp(targetHeight / Math.Max(1, ActualHeight), 0.05, 1);
+        if (prelayoutTarget)
+        {
+            // During an Apps -> regular tab switch, keep the old transparent
+            // window as a viewport but lay out the new panel at its final size.
+            // Otherwise it visibly reflows when the window snaps smaller.
+            IslandSurface.Width = targetWidth;
+            IslandSurface.Height = targetHeight;
+            IslandSurface.HorizontalAlignment = HorizontalAlignment.Center;
+            IslandSurface.VerticalAlignment = VerticalAlignment.Top;
+        }
+
+        var layoutWidth = prelayoutTarget ? targetWidth : Math.Max(1, ActualWidth);
+        var layoutHeight = prelayoutTarget ? targetHeight : Math.Max(1, ActualHeight);
+        scale.ScaleX = Math.Clamp(currentWidth / layoutWidth, 0.05, 2);
+        scale.ScaleY = Math.Clamp(currentHeight / layoutHeight, 0.05, 2);
+        var targetScaleX = prelayoutTarget ? 1 : Math.Clamp(targetWidth / layoutWidth, 0.05, 1);
+        var targetScaleY = prelayoutTarget ? 1 : Math.Clamp(targetHeight / layoutHeight, 0.05, 1);
         var collapseX = new DoubleAnimation(targetScaleX, duration) { EasingFunction = easing };
         var collapseY = new DoubleAnimation(targetScaleY, duration) { EasingFunction = easing };
         collapseY.Completed += (_, _) => FinishResizeAnimation(version, targetWidth, targetHeight);
@@ -663,6 +681,10 @@ public partial class MainWindow : Window
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
         scale.ScaleX = 1;
         scale.ScaleY = 1;
+        IslandSurface.Width = double.NaN;
+        IslandSurface.Height = double.NaN;
+        IslandSurface.HorizontalAlignment = HorizontalAlignment.Stretch;
+        IslandSurface.VerticalAlignment = VerticalAlignment.Stretch;
         _windowService.RemoveNativeBorder();
         _isAnimating = false;
         if (_islandManager.State == IslandState.Collapsed && !IsMouseOver)
@@ -795,7 +817,8 @@ public partial class MainWindow : Window
                 _isAnimating = true;
                 _interactiveAppPanel.Suspend();
                 _liveAppPreview.Suspend();
-                AnimateIslandResize(width, height, _islandManager.State);
+                AnimateIslandResize(width, height, _islandManager.State,
+                    prelayoutTarget: outgoing == AppsPanel && panel != AppsPanel);
             }
         }
         var version = ++_panelAnimationVersion;
@@ -852,9 +875,11 @@ public partial class MainWindow : Window
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         });
-        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(205))
+        var returningFromApps = outgoing == AppsPanel && panel != AppsPanel;
+        var fadeIn = new DoubleAnimation(0, 1,
+            TimeSpan.FromMilliseconds(returningFromApps ? 240 : 205))
         {
-            BeginTime = TimeSpan.FromMilliseconds(20)
+            BeginTime = TimeSpan.FromMilliseconds(returningFromApps ? 110 : 20)
         };
         fadeIn.Completed += (_, _) =>
         {
