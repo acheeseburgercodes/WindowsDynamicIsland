@@ -39,6 +39,8 @@ public partial class MainWindow : Window
     private readonly BitmapImage _brandLogo = new(new Uri("pack://application:,,,/Assets/island-logo.png", UriKind.Absolute));
     private readonly ConfigurationService _configurationService = new();
     private readonly FileDockStorageService _fileDockStorage = new();
+    private readonly TempVaultStorageService _tempVaultStorage = new();
+    private readonly SettingsBridgeService _settingsBridge = new();
     private readonly MiniLogoStorageService _miniLogoStorage = new();
     private readonly AppCatalogService _appCatalog = new();
     private readonly InteractiveAppPanelService _interactiveAppPanel = new();
@@ -268,6 +270,16 @@ public partial class MainWindow : Window
         UpdateLiquidBorder(IslandState.Collapsed);
         _settingsLoaded = true;
         await SaveConfigurationAsync();
+        try
+        {
+            await _settingsBridge.StartAsync(
+                () => Dispatcher.InvokeAsync(GetSettingsSnapshot).Task,
+                settings => Dispatcher.InvokeAsync(() => ApplyCompanionSettingsAsync(settings)).Task.Unwrap());
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        {
+            SettingsSaveStatusText.Text = $"Settings app connection unavailable: {exception.Message}";
+        }
 
         EnableNotificationsButton.IsEnabled = _notificationService.IsSupported;
         NotificationPermissionStatus.Text = !_notificationService.IsSupported
@@ -710,6 +722,21 @@ public partial class MainWindow : Window
     private void MediaNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(MediaPanel);
     private void FilesNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(FilesPanel);
     private void SettingsNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(SettingsPanel);
+    private void OpenSettingsAppButton_Click(object sender, RoutedEventArgs e)
+    {
+        var companion = Path.Combine(AppContext.BaseDirectory, "IslandSettings.exe");
+        try
+        {
+            // A packaged React Native Windows install registers this protocol.
+            // A self-contained local build can instead be placed next to the island.
+            var target = File.Exists(companion) ? companion : "dynamicisland-settings:";
+            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException or System.ComponentModel.Win32Exception)
+        {
+            SettingsSaveStatusText.Text = $"Install the React Native Windows control center first. {exception.Message}";
+        }
+    }
     private async void AppsNavButton_Click(object sender, RoutedEventArgs e)
     {
         ShowPanel(AppsPanel);
@@ -1054,6 +1081,7 @@ public partial class MainWindow : Window
     {
         var changed = false;
         var added = 0;
+        var tempVaultErrors = 0;
         foreach (var path in paths.Where(File.Exists))
         {
             var sourcePath = Path.GetFullPath(path);
@@ -1074,6 +1102,12 @@ public partial class MainWindow : Window
                 }
 
                 _files.Add(stored);
+                if (_configuration.TempVaultAutoCopy)
+                {
+                    try { await _tempVaultStorage.CopyToInboxAsync(stored.FullPath, _configuration.TempVaultRoot); }
+                    catch (IOException) { tempVaultErrors++; }
+                    catch (UnauthorizedAccessException) { tempVaultErrors++; }
+                }
             }
             catch (Exception exception)
             {
@@ -1088,10 +1122,26 @@ public partial class MainWindow : Window
         if (changed)
         {
             await SaveConfigurationAsync();
-            FileDockStatus.Text = $"Stored {added} file{(added == 1 ? string.Empty : "s")} in the island's private shelf";
+            FileDockStatus.Text = tempVaultErrors > 0
+                ? $"Stored {added} in the dock, but {tempVaultErrors} could not be copied to TempVault."
+                : $"Stored {added} file{(added == 1 ? string.Empty : "s")} in the island's private shelf";
         }
 
         return added;
+    }
+
+    private async void SendToTempVaultButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string path }) return;
+        try
+        {
+            var destination = await _tempVaultStorage.CopyToInboxAsync(path, _configuration.TempVaultRoot);
+            FileDockStatus.Text = $"Sent {Path.GetFileName(destination)} to TempVault Inbox.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            FileDockStatus.Text = exception.Message;
+        }
     }
 
     private void FileList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -2075,6 +2125,82 @@ public partial class MainWindow : Window
         }
     }
 
+    private IslandSettingsSnapshot GetSettingsSnapshot() => new()
+    {
+        SurfaceOpacity = _configuration.SurfaceOpacity,
+        Edge = (int)_configuration.Edge,
+        Alignment = (int)_configuration.Alignment,
+        HorizontalOffset = _configuration.HorizontalOffset,
+        VerticalOffset = _configuration.VerticalOffset,
+        Theme = (int)_configuration.Theme,
+        SurfaceStyle = (int)_configuration.SurfaceStyle,
+        AccentColor = _configuration.AccentColor,
+        GradientStartColor = _configuration.GradientStartColor,
+        GradientEndColor = _configuration.GradientEndColor,
+        GradientDirection = (int)_configuration.GradientDirection,
+        LogoStyle = (int)_configuration.LogoStyle,
+        TempVaultRoot = _configuration.TempVaultRoot,
+        TempVaultAutoCopy = _configuration.TempVaultAutoCopy,
+        TempVaultConnected = TempVaultStorageService.IsAvailable(_configuration.TempVaultRoot)
+    };
+
+    private async Task ApplyCompanionSettingsAsync(IslandSettingsSnapshot settings)
+    {
+        if (!Enum.IsDefined(typeof(IslandEdge), settings.Edge) ||
+            !Enum.IsDefined(typeof(IslandAlignment), settings.Alignment) ||
+            !Enum.IsDefined(typeof(IslandTheme), settings.Theme) ||
+            !Enum.IsDefined(typeof(IslandSurfaceStyle), settings.SurfaceStyle) ||
+            !Enum.IsDefined(typeof(IslandGradientDirection), settings.GradientDirection) ||
+            !Enum.IsDefined(typeof(IslandLogoStyle), settings.LogoStyle) ||
+            !TryParseSurfaceColor(settings.AccentColor, out _) ||
+            !TryParseSurfaceColor(settings.GradientStartColor, out _) ||
+            !TryParseSurfaceColor(settings.GradientEndColor, out _) ||
+            !Path.IsPathFullyQualified(settings.TempVaultRoot))
+            throw new ArgumentException("Invalid island settings or TempVault storage path.");
+
+        _settingsSaveTimer.Stop();
+        _settingsLoaded = false;
+        try
+        {
+            _configuration.SurfaceOpacity = Math.Clamp(settings.SurfaceOpacity, 0.1, 1);
+            _configuration.Edge = (IslandEdge)settings.Edge;
+            _configuration.Alignment = (IslandAlignment)settings.Alignment;
+            _configuration.HorizontalOffset = Math.Clamp(settings.HorizontalOffset, -500, 500);
+            _configuration.VerticalOffset = Math.Clamp(settings.VerticalOffset, -500, 500);
+            _configuration.Theme = (IslandTheme)settings.Theme;
+            _configuration.SurfaceStyle = (IslandSurfaceStyle)settings.SurfaceStyle;
+            _configuration.GradientDirection = (IslandGradientDirection)settings.GradientDirection;
+            _configuration.GradientStartColor = settings.GradientStartColor;
+            _configuration.GradientEndColor = settings.GradientEndColor;
+            _configuration.LogoStyle = (IslandLogoStyle)settings.LogoStyle;
+            _configuration.TempVaultRoot = Path.GetFullPath(settings.TempVaultRoot);
+            _configuration.TempVaultAutoCopy = settings.TempVaultAutoCopy;
+
+            OpacitySlider.Value = _configuration.SurfaceOpacity * 100;
+            EdgeComboBox.SelectedIndex = settings.Edge;
+            AlignmentComboBox.SelectedIndex = settings.Alignment;
+            HorizontalOffsetSlider.Value = _configuration.HorizontalOffset;
+            VerticalOffsetSlider.Value = _configuration.VerticalOffset;
+            ThemeComboBox.SelectedIndex = settings.Theme;
+            SurfaceStyleComboBox.SelectedIndex = settings.SurfaceStyle;
+            GradientDirectionComboBox.SelectedIndex = settings.GradientDirection;
+            GradientStartColorTextBox.Text = settings.GradientStartColor;
+            GradientEndColorTextBox.Text = settings.GradientEndColor;
+            LogoStyleComboBox.SelectedIndex = settings.LogoStyle;
+            GradientOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Gradient
+                ? Visibility.Visible : Visibility.Collapsed;
+            ApplyTheme();
+            TryApplyAccent(settings.AccentColor);
+            ApplyLogoStyle();
+            ApplyWindowPlacement();
+            await SaveConfigurationAsync();
+        }
+        finally
+        {
+            _settingsLoaded = true;
+        }
+    }
+
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         _topmostTimer.Stop();
@@ -2087,5 +2213,6 @@ public partial class MainWindow : Window
 
         _mediaService.Dispose();
         _notificationService.Dispose();
+        _ = _settingsBridge.DisposeAsync();
     }
 }

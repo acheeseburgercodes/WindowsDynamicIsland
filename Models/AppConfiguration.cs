@@ -34,6 +34,10 @@ public sealed class AppConfiguration
 
     public string? MiniLogoImagePath { get; set; }
 
+    public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";
+
+    public bool TempVaultAutoCopy { get; set; }
+
     public List<DockedFileItem> DockedFiles { get; set; } = [];
 
     public List<AppLauncherItem> Applications { get; set; } = [];

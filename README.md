@@ -28,6 +28,8 @@ The application source is licensed under the [MIT License](LICENSE). Self-contai
 - Resolution-independent vector icons for navigation, playback, and the music-logo option
 - Click-and-hold dragging with saved screen position, automatic collapse, and an explicit Exit control
 - Per-pixel-transparent, borderless top-center window with top-center-origin eased scale transitions
+- Separate React Native Windows + TypeScript control center for placement, appearance, and TempVault storage
+- Optional copy-to-TempVault action on dock files; auto-copy can be enabled in the control center
 
 Docked files are independent copies stored under `%LOCALAPPDATA%\DynamicIsland\FileDock`. They remain there across restarts and do not depend on the original source. Removing an item from the shelf deletes only this managed copy.
 
@@ -63,7 +65,9 @@ dotnet run -c Release -p:Platform=x64
 
 Start media in an app that publishes a Windows system media session (for example Spotify or a browser playing supported audio/video). The island updates automatically.
 
-The default top-center placement is a screen-edge notch. Hover to reveal the media strip and click the notch or strip to open the full panel. Clicking outside returns it to the smallest state. Each tab uses its own compact size. A new track briefly reveals the media strip. The Settings tab includes a notification-animation test.
+The default top-center placement is a screen-edge notch. Hover to reveal the media strip and click the notch or strip to open the full panel. Clicking outside returns it to the smallest state. Media, Files, Clipboard, and Settings share one compact size; only Apps expands farther. A new track briefly reveals the media strip. The Settings tab includes a notification-animation test.
+
+The companion source and Windows project are in [`IslandSettings`](IslandSettings/README.md). Building its Windows package requires Visual Studio with C++ and Windows SDK components in addition to the .NET SDK. Start the island before opening the companion, then use **Open control center** in Settings or launch IslandSettings from Start. Its edits apply live through a loopback-only bridge. The default TempVault root is `D:\TempVault\storage`; an existing `Inbox` is required before exports are enabled.
 
 System-wide notification reading requires an MSIX-packaged build declaring the User Notification Listener capability and a separate permission grant from the user. The portable EXE cannot access other apps' notifications; its Settings tab reports this and disables the permission button. Notification content is not written to the island's configuration.
 

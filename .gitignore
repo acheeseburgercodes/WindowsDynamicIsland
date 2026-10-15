@@ -7,3 +7,8 @@ obj/
 *.user
 *.suo
 /artifacts/
+/IslandSettings/node_modules/
+/IslandSettings/.npm-cache/
+/IslandSettings/android/
+/IslandSettings/ios/
+/IslandSettings/.bundle/
