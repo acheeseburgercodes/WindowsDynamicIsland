@@ -455,7 +455,7 @@ public partial class MainWindow : Window
 
     private (double Width, double Height) GetExpandedSize() => _activePanel switch
     {
-        var panel when panel == MediaPanel => (600, 300),
+        var panel when panel == MediaPanel => (600, 340),
         var panel when panel == FilesPanel => (640, 390),
         var panel when panel == ClipboardPanel => (580, 350),
         var panel when panel == SettingsPanel => (670, 470),
