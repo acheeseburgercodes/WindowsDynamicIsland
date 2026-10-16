@@ -119,6 +119,18 @@
                 <Setter Property="FontSize" Value="11" />
             </Style>
 
+            <Style x:Key="IslandNavButton" TargetType="Button" BasedOn="{StaticResource IslandButton}">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Padding" Value="9,6" />
+                <Style.Triggers>
+                    <Trigger Property="Tag" Value="Active">
+                        <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
             <Style x:Key="AppRunnerPrimaryButton" TargetType="Button" BasedOn="{StaticResource AppRunnerActionButton}">
                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                 <Setter Property="FontWeight" Value="SemiBold" />

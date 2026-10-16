@@ -97,6 +97,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _activePanel = MediaPanel;
+        UpdateActiveNavigation();
         FileList.ItemsSource = _files;
         AppList.ItemsSource = _applications;
         RunningAppsComboBox.ItemsSource = _runningApplications;
@@ -809,6 +810,7 @@ public partial class MainWindow : Window
 
         var outgoing = _activePanel;
         _activePanel = panel;
+        UpdateActiveNavigation();
         if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
         {
             var (width, height) = GetExpandedSize();
@@ -887,6 +889,15 @@ public partial class MainWindow : Window
                 UpdateInteractivePanel();
         };
         panel.BeginAnimation(OpacityProperty, fadeIn, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private void UpdateActiveNavigation()
+    {
+        MediaNavButton.Tag = _activePanel == MediaPanel ? "Active" : null;
+        FilesNavButton.Tag = _activePanel == FilesPanel ? "Active" : null;
+        ClipboardNavButton.Tag = _activePanel == ClipboardPanel ? "Active" : null;
+        AppsNavButton.Tag = _activePanel == AppsPanel ? "Active" : null;
+        SettingsNavButton.Tag = _activePanel == SettingsPanel ? "Active" : null;
     }
 
     private void OnMediaChanged(object? sender, MediaSnapshot snapshot) =>
