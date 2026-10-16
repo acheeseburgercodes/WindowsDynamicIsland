@@ -133,8 +133,8 @@
                         <TextBlock x:Name="ExpandedNotificationHint" Visibility="Collapsed" MaxWidth="112"
                                    Margin="0,0,9,0" VerticalAlignment="Center" FontSize="10"
                                    TextTrimming="CharacterEllipsis" Foreground="{DynamicResource AccentBrush}" />
-                        <Button Style="{StaticResource IslandButton}" Width="32" Padding="0" Margin="0,0,4,0"
-                                Foreground="#FFFF9A9A" ToolTip="Close Dynamic Island" Click="ExitButton_Click"
+                        <Button Style="{StaticResource ChromeFreeIconButton}" Width="32" Margin="0,0,4,0"
+                                ToolTip="Close Dynamic Island" Click="ExitButton_Click"
                                 MouseEnter="AnimatedXButton_MouseEnter" MouseLeave="AnimatedXButton_MouseLeave">
                             <ui:AnimatedXIcon Width="17" Height="17" />
                         </Button>
@@ -314,8 +314,8 @@
                                                             Tag="{Binding FullPath}" ToolTip="Open file" Click="OpenFileButton_Click" Content="Open" />
                                                     <Button Style="{StaticResource IslandButton}" Width="41" Height="29" Padding="0" FontSize="10" Margin="0,0,4,0"
                                                             Tag="{Binding FullPath}" ToolTip="Copy file" Click="CopyFileButton_Click" Content="Copy" />
-                                                    <Button Style="{StaticResource IslandButton}" Width="28" Height="29" Padding="0"
-                                                            Foreground="#FFFFA6A6" Tag="{Binding FullPath}"
+                                                    <Button Style="{StaticResource ChromeFreeIconButton}" Width="28" Height="29"
+                                                            Tag="{Binding FullPath}"
                                                             ToolTip="Remove stored copy" Click="RemoveFileButton_Click"
                                                             MouseEnter="AnimatedXButton_MouseEnter" MouseLeave="AnimatedXButton_MouseLeave">
                                                         <ui:AnimatedXIcon Width="15" Height="15" />

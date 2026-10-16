@@ -112,6 +112,29 @@
                 </Setter>
             </Style>
 
+            <Style x:Key="ChromeFreeIconButton" TargetType="Button">
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="Transparent">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
             <Style x:Key="AppRunnerActionButton" TargetType="Button" BasedOn="{StaticResource IslandButton}">
                 <Setter Property="MinHeight" Value="34" />
                 <Setter Property="Padding" Value="12,7" />
