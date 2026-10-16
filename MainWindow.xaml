@@ -1,6 +1,7 @@
 <Window x:Class="DynamicIsland.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:DynamicIsland.UI"
         Title="Dynamic Island"
         Icon="pack://application:,,,/Assets/island-logo.png"
         Width="112" Height="30"
@@ -133,7 +134,10 @@
                                    Margin="0,0,9,0" VerticalAlignment="Center" FontSize="10"
                                    TextTrimming="CharacterEllipsis" Foreground="{DynamicResource AccentBrush}" />
                         <Button Style="{StaticResource IslandButton}" Width="32" Padding="0" Margin="0,0,4,0"
-                                Foreground="#FFFF9A9A" ToolTip="Close Dynamic Island" Click="ExitButton_Click"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconClose}" Width="16" Height="16" Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Button>
+                                Foreground="#FFFF9A9A" ToolTip="Close Dynamic Island" Click="ExitButton_Click"
+                                MouseEnter="AnimatedXButton_MouseEnter" MouseLeave="AnimatedXButton_MouseLeave">
+                            <ui:AnimatedXIcon Width="17" Height="17" />
+                        </Button>
                     </StackPanel>
                 </Grid>
 
@@ -312,7 +316,10 @@
                                                             Tag="{Binding FullPath}" ToolTip="Copy file" Click="CopyFileButton_Click" Content="Copy" />
                                                     <Button Style="{StaticResource IslandButton}" Width="28" Height="29" Padding="0"
                                                             Foreground="#FFFFA6A6" Tag="{Binding FullPath}"
-                                                            ToolTip="Remove stored copy" Click="RemoveFileButton_Click" Content="×" />
+                                                            ToolTip="Remove stored copy" Click="RemoveFileButton_Click"
+                                                            MouseEnter="AnimatedXButton_MouseEnter" MouseLeave="AnimatedXButton_MouseLeave">
+                                                        <ui:AnimatedXIcon Width="15" Height="15" />
+                                                    </Button>
                                                 </StackPanel>
                                             </Grid>
                                         </Border>

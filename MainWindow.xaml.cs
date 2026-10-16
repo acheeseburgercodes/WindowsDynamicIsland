@@ -736,6 +736,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private void AnimatedXButton_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is Button { Content: AnimatedXIcon icon })
+        {
+            icon.StartAnimation();
+        }
+    }
+
+    private void AnimatedXButton_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (sender is Button { Content: AnimatedXIcon icon })
+        {
+            icon.StopAnimation();
+        }
+    }
+
     private async void ExitButton_Click(object sender, RoutedEventArgs e)
     {
         await SaveConfigurationAsync();

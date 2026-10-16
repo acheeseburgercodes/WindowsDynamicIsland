@@ -1,0 +1,15 @@
+<UserControl x:Class="DynamicIsland.UI.AnimatedXIcon"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             IsHitTestVisible="False">
+    <Viewbox Stretch="Uniform">
+        <Canvas Width="24" Height="24">
+            <Line x:Name="FirstStroke" X1="18" Y1="6" X2="6" Y2="18"
+                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+            <Line x:Name="SecondStroke" X1="6" Y1="6" X2="18" Y2="18"
+                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+        </Canvas>
+    </Viewbox>
+</UserControl>

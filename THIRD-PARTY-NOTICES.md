@@ -8,3 +8,7 @@ The portable ZIP includes `DOTNET-LICENSE.txt` and
 `DOTNET-THIRD-PARTY-NOTICES.txt`, copied from the .NET installation used to
 publish the release. Consult those files for the terms and acknowledgments
 applicable to the bundled runtime.
+
+The animated X icon adapts the two-stroke hover animation from
+[Lucide Animated](https://github.com/pqoqubbw/icons) by dmytro (@pqoqubbw),
+licensed under the [MIT License](https://github.com/pqoqubbw/icons/blob/main/LICENSE).
