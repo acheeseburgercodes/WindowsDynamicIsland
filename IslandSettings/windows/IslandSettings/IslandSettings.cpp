@@ -70,8 +70,15 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
 
   // Get the AppWindow so we can configure its initial title and size
   auto appWindow{reactNativeWin32App.AppWindow()};
-  appWindow.Title(L"IslandSettings");
-  appWindow.Resize({1000, 1000});
+  appWindow.Title(L"Island Control Center");
+  appWindow.Resize({980, 680});
+  auto titleBar{appWindow.TitleBar()};
+  titleBar.BackgroundColor(winrt::Windows::UI::Color{255, 7, 7, 9});
+  titleBar.ForegroundColor(winrt::Windows::UI::Color{255, 246, 244, 249});
+  titleBar.ButtonBackgroundColor(winrt::Windows::UI::Color{255, 7, 7, 9});
+  titleBar.ButtonForegroundColor(winrt::Windows::UI::Color{255, 246, 244, 249});
+  titleBar.ButtonHoverBackgroundColor(winrt::Windows::UI::Color{255, 42, 40, 47});
+  titleBar.ButtonPressedBackgroundColor(winrt::Windows::UI::Color{255, 61, 57, 68});
 
   // Get the ReactViewOptions so we can set the initial RN component to load
   auto viewOptions{reactNativeWin32App.ReactViewOptions()};
