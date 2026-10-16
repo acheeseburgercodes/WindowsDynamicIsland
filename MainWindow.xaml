@@ -210,71 +210,136 @@
                         </Grid>
                     </Grid>
 
-                    <Grid x:Name="FilesPanel" Visibility="Collapsed" Margin="4,4,4,8">
+                    <Grid x:Name="FilesPanel" Visibility="Collapsed" Margin="8,6,8,8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="74" />
+                            <RowDefinition Height="64" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <Grid Margin="0,0,0,8">
-                            <StackPanel>
-                                <TextBlock Text="File shelf" FontSize="20" FontWeight="SemiBold"
-                                           Foreground="{StaticResource PrimaryTextBrush}" />
-                                <TextBlock Text="Stored safely in the island until you remove them. Drag items out to use them." FontSize="11"
-                                           Foreground="{StaticResource SecondaryTextBrush}" />
-                                <TextBlock x:Name="FileDockStatus" FontSize="10"
-                                           Foreground="{DynamicResource AccentBrush}" />
-                            </StackPanel>
-                            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                                <Button Style="{StaticResource IslandButton}" Margin="0,0,8,0"
-                                        Click="OpenFileDockFolderButton_Click" Content="Open stored folder" />
-                                <Button Style="{StaticResource IslandButton}" Margin="0,0,8,0"
-                                        Click="PasteFilesButton_Click" Content="Paste files" />
-                                <Button Style="{StaticResource IslandButton}" Background="{StaticResource PrimaryActionBrush}"
-                                        Foreground="{StaticResource PrimaryActionTextBrush}"
+                        <Grid Margin="0,0,0,10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="File shelf" FontSize="19" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource IslandButton}" Padding="9,6" FontSize="11" Margin="0,0,6,0"
+                                        ToolTip="Open persistent file dock folder"
+                                        Click="OpenFileDockFolderButton_Click" Content="Folder" />
+                                <Button Style="{StaticResource IslandButton}" Padding="9,6" FontSize="11" Margin="0,0,6,0"
+                                        ToolTip="Paste files from the clipboard"
+                                        Click="PasteFilesButton_Click" Content="Paste" />
+                                <Button Style="{StaticResource IslandButton}" Padding="10,6" FontSize="11"
+                                        Background="{DynamicResource PrimaryActionBrush}"
+                                        Foreground="{DynamicResource PrimaryActionTextBrush}"
                                         Click="AddFilesButton_Click" Content="Add files" />
                             </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,5,0,0">
+                                <TextBlock Text="Your files stay here until you remove them. Drag a row out to use it."
+                                           FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock x:Name="FileDockStatus" FontSize="10" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource AccentBrush}" />
+                            </StackPanel>
                         </Grid>
-                        <Border Grid.Row="1" Margin="0,0,0,8" AllowDrop="True"
-                                Background="{StaticResource DropSurfaceBrush}" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1"
+                        <Border Grid.Row="1" Margin="0,0,0,9" AllowDrop="True"
+                                Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
                                 CornerRadius="14" DragOver="FilesDropZone_DragOver" Drop="FilesDropZone_Drop">
-                            <TextBlock Text="＋  Drop files here" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{StaticResource SecondaryTextBrush}" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconFiles}" Width="17" Height="17" Stretch="Uniform"
+                                      Fill="{DynamicResource AccentBrush}" Margin="0,0,9,0" />
+                                <TextBlock Text="Drop files here to keep a copy" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
                         </Border>
-                        <ListView x:Name="FileList" Grid.Row="2" Background="Transparent" BorderThickness="0"
-                                  Foreground="{StaticResource PrimaryTextBrush}"
-                                  PreviewMouseLeftButtonDown="FileList_PreviewMouseLeftButtonDown"
-                                  PreviewMouseMove="FileList_PreviewMouseMove">
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Height="46">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="36" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Width="30" Height="30" Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="8">
-                                            <Path Data="{StaticResource IconFiles}" Width="17" Height="17" Fill="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Border Grid.Row="2" Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="14" Padding="6">
+                            <ListView x:Name="FileList" Background="Transparent" BorderThickness="0"
+                                      ItemContainerStyle="{StaticResource FileShelfItem}"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                      Foreground="{DynamicResource PrimaryTextBrush}"
+                                      PreviewMouseLeftButtonDown="FileList_PreviewMouseLeftButtonDown"
+                                      PreviewMouseMove="FileList_PreviewMouseMove">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,0,5" Padding="9,6" MinHeight="52"
+                                                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="10"
+                                                ToolTip="{Binding FullPath}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{DynamicResource SubtleSurfaceBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListViewItem}}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="32" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="174" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="28" Height="28" Background="{DynamicResource ControlSurfaceBrush}"
+                                                        CornerRadius="7" VerticalAlignment="Center">
+                                                    <Path Data="{StaticResource IconFiles}" Width="15" Height="15"
+                                                          Fill="{DynamicResource PrimaryTextBrush}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Margin="8,0,10,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                        <TextBlock Text="{Binding Extension}" FontSize="9"
+                                                                   Foreground="{DynamicResource AccentBrush}" />
+                                                        <TextBlock Text="  ·  Drag to use" FontSize="9"
+                                                                   Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                                                            VerticalAlignment="Center">
+                                                    <Button Style="{StaticResource IslandButton}" Width="45" Height="29" Padding="0" FontSize="10" Margin="0,0,4,0"
+                                                            Tag="{Binding FullPath}" ToolTip="Copy to TempVault Inbox" Click="SendToTempVaultButton_Click" Content="Vault" />
+                                                    <Button Style="{StaticResource IslandButton}" Width="41" Height="29" Padding="0" FontSize="10" Margin="0,0,4,0"
+                                                            Tag="{Binding FullPath}" ToolTip="Open file" Click="OpenFileButton_Click" Content="Open" />
+                                                    <Button Style="{StaticResource IslandButton}" Width="41" Height="29" Padding="0" FontSize="10" Margin="0,0,4,0"
+                                                            Tag="{Binding FullPath}" ToolTip="Copy file" Click="CopyFileButton_Click" Content="Copy" />
+                                                    <Button Style="{StaticResource IslandButton}" Width="28" Height="29" Padding="0"
+                                                            Foreground="#FFFFA6A6" Tag="{Binding FullPath}"
+                                                            ToolTip="Remove stored copy" Click="RemoveFileButton_Click" Content="×" />
+                                                </StackPanel>
+                                            </Grid>
                                         </Border>
-                                        <StackPanel Grid.Column="1" Margin="9,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{Binding FullPath}" FontSize="9"
-                                                       Foreground="{StaticResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                            <Button Style="{StaticResource IslandButton}" Width="32" Padding="0" Margin="0,0,5,0"
-                                                    Tag="{Binding FullPath}" ToolTip="Copy to TempVault" Click="SendToTempVaultButton_Click" Content="↥" />
-                                            <Button Style="{StaticResource IslandButton}" Width="32" Padding="0" Margin="0,0,5,0"
-                                                    Tag="{Binding FullPath}" ToolTip="Open" Click="OpenFileButton_Click" Content="↗" />
-                                            <Button Style="{StaticResource IslandButton}" Width="32" Padding="0" Margin="0,0,5,0"
-                                                    Tag="{Binding FullPath}" ToolTip="Copy" Click="CopyFileButton_Click" Content="▣" />
-                                            <Button Style="{StaticResource IslandButton}" Width="32" Padding="0" Foreground="#FFFF8A8A"
-                                                    Tag="{Binding FullPath}" ToolTip="Remove" Click="RemoveFileButton_Click" Content="×" />
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Border>
+                        <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    IsHitTestVisible="False">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasItems, ElementName=FileList}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Path Data="{StaticResource IconFiles}" Width="23" Height="23"
+                                  Fill="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" />
+                            <TextBlock Text="No saved files yet" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryTextBrush}" TextAlignment="Center" Margin="0,9,0,0" />
+                            <TextBlock Text="Drop a file above or choose Add files."
+                                       FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"
+                                       TextAlignment="Center" Margin="0,3,0,0" />
+                        </StackPanel>
                     </Grid>
 
                     <Grid x:Name="ClipboardPanel" Visibility="Collapsed" Margin="4,4,4,8">
