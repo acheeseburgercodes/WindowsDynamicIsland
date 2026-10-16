@@ -16,6 +16,10 @@ public sealed class AppConfiguration
 
     public int VerticalOffset { get; set; }
 
+    public int PanelWidth { get; set; } = 650;
+
+    public int PanelHeight { get; set; } = 400;
+
     public bool NotificationsEnabled { get; set; }
 
     public IslandLogoStyle LogoStyle { get; set; } = IslandLogoStyle.BrandMark;

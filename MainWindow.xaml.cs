@@ -30,8 +30,8 @@ public partial class MainWindow : Window
     private const double NotificationHeight = 78;
     private const double ExpandedWidth = 760;
     private const double ExpandedHeight = 530;
-    private const double StandardPanelWidth = 650;
-    private const double StandardPanelHeight = 400;
+    private const int DefaultPanelWidth = 650;
+    private const int DefaultPanelHeight = 400;
     private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
 
     private readonly IslandManager _islandManager = new();
@@ -196,6 +196,8 @@ public partial class MainWindow : Window
         }
 
         _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.1, 1);
+        _configuration.PanelWidth = Math.Clamp(_configuration.PanelWidth, 540, 760);
+        _configuration.PanelHeight = Math.Clamp(_configuration.PanelHeight, 330, 500);
         if (!Enum.IsDefined(_configuration.SurfaceStyle))
             _configuration.SurfaceStyle = IslandSurfaceStyle.Solid;
         if (!Enum.IsDefined(_configuration.GradientDirection))
@@ -275,7 +277,11 @@ public partial class MainWindow : Window
         {
             await _settingsBridge.StartAsync(
                 () => Dispatcher.InvokeAsync(GetSettingsSnapshot).Task,
-                settings => Dispatcher.InvokeAsync(() => ApplyCompanionSettingsAsync(settings)).Task.Unwrap());
+                settings => Dispatcher.InvokeAsync(() => ApplyCompanionSettingsAsync(settings)).Task.Unwrap(),
+                () => Dispatcher.InvokeAsync(ChooseMiniLogo).Task,
+                () => Dispatcher.InvokeAsync(ClearMiniLogo).Task,
+                () => Dispatcher.InvokeAsync(EnableNotificationsAsync).Task.Unwrap(),
+                () => Dispatcher.InvokeAsync(TestNotificationAsync).Task.Unwrap());
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
@@ -501,8 +507,8 @@ public partial class MainWindow : Window
 
     private (double Width, double Height) GetExpandedSize() =>
         _activePanel == AppsPanel
-            ? (ExpandedWidth, ExpandedHeight)
-            : (StandardPanelWidth, StandardPanelHeight);
+            ? (Math.Max(ExpandedWidth, _configuration.PanelWidth), Math.Max(ExpandedHeight, _configuration.PanelHeight))
+            : (_configuration.PanelWidth, _configuration.PanelHeight);
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
@@ -953,14 +959,17 @@ public partial class MainWindow : Window
             _islandManager.TransitionTo(IslandState.Collapsed);
     }
 
-    private async void EnableNotificationsButton_Click(object sender, RoutedEventArgs e)
+    private async Task EnableNotificationsAsync()
     {
         NotificationPermissionStatus.Text = await _notificationService.StartAsync(requestAccess: true);
         _configuration.NotificationsEnabled = _notificationService.IsListening;
         await SaveConfigurationAsync();
     }
 
-    private async void TestNotificationButton_Click(object sender, RoutedEventArgs e)
+    private async void EnableNotificationsButton_Click(object sender, RoutedEventArgs e) =>
+        await EnableNotificationsAsync();
+
+    private async Task TestNotificationAsync()
     {
         _suppressHoverUntilPointerLeaves = true;
         _islandManager.TransitionTo(IslandState.Collapsed);
@@ -968,6 +977,9 @@ public partial class MainWindow : Window
         ShowNotification(new NotificationPreview("Dynamic Island", "Notch animation is ready",
             "New alerts will drop down here."));
     }
+
+    private async void TestNotificationButton_Click(object sender, RoutedEventArgs e) =>
+        await TestNotificationAsync();
 
     private void ApplyMediaSnapshot(MediaSnapshot snapshot)
     {
@@ -2041,7 +2053,9 @@ public partial class MainWindow : Window
         PreviewFallbackIcon.FontSize = previewSize;
     }
 
-    private void ChooseMiniLogoButton_Click(object sender, RoutedEventArgs e)
+    private void ChooseMiniLogoButton_Click(object sender, RoutedEventArgs e) => ChooseMiniLogo();
+
+    private void ChooseMiniLogo()
     {
         var dialog = new OpenFileDialog
         {
@@ -2073,7 +2087,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ClearMiniLogoButton_Click(object sender, RoutedEventArgs e)
+    private void ClearMiniLogoButton_Click(object sender, RoutedEventArgs e) => ClearMiniLogo();
+
+    private void ClearMiniLogo()
     {
         try
         {
@@ -2202,6 +2218,8 @@ public partial class MainWindow : Window
         Alignment = (int)_configuration.Alignment,
         HorizontalOffset = _configuration.HorizontalOffset,
         VerticalOffset = _configuration.VerticalOffset,
+        PanelWidth = _configuration.PanelWidth,
+        PanelHeight = _configuration.PanelHeight,
         Theme = (int)_configuration.Theme,
         SurfaceStyle = (int)_configuration.SurfaceStyle,
         AccentColor = _configuration.AccentColor,
@@ -2211,7 +2229,11 @@ public partial class MainWindow : Window
         LogoStyle = (int)_configuration.LogoStyle,
         TempVaultRoot = _configuration.TempVaultRoot,
         TempVaultAutoCopy = _configuration.TempVaultAutoCopy,
-        TempVaultConnected = TempVaultStorageService.IsAvailable(_configuration.TempVaultRoot)
+        TempVaultConnected = TempVaultStorageService.IsAvailable(_configuration.TempVaultRoot),
+        NotificationsSupported = _notificationService.IsSupported,
+        NotificationsEnabled = _notificationService.IsListening,
+        NotificationStatus = NotificationPermissionStatus.Text,
+        HasCustomMiniLogo = _customMiniLogo is not null
     };
 
     private async Task ApplyCompanionSettingsAsync(IslandSettingsSnapshot settings)
@@ -2237,6 +2259,8 @@ public partial class MainWindow : Window
             _configuration.Alignment = (IslandAlignment)settings.Alignment;
             _configuration.HorizontalOffset = Math.Clamp(settings.HorizontalOffset, -500, 500);
             _configuration.VerticalOffset = Math.Clamp(settings.VerticalOffset, -500, 500);
+            _configuration.PanelWidth = settings.PanelWidth == 0 ? DefaultPanelWidth : Math.Clamp(settings.PanelWidth, 540, 760);
+            _configuration.PanelHeight = settings.PanelHeight == 0 ? DefaultPanelHeight : Math.Clamp(settings.PanelHeight, 330, 500);
             _configuration.Theme = (IslandTheme)settings.Theme;
             _configuration.SurfaceStyle = (IslandSurfaceStyle)settings.SurfaceStyle;
             _configuration.GradientDirection = (IslandGradientDirection)settings.GradientDirection;
@@ -2263,6 +2287,11 @@ public partial class MainWindow : Window
             TryApplyAccent(settings.AccentColor);
             ApplyLogoStyle();
             ApplyWindowPlacement();
+            if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
+            {
+                var (width, height) = GetExpandedSize();
+                AnimateIslandResize(width, height, _islandManager.State);
+            }
             await SaveConfigurationAsync();
         }
         finally

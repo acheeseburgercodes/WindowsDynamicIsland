@@ -635,7 +635,7 @@
                                                    Foreground="{DynamicResource AccentBrush}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1">
-                                        <StackPanel Orientation="Horizontal">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                             <Border x:Name="AccentPreview" Width="28" Height="28" Margin="0,0,8,0"
                                                     Background="{DynamicResource AccentBrush}" CornerRadius="8" />
                                             <TextBox x:Name="AccentColorTextBox" Width="104" Height="28" Padding="7,3"
@@ -646,7 +646,7 @@
                                             <Button Style="{StaticResource IslandButton}" Margin="8,0,0,0" Padding="10,4"
                                                     Click="ApplyAccentButton_Click" Content="Apply" />
                                         </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                                             <Button Style="{StaticResource IslandButton}" Tag="#6ED6A9" Padding="8,3" Margin="0,0,5,0"
                                                     Click="AccentPresetButton_Click" Content="Mint" />
                                             <Button Style="{StaticResource IslandButton}" Tag="#66A3FF" Padding="8,3" Margin="0,0,5,0"
@@ -691,13 +691,13 @@
                                                    Foreground="{StaticResource SecondaryTextBrush}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1">
-                                        <StackPanel Orientation="Horizontal">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                             <Button Style="{StaticResource IslandButton}" Margin="0,0,8,0"
                                                     Click="ChooseMiniLogoButton_Click" Content="Choose picture" />
                                             <Button Style="{StaticResource IslandButton}"
                                                     Click="ClearMiniLogoButton_Click" Content="Clear" />
                                         </StackPanel>
-                                        <TextBlock x:Name="MiniLogoStatusText" Margin="0,6,0,0" FontSize="10"
+                                        <TextBlock x:Name="MiniLogoStatusText" Margin="0,6,0,0" FontSize="10" TextAlignment="Right"
                                                    TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
                                     </StackPanel>
                                 </Grid>
