@@ -138,4 +138,8 @@
     <Error Condition="!Exists('$(ReactNativeWindowsDir)\PropertySheets\External\Microsoft.ReactNative.Composition.CppApp.props')" Text="$([System.String]::Format('$(ErrorText)', '$(ReactNativeWindowsDir)\PropertySheets\External\Microsoft.ReactNative.Composition.CppApp.props'))" />
     <Error Condition="!Exists('$(ReactNativeWindowsDir)\PropertySheets\External\Microsoft.ReactNative.Composition.CppApp.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(ReactNativeWindowsDir)\PropertySheets\External\Microsoft.ReactNative.Composition.CppApp.targets'))" />
   </Target>
+  <Target Name="SignBuiltExecutable" AfterTargets="Build"
+          Condition="'$(Configuration)'=='Release' and '$(CodeSigningCertificateThumbprint)'!='' and Exists('$(TargetPath)')">
+    <Exec Command="&quot;$(WindowsSdkDir)bin\$(WindowsTargetPlatformVersion)\x64\signtool.exe&quot; sign /fd SHA256 /sha1 &quot;$(CodeSigningCertificateThumbprint)&quot; /s My &quot;$(TargetPath)&quot;" />
+  </Target>
 </Project>
