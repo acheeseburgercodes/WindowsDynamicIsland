@@ -30,6 +30,8 @@ public partial class MainWindow : Window
     private const double NotificationHeight = 78;
     private const int DefaultPanelWidth = 650;
     private const int DefaultPanelHeight = 400;
+    private const int AppPanelWidth = 920;
+    private const int AppPanelHeight = 600;
     private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
 
     private readonly IslandManager _islandManager = new();
@@ -524,7 +526,9 @@ public partial class MainWindow : Window
     }
 
     private (double Width, double Height) GetExpandedSize() =>
-        (_configuration.PanelWidth, _configuration.PanelHeight);
+        _activePanel == AppsPanel
+            ? (Math.Max(_configuration.PanelWidth, AppPanelWidth), Math.Max(_configuration.PanelHeight, AppPanelHeight))
+            : (_configuration.PanelWidth, _configuration.PanelHeight);
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
@@ -1036,7 +1040,7 @@ public partial class MainWindow : Window
                 ? "Current location" : weather.Location;
             WeatherTemperatureText.Text = $"{weather.TemperatureC}°";
             WeatherConditionText.Text = weather.Condition;
-            WeatherHeroIcon.Text = GetWeatherEmoji(weather.Condition);
+            ApplyWeatherIcon(weather.Condition);
             WeatherFeelsText.Text = $"{weather.FeelsLikeC}°";
             WeatherHumidityText.Text = $"{weather.HumidityPercent}%";
             WeatherWindText.Text = $"{weather.WindKph} km/h";
@@ -1053,17 +1057,23 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string GetWeatherEmoji(string? condition)
+    private void ApplyWeatherIcon(string? condition)
     {
         var value = condition?.ToLowerInvariant() ?? string.Empty;
-        if (value.Contains("thunder") || value.Contains("storm")) return "⛈️";
-        if (value.Contains("snow") || value.Contains("sleet") || value.Contains("blizzard")) return "🌨️";
-        if (value.Contains("rain") || value.Contains("drizzle") || value.Contains("shower")) return "🌦️";
-        if (value.Contains("fog") || value.Contains("mist") || value.Contains("haze")) return "🌫️";
-        if (value.Contains("overcast")) return "☁️";
-        if (value.Contains("cloud")) return "⛅";
-        if (value.Contains("clear") || value.Contains("sun")) return "☀️";
-        return "🌤️";
+        var storm = value.Contains("thunder") || value.Contains("storm");
+        var snow = value.Contains("snow") || value.Contains("sleet") || value.Contains("blizzard");
+        var rain = value.Contains("rain") || value.Contains("drizzle") || value.Contains("shower") || storm;
+        var fog = value.Contains("fog") || value.Contains("mist") || value.Contains("haze");
+        var cloud = value.Contains("overcast") || value.Contains("cloud") || rain || snow || fog;
+        var clear = value.Contains("clear") || value.Contains("sun");
+
+        WeatherSun.Visibility = fog || (cloud && !rain) ? Visibility.Collapsed : Visibility.Visible;
+        WeatherSunRays.Visibility = WeatherSun.Visibility;
+        WeatherCloud.Visibility = clear && !cloud ? Visibility.Collapsed : Visibility.Visible;
+        WeatherRain.Visibility = rain ? Visibility.Visible : Visibility.Collapsed;
+        WeatherSnow.Visibility = snow ? Visibility.Visible : Visibility.Collapsed;
+        WeatherThunder.Visibility = storm ? Visibility.Visible : Visibility.Collapsed;
+        WeatherFog.Visibility = fog ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ApplyHardwareSnapshot(HardwareSnapshot snapshot)

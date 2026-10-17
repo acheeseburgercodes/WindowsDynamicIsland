@@ -504,7 +504,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
-                            <RowDefinition Height="112" />
+                            <RowDefinition Height="104" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
@@ -535,7 +535,7 @@
                             </Grid>
                         </Border>
 
-                        <Border Grid.Row="2" Margin="0,9,0,0" Padding="10,8"
+                        <Border Grid.Row="2" Margin="0,10,0,0" Padding="12,8"
                                 Background="{DynamicResource PanelSurfaceBrush}"
                                 BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="14">
                             <Grid>
@@ -550,39 +550,39 @@
                                 <Grid>
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                     <TextBlock Text="SAVED" Margin="2,0,0,4" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    <ListBox x:Name="AppList" Grid.Row="1" Height="32" Background="Transparent" BorderThickness="0"
-                                             Foreground="{DynamicResource PrimaryTextBrush}" ItemContainerStyle="{StaticResource AppRunnerListItem}"
+                                    <ListBox x:Name="AppList" Grid.Row="1" Height="28" Background="Transparent" BorderThickness="0"
+                                             Foreground="{DynamicResource PrimaryTextBrush}" ItemContainerStyle="{StaticResource AppRunnerCompactListItem}"
                                              ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                         <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate></ListBox.ItemTemplate>
                                     </ListBox>
                                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0">
-                                        <Button Style="{StaticResource AppRunnerActionButton}" Padding="8,4" Margin="0,0,5,0" Click="AddAppButton_Click" Content="Add" />
-                                        <Button Style="{StaticResource AppRunnerActionButton}" Padding="8,4" Margin="0,0,5,0" Click="RemoveAppButton_Click" Content="Remove" />
-                                        <Button Style="{StaticResource AppRunnerPrimaryButton}" Padding="8,4" Click="UseAppInPanelButton_Click" Content="Open" />
+                                        <Button Style="{StaticResource AppRunnerCompactButton}" Margin="0,0,5,0" Click="AddAppButton_Click" Content="Add" />
+                                        <Button Style="{StaticResource AppRunnerCompactButton}" Margin="0,0,5,0" Click="RemoveAppButton_Click" Content="Remove" />
+                                        <Button Style="{StaticResource AppRunnerCompactPrimaryButton}" Click="UseAppInPanelButton_Click" Content="Open" />
                                     </StackPanel>
                                 </Grid>
 
                                 <Grid Grid.Column="2">
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                     <TextBlock Text="RUNNING WINDOWS" Margin="2,0,0,4" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    <ComboBox x:Name="RunningAppsComboBox" Grid.Row="1" Height="32" MaxDropDownHeight="180">
+                                    <ComboBox x:Name="RunningAppsComboBox" Grid.Row="1" Height="28" FontSize="10" MaxDropDownHeight="180">
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
                                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0">
-                                        <Button Style="{StaticResource AppRunnerActionButton}" Padding="8,4" Margin="0,0,5,0" Click="RefreshRunningAppsButton_Click" Content="Refresh" />
-                                        <Button Style="{StaticResource AppRunnerPrimaryButton}" Padding="8,4" Click="UseRunningAppButton_Click" Content="Attach" />
+                                        <Button Style="{StaticResource AppRunnerCompactButton}" Margin="0,0,5,0" Click="RefreshRunningAppsButton_Click" Content="Refresh" />
+                                        <Button Style="{StaticResource AppRunnerCompactPrimaryButton}" Click="UseRunningAppButton_Click" Content="Attach" />
                                     </StackPanel>
                                 </Grid>
 
                                 <Grid Grid.Column="4">
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                     <TextBlock Text="INSTALLED APPS" Margin="2,0,0,4" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    <ComboBox x:Name="InstalledAppsComboBox" Grid.Row="1" Height="32" MaxDropDownHeight="200">
+                                    <ComboBox x:Name="InstalledAppsComboBox" Grid.Row="1" Height="28" FontSize="10" MaxDropDownHeight="200">
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
                                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0">
-                                        <Button Style="{StaticResource AppRunnerActionButton}" Padding="8,4" Margin="0,0,5,0" Click="RefreshInstalledAppsButton_Click" Content="Refresh" />
-                                        <Button Style="{StaticResource AppRunnerPrimaryButton}" Padding="8,4" Click="RunInstalledAppButton_Click" Content="Open" />
+                                        <Button Style="{StaticResource AppRunnerCompactButton}" Margin="0,0,5,0" Click="RefreshInstalledAppsButton_Click" Content="Refresh" />
+                                        <Button Style="{StaticResource AppRunnerCompactPrimaryButton}" Click="RunInstalledAppButton_Click" Content="Open" />
                                     </StackPanel>
                                 </Grid>
                             </Grid>
@@ -624,13 +624,38 @@
                                         <TextBlock x:Name="WeatherConditionText" Text="Choose refresh to load current conditions"
                                                    FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" />
                                     </StackPanel>
-                                    <Grid Grid.Column="1" Width="96" Height="92" VerticalAlignment="Center" Margin="20,0,4,0">
-                                        <Ellipse Width="76" Height="76" Fill="#24FDBA4A" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Grid.Column="1" Width="104" Height="94" VerticalAlignment="Center" Margin="20,0,4,0">
+                                        <Ellipse Width="82" Height="82" Fill="#28FDBA4A" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <Ellipse.Effect><BlurEffect Radius="18" /></Ellipse.Effect>
                                         </Ellipse>
-                                        <TextBlock x:Name="WeatherHeroIcon" Text="🌦️" FontFamily="Segoe UI Emoji" FontSize="66"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   TextOptions.TextFormattingMode="Display" />
+                                        <Viewbox Width="94" Height="88" Stretch="Uniform">
+                                            <Canvas Width="96" Height="92">
+                                                <Ellipse x:Name="WeatherSun" Canvas.Left="13" Canvas.Top="5" Width="38" Height="38" Fill="#FFFFC857">
+                                                    <Ellipse.Effect><DropShadowEffect Color="#FFFFB52E" BlurRadius="14" ShadowDepth="0" Opacity="0.72" /></Ellipse.Effect>
+                                                </Ellipse>
+                                                <Path x:Name="WeatherSunRays" Data="M32,0 L32,7 M32,42 L32,49 M7,24 L14,24 M50,24 L57,24 M14,7 L19,12 M45,36 L50,41 M50,7 L45,12 M19,36 L14,41"
+                                                      Stroke="#FFFFD873" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                <Path x:Name="WeatherCloud" Stroke="#66FFFFFF" StrokeThickness="1.25">
+                                                    <Path.Fill>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#FFF4F8FF" Offset="0" />
+                                                            <GradientStop Color="#FFADC5E3" Offset="0.55" />
+                                                            <GradientStop Color="#FF728EBA" Offset="1" />
+                                                        </LinearGradientBrush>
+                                                    </Path.Fill>
+                                                    <Path.Data>M20,65 C10,65 7,53 14,47 C17,44 21,43 25,44 C27,33 36,27 46,30 C52,21 68,25 69,39 C79,40 86,47 84,57 C83,64 76,68 67,68 L22,68 C21,68 20,67 20,65 Z</Path.Data>
+                                                    <Path.Effect><DropShadowEffect Color="#AA4B68A0" BlurRadius="10" ShadowDepth="3" Opacity="0.7" /></Path.Effect>
+                                                </Path>
+                                                <Path x:Name="WeatherRain" Data="M29,75 L24,84 M49,75 L44,84 M69,75 L64,84"
+                                                      Stroke="#FF55C7FF" StrokeThickness="5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                <Path x:Name="WeatherSnow" Visibility="Collapsed" Data="M26,78 L26,88 M21,83 L31,83 M46,78 L46,88 M41,83 L51,83 M66,78 L66,88 M61,83 L71,83"
+                                                      Stroke="#FFE6F7FF" StrokeThickness="2.5" StrokeStartLineCap="Round" />
+                                                <Path x:Name="WeatherThunder" Visibility="Collapsed" Data="M52,70 L42,82 L50,82 L44,92 L62,77 L54,77 Z"
+                                                      Fill="#FFFFD84A" Stroke="#FFFFE889" StrokeThickness="1" />
+                                                <Path x:Name="WeatherFog" Visibility="Collapsed" Data="M18,76 L76,76 M24,84 L69,84 M33,91 L62,91"
+                                                      Stroke="#FFB6C7D9" StrokeThickness="3" StrokeStartLineCap="Round" />
+                                            </Canvas>
+                                        </Viewbox>
                                     </Grid>
                                 </Grid>
                             </Border>
