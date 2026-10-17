@@ -35,9 +35,9 @@
                 <Border x:Name="AtmosphereBase" CornerRadius="0,0,15,15">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
-                            <GradientStop Color="#181D2030" Offset="0" />
-                            <GradientStop Color="#780B0C12" Offset="0.48" />
-                            <GradientStop Color="#D9040508" Offset="1" />
+                            <GradientStop x:Name="AtmosphereTopStop" Color="#181D2030" Offset="0" />
+                            <GradientStop x:Name="AtmosphereMiddleStop" Color="#780B0C12" Offset="0.48" />
+                            <GradientStop x:Name="AtmosphereBottomStop" Color="#D9040508" Offset="1" />
                         </LinearGradientBrush>
                     </Border.Background>
                 </Border>
@@ -67,8 +67,9 @@
                     <Border x:Name="MiniLogoContainer" Width="16" Height="16" Background="{StaticResource PrimaryActionBrush}" CornerRadius="8">
                         <Grid>
                             <Image x:Name="MiniLogoArtwork" Visibility="Collapsed" Stretch="Uniform" />
-                            <Path x:Name="MiniLogoGlyph" Data="{StaticResource IconMusic}" Width="10" Height="10"
-                                  Fill="{StaticResource PrimaryActionTextBrush}" HorizontalAlignment="Center"
+                            <Path x:Name="MiniLogoGlyph" Data="{StaticResource NavIconMusic}" Width="10" Height="10"
+                                  Fill="Transparent" Stroke="{StaticResource PrimaryActionTextBrush}" StrokeThickness="1.8"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" HorizontalAlignment="Center"
                                   VerticalAlignment="Center" Visibility="Collapsed" />
                             <TextBlock x:Name="MiniLogoText" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Text="DI" FontSize="7" FontWeight="Bold" Foreground="{StaticResource PrimaryActionTextBrush}" />
@@ -90,8 +91,9 @@
                         Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="10">
                     <Grid>
                         <Image x:Name="PreviewArtwork" Stretch="Uniform" />
-                        <Path x:Name="PreviewLogoGlyph" Data="{StaticResource IconMusic}" Width="20" Height="20"
-                              Fill="{StaticResource PrimaryTextBrush}" HorizontalAlignment="Center"
+                        <Path x:Name="PreviewLogoGlyph" Data="{StaticResource NavIconMusic}" Width="20" Height="20"
+                              Fill="Transparent" Stroke="{StaticResource PrimaryTextBrush}" StrokeThickness="1.7"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" HorizontalAlignment="Center"
                               VerticalAlignment="Center" Visibility="Collapsed" />
                         <TextBlock x:Name="PreviewFallbackIcon" Text="DI" FontSize="12" FontWeight="Bold"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -129,8 +131,11 @@
                 </Grid.ColumnDefinitions>
                 <Border Width="36" Height="36" CornerRadius="12" VerticalAlignment="Center"
                         Background="{DynamicResource ControlSurfaceBrush}">
-                    <Path Data="{StaticResource IconBell}" Width="18" Height="18" Stretch="Uniform"
-                          Fill="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Grid>
+                        <Image x:Name="NotificationAppIcon" Width="24" Height="24" Stretch="Uniform" />
+                        <Path x:Name="NotificationFallbackIcon" Data="{StaticResource IconBell}" Width="18" Height="18" Stretch="Uniform"
+                              Fill="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
                 </Border>
                 <StackPanel Grid.Column="1" Margin="6,0" VerticalAlignment="Center">
                     <TextBlock x:Name="NotificationAppText" Text="NOTIFICATION" FontSize="9" FontWeight="SemiBold"
@@ -181,14 +186,14 @@
                     <Border Margin="0,7,10,8" Padding="5" CornerRadius="15"
                             Background="#241F2025" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
                         <StackPanel VerticalAlignment="Top">
-                            <Button x:Name="MediaNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" HorizontalContentAlignment="Left" Click="MediaNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconMusic}" /><TextBlock Text="Media" Margin="7,0,0,0" /></StackPanel></Button>
-                            <Button x:Name="WeatherNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" HorizontalContentAlignment="Left" Click="WeatherNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconWeather}" /><TextBlock Text="Weather" Margin="7,0,0,0" /></StackPanel></Button>
-                            <Button x:Name="HardwareNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" HorizontalContentAlignment="Left" Click="HardwareNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconHardware}" /><TextBlock Text="System" Margin="7,0,0,0" /></StackPanel></Button>
+                            <Button x:Name="MediaNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="MediaNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconMusic}" /><TextBlock Text="Media" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                            <Button x:Name="WeatherNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="WeatherNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconWeather}" /><TextBlock Text="Weather" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                            <Button x:Name="HardwareNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="HardwareNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconHardware}" /><TextBlock Text="System" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                             <Border Height="1" Margin="6,5,6,8" Background="{DynamicResource DividerBrush}" />
-                            <Button x:Name="FilesNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" HorizontalContentAlignment="Left" Click="FilesNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconFiles}" /><TextBlock Text="Files" Margin="7,0,0,0" /></StackPanel></Button>
-                            <Button x:Name="ClipboardNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" HorizontalContentAlignment="Left" Click="ClipboardNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconClipboard}" /><TextBlock Text="Clipboard" Margin="7,0,0,0" /></StackPanel></Button>
-                            <Button x:Name="AppsNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" HorizontalContentAlignment="Left" Click="AppsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconApps}" /><TextBlock Text="Apps" Margin="7,0,0,0" /></StackPanel></Button>
-                            <Button x:Name="SettingsNavButton" Style="{StaticResource IslandNavButton}" HorizontalContentAlignment="Left" Click="SettingsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource IslandIcon}" Data="{StaticResource IconSettings}" /><TextBlock Text="Settings" Margin="7,0,0,0" /></StackPanel></Button>
+                            <Button x:Name="FilesNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="FilesNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconFiles}" /><TextBlock Text="Files" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                            <Button x:Name="ClipboardNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="ClipboardNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconClipboard}" /><TextBlock Text="Clipboard" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                            <Button x:Name="AppsNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="AppsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconApps}" /><TextBlock Text="Apps" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                            <Button x:Name="SettingsNavButton" Style="{StaticResource IslandNavButton}" Click="SettingsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconSettings}" /><TextBlock Text="Settings" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                             <TextBlock Text="SCROLL TO SWITCH" Margin="7,12,0,0" FontSize="7"
                                        Foreground="{DynamicResource SecondaryTextBrush}" />
                         </StackPanel>
@@ -209,9 +214,10 @@
                                 <Border CornerRadius="17" ClipToBounds="True">
                                     <Image x:Name="Artwork" Stretch="UniformToFill" />
                                 </Border>
-                                <Path x:Name="ArtworkFallbackIcon" Data="{StaticResource IconMusic}" Width="46" Height="46"
+                                <Path x:Name="ArtworkFallbackIcon" Data="{StaticResource NavIconMusic}" Width="46" Height="46"
                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                      Fill="{StaticResource SecondaryTextBrush}" />
+                                      Fill="Transparent" Stroke="{StaticResource SecondaryTextBrush}" StrokeThickness="1.45"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
                             </Grid>
                         </Border>
                         <Grid Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
@@ -296,15 +302,19 @@
                                        Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button Style="{StaticResource IslandButton}" Padding="9,6" FontSize="11" Margin="0,0,6,0"
-                                        ToolTip="Open persistent file dock folder"
-                                        Click="OpenFileDockFolderButton_Click" Content="Folder" />
+                                        ToolTip="Open persistent file dock folder" Click="OpenFileDockFolderButton_Click">
+                                    <StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineButtonIcon}" Data="{StaticResource IconFolderOpen}" /><TextBlock Text="Folder" Margin="6,0,0,0" /></StackPanel>
+                                </Button>
                                 <Button Style="{StaticResource IslandButton}" Padding="9,6" FontSize="11" Margin="0,0,6,0"
-                                        ToolTip="Paste files from the clipboard"
-                                        Click="PasteFilesButton_Click" Content="Paste" />
+                                        ToolTip="Paste files from the clipboard" Click="PasteFilesButton_Click">
+                                    <StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineButtonIcon}" Data="{StaticResource IconPaste}" /><TextBlock Text="Paste" Margin="6,0,0,0" /></StackPanel>
+                                </Button>
                                 <Button Style="{StaticResource IslandButton}" Padding="10,6" FontSize="11"
                                         Background="{DynamicResource PrimaryActionBrush}"
                                         Foreground="{DynamicResource PrimaryActionTextBrush}"
-                                        Click="AddFilesButton_Click" Content="Add files" />
+                                        Click="AddFilesButton_Click">
+                                    <StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineButtonIcon}" Data="{StaticResource IconPlus}" /><TextBlock Text="Add files" Margin="6,0,0,0" /></StackPanel>
+                                </Button>
                             </StackPanel>
                             <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,5,0,0">
                                 <TextBlock Text="Your files stay here until you remove them. Drag a row out to use it."
@@ -352,11 +362,32 @@
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="174" />
                                                 </Grid.ColumnDefinitions>
-                                                <Border Width="28" Height="28" Background="{DynamicResource ControlSurfaceBrush}"
-                                                        CornerRadius="7" VerticalAlignment="Center">
-                                                    <Path Data="{StaticResource IconFiles}" Width="15" Height="15"
-                                                          Fill="{DynamicResource PrimaryTextBrush}"
-                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Border Width="30" Height="34" CornerRadius="8" VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#334B5563" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".pdf"><Setter Property="Background" Value="#55E85D68" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".doc"><Setter Property="Background" Value="#554A8DFF" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".docx"><Setter Property="Background" Value="#554A8DFF" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".xls"><Setter Property="Background" Value="#554CCB8A" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".xlsx"><Setter Property="Background" Value="#554CCB8A" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".ppt"><Setter Property="Background" Value="#55F28B50" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".pptx"><Setter Property="Background" Value="#55F28B50" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".png"><Setter Property="Background" Value="#558F72E8" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".jpg"><Setter Property="Background" Value="#558F72E8" /></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Extension}" Value=".jpeg"><Setter Property="Background" Value="#558F72E8" /></DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Grid>
+                                                        <Path Data="{StaticResource IconDocument}" Width="17" Height="17" Margin="0,-8,0,0"
+                                                              Style="{StaticResource LineIcon}" Stroke="{DynamicResource PrimaryTextBrush}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding TypeLabel}" FontSize="6.5" FontWeight="Bold"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,3"
+                                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                                                    </Grid>
                                                 </Border>
                                                 <StackPanel Grid.Column="1" Margin="8,0,10,0" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
@@ -371,12 +402,12 @@
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
                                                             VerticalAlignment="Center">
-                                                    <Button Style="{StaticResource IslandButton}" Width="45" Height="29" Padding="0" FontSize="10" Margin="0,0,4,0"
-                                                            Tag="{Binding FullPath}" ToolTip="Copy to TempVault Inbox" Click="SendToTempVaultButton_Click" Content="Vault" />
-                                                    <Button Style="{StaticResource IslandButton}" Width="41" Height="29" Padding="0" FontSize="10" Margin="0,0,4,0"
-                                                            Tag="{Binding FullPath}" ToolTip="Open file" Click="OpenFileButton_Click" Content="Open" />
-                                                    <Button Style="{StaticResource IslandButton}" Width="41" Height="29" Padding="0" FontSize="10" Margin="0,0,4,0"
-                                                            Tag="{Binding FullPath}" ToolTip="Copy file" Click="CopyFileButton_Click" Content="Copy" />
+                                                    <Button Style="{StaticResource IslandButton}" Width="34" Height="29" Padding="0" Margin="0,0,4,0"
+                                                            Tag="{Binding FullPath}" ToolTip="Copy to TempVault Inbox" Click="SendToTempVaultButton_Click"><Path Style="{StaticResource LineButtonIcon}" Data="{StaticResource IconVault}" /></Button>
+                                                    <Button Style="{StaticResource IslandButton}" Width="34" Height="29" Padding="0" Margin="0,0,4,0"
+                                                            Tag="{Binding FullPath}" ToolTip="Open file" Click="OpenFileButton_Click"><Path Style="{StaticResource LineButtonIcon}" Data="{StaticResource IconExternal}" /></Button>
+                                                    <Button Style="{StaticResource IslandButton}" Width="34" Height="29" Padding="0" Margin="0,0,4,0"
+                                                            Tag="{Binding FullPath}" ToolTip="Copy file" Click="CopyFileButton_Click"><Path Style="{StaticResource LineButtonIcon}" Data="{StaticResource IconCopy}" /></Button>
                                                     <Button Style="{StaticResource ChromeFreeIconButton}" Width="28" Height="29"
                                                             Tag="{Binding FullPath}"
                                                             ToolTip="Remove stored copy" Click="RemoveFileButton_Click"
@@ -478,8 +509,8 @@
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="64" />
                                     <RowDefinition Height="*" />
-                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Text="SAVED APPS" Margin="3,0,0,8" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource SecondaryTextBrush}" />
@@ -488,7 +519,9 @@
                                          ItemContainerStyle="{StaticResource AppRunnerListItem}">
                                     <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" /></DataTemplate></ListBox.ItemTemplate>
                                 </ListBox>
-                                <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                                <ScrollViewer Grid.Row="2" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
+                                <StackPanel Margin="0,0,5,0">
                                     <StackPanel Orientation="Horizontal">
                                         <Button Style="{StaticResource AppRunnerActionButton}" Margin="0,0,6,0"
                                                 Click="AddAppButton_Click" Content="Add app" />
@@ -520,6 +553,7 @@
                                                 Click="RunInstalledAppButton_Click" Content="Open in island" />
                                     </StackPanel>
                                 </StackPanel>
+                                </ScrollViewer>
                             </Grid>
                         </Border>
 
@@ -579,21 +613,21 @@
                                         <TextBlock x:Name="WeatherConditionText" Text="Choose refresh to load current conditions"
                                                    FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" />
                                     </StackPanel>
-                                    <Path Grid.Column="1" Data="{StaticResource IconWeather}" Width="72" Height="72"
-                                          Stretch="Uniform" Fill="{DynamicResource AccentBrush}" Opacity="0.82"
+                                    <Path x:Name="WeatherHeroIcon" Grid.Column="1" Data="{StaticResource NavIconWeather}" Width="72" Height="72"
+                                          Style="{StaticResource LineIcon}" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.35" Opacity="0.9"
                                           VerticalAlignment="Center" Margin="20,0,4,0" />
                                 </Grid>
                             </Border>
 
                             <UniformGrid Columns="3" Margin="0,10,0,0">
                                 <Border Margin="0,0,6,0" Padding="12" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}">
-                                    <StackPanel><TextBlock Text="FEELS LIKE" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" /><TextBlock x:Name="WeatherFeelsText" Text="--°" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
+                                    <StackPanel><StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineIcon}" Data="{StaticResource IconThermometer}" Width="12" Height="12" Stroke="{DynamicResource AccentBrush}" /><TextBlock Text="FEELS LIKE" Margin="5,0,0,0" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" /></StackPanel><TextBlock x:Name="WeatherFeelsText" Text="--°" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
                                 </Border>
                                 <Border Margin="3,0" Padding="12" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}">
-                                    <StackPanel><TextBlock Text="HUMIDITY" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" /><TextBlock x:Name="WeatherHumidityText" Text="--%" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
+                                    <StackPanel><StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineIcon}" Data="{StaticResource IconDroplet}" Width="12" Height="12" Stroke="{DynamicResource AccentBrush}" /><TextBlock Text="HUMIDITY" Margin="5,0,0,0" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" /></StackPanel><TextBlock x:Name="WeatherHumidityText" Text="--%" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
                                 </Border>
                                 <Border Margin="6,0,0,0" Padding="12" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}">
-                                    <StackPanel><TextBlock Text="WIND" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" /><TextBlock x:Name="WeatherWindText" Text="--" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
+                                    <StackPanel><StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineIcon}" Data="{StaticResource IconWind}" Width="12" Height="12" Stroke="{DynamicResource AccentBrush}" /><TextBlock Text="WIND" Margin="5,0,0,0" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" /></StackPanel><TextBlock x:Name="WeatherWindText" Text="--" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
                                 </Border>
                             </UniformGrid>
 
@@ -602,6 +636,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="Location" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
                                     <TextBox x:Name="WeatherLocationTextBox" Grid.Column="1" Margin="14,0,0,0" Padding="10,6"
+                                             Background="{DynamicResource PanelSurfaceBrush}"
                                              ToolTip="Leave blank to use approximate IP location" Text="" />
                                 </Grid>
                             </Border>
@@ -745,6 +780,14 @@
                                             <ComboBoxItem Content="Solid theme color" />
                                             <ComboBoxItem Content="Custom gradient" />
                                         </ComboBox>
+                                        <StackPanel x:Name="BackgroundColorOptions" Orientation="Horizontal" Margin="0,8,0,0">
+                                            <TextBox x:Name="BackgroundColorTextBox" Width="130" Height="30"
+                                                     VerticalContentAlignment="Center" />
+                                            <Button Style="{StaticResource IslandButton}" Margin="8,0,0,0"
+                                                    Click="PickBackgroundColorButton_Click" Content="Pick" />
+                                            <Button Style="{StaticResource IslandButton}" Margin="6,0,0,0"
+                                                    Click="ApplyBackgroundColorButton_Click" Content="Apply" />
+                                        </StackPanel>
                                         <StackPanel x:Name="GradientOptions" Margin="0,8,0,0" Visibility="Collapsed">
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                 <TextBox x:Name="GradientStartColorTextBox" Width="130" Height="28" Padding="7,3"

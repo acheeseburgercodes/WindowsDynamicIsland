@@ -1,3 +1,3 @@
 namespace DynamicIsland.Models;
 
-public sealed record NotificationPreview(string AppName, string Title, string Body);
+public sealed record NotificationPreview(string AppName, string Title, string Body, byte[]? AppIcon = null);

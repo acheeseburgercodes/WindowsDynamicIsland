@@ -19,7 +19,7 @@ test('Appearance remains renderable with fractional opacity and exposes photo co
   globalThis.fetch = jest.fn(async () => ({ok: true, json: async () => ({
     surfaceOpacity: 0.42, edge: 0, alignment: 1, horizontalOffset: 0,
     verticalOffset: 0, panelWidth: 650, panelHeight: 400, theme: 0,
-    surfaceStyle: 0, accentColor: '#FF6ED6A9', gradientStartColor: '#FF334654',
+    surfaceStyle: 0, accentColor: '#FF6ED6A9', backgroundColor: '#FF111113', gradientStartColor: '#FF334654',
     gradientEndColor: '#FF161821', gradientDirection: 2, logoStyle: 4,
     tempVaultRoot: 'D:\\TempVault\\storage', tempVaultAutoCopy: false,
     tempVaultConnected: false, notificationsSupported: false,

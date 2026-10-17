@@ -26,6 +26,8 @@ public sealed class AppConfiguration
 
     public string AccentColor { get; set; } = "#FF6ED6A9";
 
+    public string BackgroundColor { get; set; } = "#FF111113";
+
     public IslandTheme Theme { get; set; } = IslandTheme.Dark;
 
     public IslandSurfaceStyle SurfaceStyle { get; set; } = IslandSurfaceStyle.Solid;
