@@ -2107,6 +2107,7 @@ public partial class MainWindow : Window
             var color = (Color)ColorConverter.ConvertFromString(value ?? string.Empty);
             var normalized = $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
             Application.Current.Resources["AccentBrush"] = new SolidColorBrush(color);
+            AtmosphereAccentStop.Color = color;
             AccentColorTextBox.Text = normalized;
             _configuration.AccentColor = normalized;
             if (_isPluggedIn && _islandManager.State == IslandState.Collapsed)
