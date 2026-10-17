@@ -42,6 +42,8 @@ public sealed class AppConfiguration
 
     public bool TempVaultAutoCopy { get; set; }
 
+    public string WeatherLocation { get; set; } = string.Empty;
+
     public List<DockedFileItem> DockedFiles { get; set; } = [];
 
     public List<AppLauncherItem> Applications { get; set; } = [];

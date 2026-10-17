@@ -7,6 +7,9 @@ The application source is licensed under the [MIT License](LICENSE). Self-contai
 ## Features
 
 - Album artwork, live timeline and seeking where supported, media controls, and a button to open the source player
+- Compact dashboard rail with wheel-driven vertical switching between media, weather, system, files, clipboard, apps, and settings
+- On-demand weather conditions from wttr.in with an optional city field; a blank location uses wttr.in's approximate IP location
+- Live CPU, memory, primary-storage, and battery/power telemetry without a background collector when the System dashboard is closed
 - Durable file shelf with drag-in and drag-out, file picker, clipboard paste, open, copy, and remove actions
 - Global island drop target: files can be dropped on the idle pill and are copied into app-managed storage
 - Editable Windows text clipboard view with copy and paste controls
@@ -65,7 +68,7 @@ dotnet run -c Release -p:Platform=x64
 
 Start media in an app that publishes a Windows system media session (for example Spotify or a browser playing supported audio/video). The island updates automatically.
 
-The default top-center placement is a screen-edge notch. Hover to reveal the media strip and click the notch or strip to open the full panel. Clicking outside returns it to the smallest state. Media, Files, Clipboard, and Settings share one compact size; only Apps expands farther. A new track briefly reveals the media strip. The Settings tab includes a notification-animation test.
+The default top-center placement is a screen-edge notch. Hover to reveal the media strip and click the notch or strip to open the full panel. Clicking outside returns it to the smallest state. Use the compact left rail or the mouse wheel at a dashboard edge to move vertically between panels. Media, Weather, System, Files, Clipboard, and Settings share one compact size; only Apps expands farther. A new track briefly reveals the media strip. The Settings tab includes a notification-animation test.
 
 The companion source and Windows project are in [`IslandSettings`](IslandSettings/README.md). Building its Windows package requires Visual Studio with C++ and Windows SDK components in addition to the .NET SDK. Start the island before opening the companion, then use **Open control center** in Settings or launch IslandSettings from Start. Its fixed-size window edits placement, panel dimensions, appearance, the cropped mini-logo picture, notifications, and TempVault through a loopback-only bridge. The default TempVault root is `D:\TempVault\storage`; an existing `Inbox` is required before exports are enabled.
 If the companion is not installed, **Open control center** reveals the island's built-in position and appearance controls instead of opening an unregistered Windows link.
@@ -79,6 +82,8 @@ The `Packaging` manifest defines an optional MSIX with that capability. Run `too
 - `Core/IslandManager.cs` owns the extensible island state machine.
 - `Services/WindowService.cs` owns the transparent borderless WPF window, DWM border suppression, and screen positioning.
 - `Services/MediaSessionService.cs` owns event-driven Windows media-session discovery and playback commands.
+- `Services/WeatherService.cs` loads current conditions only when requested.
+- `Services/HardwareMonitorService.cs` samples local CPU, memory, storage, and power state.
 - `Services/ConfigurationService.cs` persists appearance, placement, apps, and shelf metadata under local app data.
 - `Services/FileDockStorageService.cs` owns the durable managed copies used by the file shelf.
 - `Services/ClipboardService.cs` integrates text and normal Windows file clipboard formats.

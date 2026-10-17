@@ -36,6 +36,8 @@ public partial class MainWindow : Window
 
     private readonly IslandManager _islandManager = new();
     private readonly MediaSessionService _mediaService = new();
+    private readonly WeatherService _weatherService = new();
+    private readonly HardwareMonitorService _hardwareMonitor = new();
     private readonly BitmapImage _brandLogo = new(new Uri("pack://application:,,,/Assets/island-logo.png", UriKind.Absolute));
     private readonly ConfigurationService _configurationService = new();
     private readonly FileDockStorageService _fileDockStorage = new();
@@ -56,6 +58,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _settingsSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DispatcherTimer _mediaProgressTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private readonly DispatcherTimer _powerTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _hardwareTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _ambientTimer = new() { Interval = TimeSpan.FromSeconds(4) };
     private readonly ClipboardService _clipboardService = new();
 
@@ -85,6 +88,7 @@ public partial class MainWindow : Window
     private UIElement? _activePanel;
     private FrameworkElement? _visibleStateContent;
     private bool _installedAppsLoaded;
+    private bool _weatherLoaded;
     private bool _isAnimating;
     private bool _isPinnedToAllDesktops;
     private int _desktopPinAttempts;
@@ -128,6 +132,7 @@ public partial class MainWindow : Window
         _mediaProgressTimer.Tick += (_, _) => ApplyMediaProgress();
         _mediaProgressTimer.Start();
         _powerTimer.Tick += (_, _) => RefreshPowerBorder();
+        _hardwareTimer.Tick += (_, _) => ApplyHardwareSnapshot(_hardwareMonitor.Capture());
         _topmostTimer.Tick += (_, _) =>
         {
             if (!IsVisible || WindowState == WindowState.Minimized) return;
@@ -251,6 +256,7 @@ public partial class MainWindow : Window
         GradientEndColorTextBox.Text = _configuration.GradientEndColor;
         GradientOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Gradient
             ? Visibility.Visible : Visibility.Collapsed;
+        WeatherLocationTextBox.Text = _configuration.WeatherLocation;
         try
         {
             _customMiniLogo = _miniLogoStorage.Load(_configuration.MiniLogoImagePath);
@@ -490,6 +496,8 @@ public partial class MainWindow : Window
     private void OnIslandStateChanged(object? sender, IslandState state)
     {
         UpdateLiquidBorder(state);
+        _hardwareTimer.IsEnabled = state is IslandState.Expanded or IslandState.Interaction &&
+                                   _activePanel == HardwarePanel;
         var (width, height) = state switch
         {
             IslandState.Preview => (PreviewWidth, PreviewHeight),
@@ -767,6 +775,17 @@ public partial class MainWindow : Window
     private void MediaNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(MediaPanel);
     private void FilesNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(FilesPanel);
     private void SettingsNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(SettingsPanel);
+    private async void WeatherNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPanel(WeatherPanel);
+        if (!_weatherLoaded) await RefreshWeatherAsync();
+    }
+
+    private void HardwareNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPanel(HardwarePanel);
+        ApplyHardwareSnapshot(_hardwareMonitor.Capture());
+    }
     private void OpenSettingsAppButton_Click(object sender, RoutedEventArgs e)
     {
         if (LegacyAppearanceControls.Visibility == Visibility.Visible)
@@ -846,7 +865,8 @@ public partial class MainWindow : Window
             }
         }
         var version = ++_panelAnimationVersion;
-        foreach (var other in new UIElement[] { MediaPanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
+        _hardwareTimer.IsEnabled = panel == HardwarePanel;
+        foreach (var other in new UIElement[] { MediaPanel, WeatherPanel, HardwarePanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
         {
             if (other == panel || other == outgoing) continue;
             other.BeginAnimation(OpacityProperty, null);
@@ -916,10 +936,98 @@ public partial class MainWindow : Window
     private void UpdateActiveNavigation()
     {
         MediaNavButton.Tag = _activePanel == MediaPanel ? "Active" : null;
+        WeatherNavButton.Tag = _activePanel == WeatherPanel ? "Active" : null;
+        HardwareNavButton.Tag = _activePanel == HardwarePanel ? "Active" : null;
         FilesNavButton.Tag = _activePanel == FilesPanel ? "Active" : null;
         ClipboardNavButton.Tag = _activePanel == ClipboardPanel ? "Active" : null;
         AppsNavButton.Tag = _activePanel == AppsPanel ? "Active" : null;
         SettingsNavButton.Tag = _activePanel == SettingsPanel ? "Active" : null;
+        ActivePanelTitle.Text = _activePanel switch
+        {
+            UIElement panel when panel == WeatherPanel => "Weather",
+            UIElement panel when panel == HardwarePanel => "System pulse",
+            UIElement panel when panel == FilesPanel => "File shelf",
+            UIElement panel when panel == ClipboardPanel => "Clipboard",
+            UIElement panel when panel == AppsPanel => "App preview",
+            UIElement panel when panel == SettingsPanel => "Settings",
+            _ => "Now playing"
+        };
+    }
+
+    private void PanelViewport_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (_islandManager.State is not (IslandState.Expanded or IslandState.Interaction) ||
+            e.OriginalSource is not DependencyObject source)
+            return;
+
+        var scroller = FindAncestor<ScrollViewer>(source);
+        if (scroller is not null && scroller.ScrollableHeight > 0)
+        {
+            var canScroll = e.Delta < 0
+                ? scroller.VerticalOffset < scroller.ScrollableHeight
+                : scroller.VerticalOffset > 0;
+            if (canScroll) return;
+        }
+
+        UIElement[] panels = [MediaPanel, WeatherPanel, HardwarePanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel];
+        var current = Array.IndexOf(panels, _activePanel);
+        if (current < 0) current = 0;
+        var next = Math.Clamp(current + (e.Delta < 0 ? 1 : -1), 0, panels.Length - 1);
+        if (next == current) return;
+
+        e.Handled = true;
+        ShowPanel(panels[next]);
+        if (panels[next] == WeatherPanel && !_weatherLoaded) _ = RefreshWeatherAsync();
+        if (panels[next] == ClipboardPanel) _ = PasteClipboardContentAsync(false);
+        if (panels[next] == AppsPanel) RefreshRunningApplications();
+    }
+
+    private async void WeatherRefreshButton_Click(object sender, RoutedEventArgs e) =>
+        await RefreshWeatherAsync();
+
+    private async Task RefreshWeatherAsync()
+    {
+        WeatherRefreshButton.IsEnabled = false;
+        WeatherStatusText.Text = "Loading current conditions…";
+        _configuration.WeatherLocation = WeatherLocationTextBox.Text.Trim();
+        QueueSettingsSave();
+        try
+        {
+            var weather = await _weatherService.GetCurrentAsync(_configuration.WeatherLocation);
+            WeatherLocationText.Text = string.IsNullOrWhiteSpace(weather.Location)
+                ? "Current location" : weather.Location;
+            WeatherTemperatureText.Text = $"{weather.TemperatureC}°";
+            WeatherConditionText.Text = weather.Condition;
+            WeatherFeelsText.Text = $"{weather.FeelsLikeC}°";
+            WeatherHumidityText.Text = $"{weather.HumidityPercent}%";
+            WeatherWindText.Text = $"{weather.WindKph} km/h";
+            WeatherStatusText.Text = $"Updated {DateTime.Now:h:mm tt} · weather data from wttr.in";
+            _weatherLoaded = true;
+        }
+        catch (Exception exception) when (exception is System.Net.Http.HttpRequestException or TaskCanceledException or InvalidOperationException or System.Text.Json.JsonException)
+        {
+            WeatherStatusText.Text = $"Could not load weather: {exception.Message}";
+        }
+        finally
+        {
+            WeatherRefreshButton.IsEnabled = true;
+        }
+    }
+
+    private void ApplyHardwareSnapshot(HardwareSnapshot snapshot)
+    {
+        CpuProgress.Value = snapshot.CpuPercent;
+        CpuValueText.Text = $"{snapshot.CpuPercent:0}%";
+        MemoryProgress.Value = snapshot.MemoryPercent;
+        MemoryValueText.Text = $"{snapshot.MemoryPercent:0}%";
+        MemoryDetailText.Text = $"{snapshot.UsedMemoryGb:0.0} of {snapshot.TotalMemoryGb:0.0} GB";
+        StorageProgress.Value = snapshot.StoragePercent;
+        StorageValueText.Text = $"{snapshot.StoragePercent:0}%";
+        StorageDetailText.Text = $"{snapshot.UsedStorageGb:0} of {snapshot.TotalStorageGb:0} GB";
+        BatteryProgress.Value = snapshot.BatteryPercent ?? 0;
+        BatteryValueText.Text = snapshot.BatteryPercent is int percent ? $"{percent}%" : "Desktop";
+        BatteryDetailText.Text = snapshot.IsPluggedIn ? "Connected to power" : "On battery";
+        HardwareUpdatedText.Text = $"LIVE · {DateTime.Now:h:mm:ss tt}";
     }
 
     private void OnMediaChanged(object? sender, MediaSnapshot snapshot) =>
@@ -2305,12 +2413,14 @@ public partial class MainWindow : Window
         _topmostTimer.Stop();
         _ambientTimer.Stop();
         _powerTimer.Stop();
+        _hardwareTimer.Stop();
         _collapseTimer.Stop();
         _settingsSaveTimer.Stop();
         _interactiveAppPanel.Detach();
         _liveAppPreview.Detach();
 
         _mediaService.Dispose();
+        _weatherService.Dispose();
         _notificationService.Dispose();
         _ = _settingsBridge.DisposeAsync();
     }
