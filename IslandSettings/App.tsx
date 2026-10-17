@@ -105,7 +105,7 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [hoveredSection, setHoveredSection] = useState<Section | null>(null);
   const accent = accentColor(settings?.accentColor);
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch(endpoint, {headers});
       if (!response.ok) throw new Error(String(response.status));
@@ -113,9 +113,25 @@ function App() {
       setSettings({...incoming, panelWidth: incoming.panelWidth || 650,
         panelHeight: incoming.panelHeight || 400});
       setStatus('Connected · changes update the running island');
-    } catch { setStatus('Island unavailable. Start DynamicIsland.exe, then reconnect.'); }
+      return true;
+    } catch {
+      setStatus('Island unavailable · retrying connection…');
+      return false;
+    }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const connect = async () => {
+      const connected = await load();
+      if (!connected && !disposed) retryTimer = setTimeout(connect, 2500);
+    };
+    void connect();
+    return () => {
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [load]);
   function change<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings(previous => previous ? {...previous, [key]: value} : previous);
     setStatus('Unsaved changes · Save changes to apply');

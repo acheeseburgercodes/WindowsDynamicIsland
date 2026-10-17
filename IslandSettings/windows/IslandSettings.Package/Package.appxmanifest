@@ -9,7 +9,7 @@
   <Identity
     Name="IslandSettings"
     Publisher="CN=LOQ"
-    Version="1.0.6.0" />
+    Version="1.0.7.0" />
 
   <Properties>
     <DisplayName>Island Control Center</DisplayName>
