@@ -28,8 +28,6 @@ public partial class MainWindow : Window
     private const double PreviewHeight = 58;
     private const double NotificationWidth = 430;
     private const double NotificationHeight = 78;
-    private const double ExpandedWidth = 760;
-    private const double ExpandedHeight = 530;
     private const int DefaultPanelWidth = 650;
     private const int DefaultPanelHeight = 400;
     private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
@@ -199,6 +197,12 @@ public partial class MainWindow : Window
                 _configuration.VerticalOffset is 8 or -8)
                 _configuration.VerticalOffset = 0;
         }
+        if (_configuration.ConfigurationVersion < 10)
+        {
+            _configuration.ConfigurationVersion = 10;
+            _configuration.BackgroundColor = _configuration.Theme == IslandTheme.Light
+                ? "#FFF6F6F8" : "#FF111113";
+        }
 
         _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.1, 1);
         _configuration.PanelWidth = Math.Clamp(_configuration.PanelWidth, 540, 760);
@@ -211,6 +215,8 @@ public partial class MainWindow : Window
             _configuration.GradientStartColor = "#FF334654";
         if (!TryParseSurfaceColor(_configuration.GradientEndColor, out _))
             _configuration.GradientEndColor = "#FF161821";
+        if (!TryParseSurfaceColor(_configuration.BackgroundColor, out _))
+            _configuration.BackgroundColor = _configuration.Theme == IslandTheme.Light ? "#FFF6F6F8" : "#FF111113";
         foreach (var file in _configuration.DockedFiles)
         {
             if (file.IsManagedCopy && _fileDockStorage.IsManagedPath(file.FullPath) && File.Exists(file.FullPath))
@@ -254,7 +260,10 @@ public partial class MainWindow : Window
         GradientDirectionComboBox.SelectedIndex = (int)_configuration.GradientDirection;
         GradientStartColorTextBox.Text = _configuration.GradientStartColor;
         GradientEndColorTextBox.Text = _configuration.GradientEndColor;
+        BackgroundColorTextBox.Text = _configuration.BackgroundColor;
         GradientOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Gradient
+            ? Visibility.Visible : Visibility.Collapsed;
+        BackgroundColorOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Solid
             ? Visibility.Visible : Visibility.Collapsed;
         WeatherLocationTextBox.Text = _configuration.WeatherLocation;
         try
@@ -515,9 +524,7 @@ public partial class MainWindow : Window
     }
 
     private (double Width, double Height) GetExpandedSize() =>
-        _activePanel == AppsPanel
-            ? (Math.Max(ExpandedWidth, _configuration.PanelWidth), Math.Max(ExpandedHeight, _configuration.PanelHeight))
-            : (_configuration.PanelWidth, _configuration.PanelHeight);
+        (_configuration.PanelWidth, _configuration.PanelHeight);
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
@@ -577,6 +584,18 @@ public partial class MainWindow : Window
                 EasingMode = targetOpacity > 0 ? EasingMode.EaseOut : EasingMode.EaseIn
             }
         }, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private void UpdateAtmospherePalette(Color surface)
+    {
+        var accent = Application.Current.Resources["AccentBrush"] is SolidColorBrush accentBrush
+            ? accentBrush.Color : Color.FromRgb(110, 214, 169);
+        var top = Mix(surface, accent, 0.16);
+        var middle = Mix(surface, Colors.Black, 0.42);
+        var bottom = Mix(surface, Colors.Black, 0.76);
+        AtmosphereTopStop.Color = Color.FromArgb(54, top.R, top.G, top.B);
+        AtmosphereMiddleStop.Color = Color.FromArgb(126, middle.R, middle.G, middle.B);
+        AtmosphereBottomStop.Color = Color.FromArgb(226, bottom.R, bottom.G, bottom.B);
     }
 
     private void RefreshPowerBorder()
@@ -1057,6 +1076,10 @@ public partial class MainWindow : Window
 
     private void ShowNotification(NotificationPreview notification)
     {
+        var appIcon = CreateImage(notification.AppIcon);
+        NotificationAppIcon.Source = appIcon;
+        NotificationAppIcon.Visibility = appIcon is null ? Visibility.Collapsed : Visibility.Visible;
+        NotificationFallbackIcon.Visibility = appIcon is null ? Visibility.Visible : Visibility.Collapsed;
         NotificationAppText.Text = string.IsNullOrWhiteSpace(notification.AppName)
             ? "WINDOWS ALERT" : notification.AppName.ToUpperInvariant();
         NotificationTitleText.Text = notification.Title;
@@ -1922,6 +1945,7 @@ public partial class MainWindow : Window
             TryParseSurfaceColor(_configuration.GradientStartColor, out var startColor) &&
             TryParseSurfaceColor(_configuration.GradientEndColor, out var endColor))
         {
+            UpdateAtmospherePalette(startColor);
             var (start, end) = _configuration.GradientDirection switch
             {
                 IslandGradientDirection.LeftToRight => (new Point(0, 0.5), new Point(1, 0.5)),
@@ -1935,9 +1959,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        var baseColor = _configuration.Theme == IslandTheme.Light
-            ? Color.FromRgb(246, 246, 248)
-            : Color.FromRgb(17, 17, 19);
+        var baseColor = TryParseSurfaceColor(_configuration.BackgroundColor, out var configuredBackground)
+            ? configuredBackground
+            : _configuration.Theme == IslandTheme.Light
+                ? Color.FromRgb(246, 246, 248)
+                : Color.FromRgb(17, 17, 19);
+        UpdateAtmospherePalette(baseColor);
         IslandSurface.Background = new SolidColorBrush(Color.FromArgb(
             alpha, baseColor.R, baseColor.G, baseColor.B));
         OpacityValueText.Text = $"{opacity:P0}";
@@ -1960,6 +1987,26 @@ public partial class MainWindow : Window
         _configuration.SurfaceStyle = (IslandSurfaceStyle)SurfaceStyleComboBox.SelectedIndex;
         GradientOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Gradient
             ? Visibility.Visible : Visibility.Collapsed;
+        BackgroundColorOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Solid
+            ? Visibility.Visible : Visibility.Collapsed;
+        ApplySurfaceOpacity(_configuration.SurfaceOpacity);
+        QueueSettingsSave();
+    }
+
+    private void PickBackgroundColorButton_Click(object sender, RoutedEventArgs e)
+    {
+        var initial = TryParseSurfaceColor(BackgroundColorTextBox.Text, out var color)
+            ? color : Color.FromRgb(17, 17, 19);
+        if (!TryPickColor(initial, out var selected)) return;
+        BackgroundColorTextBox.Text = $"#FF{selected.R:X2}{selected.G:X2}{selected.B:X2}";
+        ApplyBackgroundColorButton_Click(sender, e);
+    }
+
+    private void ApplyBackgroundColorButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryParseSurfaceColor(BackgroundColorTextBox.Text, out var color)) return;
+        _configuration.BackgroundColor = $"#FF{color.R:X2}{color.G:X2}{color.B:X2}";
+        BackgroundColorTextBox.Text = _configuration.BackgroundColor;
         ApplySurfaceOpacity(_configuration.SurfaceOpacity);
         QueueSettingsSave();
     }
@@ -2110,6 +2157,7 @@ public partial class MainWindow : Window
             AtmosphereAccentStop.Color = color;
             AccentColorTextBox.Text = normalized;
             _configuration.AccentColor = normalized;
+            ApplySurfaceOpacity(_configuration.SurfaceOpacity);
             if (_isPluggedIn && _islandManager.State == IslandState.Collapsed)
                 UpdateLiquidBorder(IslandState.Collapsed, accentChanged: true);
             return true;
@@ -2352,6 +2400,7 @@ public partial class MainWindow : Window
         Theme = (int)_configuration.Theme,
         SurfaceStyle = (int)_configuration.SurfaceStyle,
         AccentColor = _configuration.AccentColor,
+        BackgroundColor = _configuration.BackgroundColor,
         GradientStartColor = _configuration.GradientStartColor,
         GradientEndColor = _configuration.GradientEndColor,
         GradientDirection = (int)_configuration.GradientDirection,
@@ -2374,6 +2423,7 @@ public partial class MainWindow : Window
             !Enum.IsDefined(typeof(IslandGradientDirection), settings.GradientDirection) ||
             !Enum.IsDefined(typeof(IslandLogoStyle), settings.LogoStyle) ||
             !TryParseSurfaceColor(settings.AccentColor, out _) ||
+            !TryParseSurfaceColor(settings.BackgroundColor, out _) ||
             !TryParseSurfaceColor(settings.GradientStartColor, out _) ||
             !TryParseSurfaceColor(settings.GradientEndColor, out _) ||
             !Path.IsPathFullyQualified(settings.TempVaultRoot))
@@ -2392,6 +2442,7 @@ public partial class MainWindow : Window
             _configuration.PanelHeight = settings.PanelHeight == 0 ? DefaultPanelHeight : Math.Clamp(settings.PanelHeight, 330, 500);
             _configuration.Theme = (IslandTheme)settings.Theme;
             _configuration.SurfaceStyle = (IslandSurfaceStyle)settings.SurfaceStyle;
+            _configuration.BackgroundColor = settings.BackgroundColor;
             _configuration.GradientDirection = (IslandGradientDirection)settings.GradientDirection;
             _configuration.GradientStartColor = settings.GradientStartColor;
             _configuration.GradientEndColor = settings.GradientEndColor;
@@ -2409,8 +2460,11 @@ public partial class MainWindow : Window
             GradientDirectionComboBox.SelectedIndex = settings.GradientDirection;
             GradientStartColorTextBox.Text = settings.GradientStartColor;
             GradientEndColorTextBox.Text = settings.GradientEndColor;
+            BackgroundColorTextBox.Text = settings.BackgroundColor;
             LogoStyleComboBox.SelectedIndex = settings.LogoStyle;
             GradientOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Gradient
+                ? Visibility.Visible : Visibility.Collapsed;
+            BackgroundColorOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Solid
                 ? Visibility.Visible : Visibility.Collapsed;
             ApplyTheme();
             TryApplyAccent(settings.AccentColor);

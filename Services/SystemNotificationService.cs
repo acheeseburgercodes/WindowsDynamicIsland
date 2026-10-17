@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using DynamicIsland.Models;
 using Windows.UI.Notifications;
 using Windows.UI.Notifications.Management;
+using Windows.Storage.Streams;
 
 namespace DynamicIsland.Services;
 
@@ -70,7 +71,7 @@ public sealed class SystemNotificationService : IDisposable
                 if (!_knownIds.Add(notification.Id)) continue;
                 try
                 {
-                    var preview = ReadPreview(notification);
+                    var preview = await ReadPreviewAsync(notification);
                     if (preview is not null)
                         NotificationReceived?.Invoke(this, preview);
                 }
@@ -91,7 +92,7 @@ public sealed class SystemNotificationService : IDisposable
         }
     }
 
-    private static NotificationPreview? ReadPreview(UserNotification notification)
+    private static async Task<NotificationPreview?> ReadPreviewAsync(UserNotification notification)
     {
         var binding = notification.Notification.Visual.GetBinding(KnownNotificationBindings.ToastGeneric);
         var text = binding?.GetTextElements().Select(element => element.Text?.Trim())
@@ -100,7 +101,24 @@ public sealed class SystemNotificationService : IDisposable
         var title = text.FirstOrDefault() ?? app;
         var body = string.Join(" · ", text.Skip(1));
         if (string.IsNullOrWhiteSpace(title)) return null;
-        return new NotificationPreview(Clip(app, 40), Clip(title, 90), Clip(body, 150));
+        byte[]? icon = null;
+        try
+        {
+            var logo = notification.AppInfo.DisplayInfo.GetLogo(new Windows.Foundation.Size(64, 64));
+            using var stream = await logo.OpenReadAsync();
+            if (stream.Size is > 0 and <= 2 * 1024 * 1024)
+            {
+                using var reader = new DataReader(stream);
+                await reader.LoadAsync((uint)stream.Size);
+                icon = new byte[(int)stream.Size];
+                reader.ReadBytes(icon);
+            }
+        }
+        catch
+        {
+            // Some unpackaged applications do not expose a readable logo.
+        }
+        return new NotificationPreview(Clip(app, 40), Clip(title, 90), Clip(body, 150), icon);
     }
 
     private static string Clip(string? value, int limit)

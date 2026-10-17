@@ -44,7 +44,7 @@ public sealed class FileDockStorageService
             Name = name,
             FullPath = destination,
             OriginalPath = sourcePath,
-            Extension = Path.GetExtension(sourcePath),
+            Extension = Path.GetExtension(sourcePath).ToLowerInvariant(),
             IsManagedCopy = true
         };
     }

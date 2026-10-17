@@ -4,7 +4,7 @@ import {ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, Text
 type Settings = {
   surfaceOpacity: number; edge: number; alignment: number;
   horizontalOffset: number; verticalOffset: number; theme: number;
-  surfaceStyle: number; accentColor: string; gradientStartColor: string;
+  surfaceStyle: number; accentColor: string; backgroundColor: string; gradientStartColor: string;
   gradientEndColor: string; gradientDirection: number; logoStyle: number;
   tempVaultRoot: string; tempVaultAutoCopy: boolean; tempVaultConnected: boolean;
   panelWidth: number; panelHeight: number; notificationsSupported: boolean;
@@ -212,7 +212,7 @@ function App() {
             }} style={s.textButton}>
               <Text style={[s.link, {color: accent}]}>Reset to top center</Text></Pressable></View>
           <View style={s.card}><Text style={s.cardTitle}>Panel size</Text>
-            <Text style={s.hint}>Media, Files, Clipboard, and Settings use this size. Apps stays larger.</Text>
+            <Text style={s.hint}>Every dashboard, including Apps, uses this size.</Text>
             <RangeSlider label="Width" value={settings.panelWidth} min={540} max={760}
               step={1} buttonStep={10} unit=" px" accent={accent}
               onChange={v => change('panelWidth', v)}/>
@@ -234,6 +234,8 @@ function App() {
             <RangeSlider label="Opacity" value={settings.surfaceOpacity} min={0.1} max={1}
               step={0.01} buttonStep={0.05} unit="%" accent={accent}
               onChange={v => change('surfaceOpacity', Math.round(v * 100) / 100)}/>
+            <Field label="Solid background color" value={settings.backgroundColor ?? '#FF111113'}
+              onChange={v => change('backgroundColor', v)}/>
             {settings.surfaceStyle === 1 && <>
               <View style={s.row}><View style={s.half}><Field label="Gradient start"
                 value={settings.gradientStartColor}
