@@ -7,11 +7,27 @@ type Settings = {
   surfaceStyle: number; accentColor: string; gradientStartColor: string;
   gradientEndColor: string; gradientDirection: number; logoStyle: number;
   tempVaultRoot: string; tempVaultAutoCopy: boolean; tempVaultConnected: boolean;
+  panelWidth: number; panelHeight: number; notificationsSupported: boolean;
+  notificationsEnabled: boolean; notificationStatus: string; hasCustomMiniLogo: boolean;
 };
 type Section = 'Position' | 'Appearance' | 'Storage';
 const endpoint = 'http://127.0.0.1:38691/api/settings';
 const headers = {'X-DynamicIsland-Settings': '1', 'Content-Type': 'application/json'};
 const defaultAccent = '#B68CFF';
+
+class ScreenBoundary extends React.Component<{section: Section; children: React.ReactNode}, {failed: boolean}> {
+  state = {failed: false};
+  static getDerivedStateFromError() { return {failed: true}; }
+  componentDidUpdate(previous: Readonly<{section: Section}>) {
+    if (previous.section !== this.props.section && this.state.failed) this.setState({failed: false});
+  }
+  render() {
+    return this.state.failed
+      ? <View style={s.card}><Text style={s.cardTitle}>This screen could not render</Text>
+          <Text style={s.hint}>Your saved settings are safe. Switch sections or restart Control Center.</Text></View>
+      : this.props.children;
+  }
+}
 
 function accentColor(value?: string) {
   const hex = value?.trim().replace(/^#/, '') ?? '';
@@ -46,7 +62,8 @@ function RangeSlider({label, value, min, max, step, buttonStep, unit, accent, on
 }) {
   const [trackWidth, setTrackWidth] = useState(1);
   const percentage = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
-  const clamp = (next: number) => Math.max(min, Math.min(max, Math.round(next / step) * step));
+  const clamp = (next: number) => Math.max(min, Math.min(max, min + Math.round((next - min) / step) * step));
+  const accessibilityScale = step < 1 ? 100 : 1;
   const setFromPointer = (locationX: number) => {
     onChange(clamp(min + (Math.max(0, Math.min(trackWidth, locationX)) / trackWidth) * (max - min)));
   };
@@ -65,7 +82,8 @@ function RangeSlider({label, value, min, max, step, buttonStep, unit, accent, on
         onResponderMove={event => setFromPointer(event.nativeEvent.locationX)}
         onResponderTerminationRequest={() => false}
         accessible accessibilityRole="adjustable" accessibilityLabel={label}
-        accessibilityValue={{min, max, now: value}}
+        accessibilityValue={{min: Math.round(min * accessibilityScale),
+          max: Math.round(max * accessibilityScale), now: Math.round(value * accessibilityScale)}}
         accessibilityActions={[{name: 'increment'}, {name: 'decrement'}]}
         onAccessibilityAction={event => onChange(clamp(value + (event.nativeEvent.actionName === 'increment' ? buttonStep : -buttonStep)))}>
         <View pointerEvents="none" style={s.track}>
@@ -87,15 +105,33 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [hoveredSection, setHoveredSection] = useState<Section | null>(null);
   const accent = accentColor(settings?.accentColor);
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch(endpoint, {headers});
       if (!response.ok) throw new Error(String(response.status));
-      setSettings(await response.json() as Settings);
+      const incoming = await response.json() as Settings;
+      setSettings({...incoming, panelWidth: incoming.panelWidth || 650,
+        panelHeight: incoming.panelHeight || 400});
       setStatus('Connected · changes update the running island');
-    } catch { setStatus('Island unavailable. Start DynamicIsland.exe, then reconnect.'); }
+      return true;
+    } catch {
+      setStatus('Island unavailable · retrying connection…');
+      return false;
+    }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const connect = async () => {
+      const connected = await load();
+      if (!connected && !disposed) retryTimer = setTimeout(connect, 2500);
+    };
+    void connect();
+    return () => {
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [load]);
   function change<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings(previous => previous ? {...previous, [key]: value} : previous);
     setStatus('Unsaved changes · Save changes to apply');
@@ -110,6 +146,21 @@ function App() {
       setStatus('Saved · island updated immediately');
     } catch (error) { setStatus(`Could not save: ${String(error)}`); }
     finally { setSaving(false); }
+  }
+  async function command(path: string, working: string) {
+    setStatus(working);
+    try {
+      const response = await fetch(`http://127.0.0.1:38691${path}`, {method: 'POST', headers});
+      if (!response.ok) throw new Error(await response.text());
+      if (path !== '/api/notifications/test') {
+        const updated = await response.json() as Settings;
+        setSettings(previous => previous ? {...previous,
+          hasCustomMiniLogo: updated.hasCustomMiniLogo,
+          notificationsEnabled: updated.notificationsEnabled,
+          notificationStatus: updated.notificationStatus} : updated);
+      }
+      setStatus(path === '/api/logo/editor' ? 'Picture editor closed · settings updated' : 'Command completed');
+    } catch (error) { setStatus(`Could not complete action: ${String(error)}`); }
   }
   return <View style={s.shell}>
     <View style={s.sidebar}>
@@ -137,6 +188,7 @@ function App() {
         <Pressable onPress={load} style={s.reconnect}>
           <Text style={[s.link, {color: accent}]}>Reconnect</Text></Pressable></View>
       : <ScrollView style={s.scroll} contentContainerStyle={s.scrollInner}>
+        <ScreenBoundary section={section}>
         {section === 'Position' && <>
           <Text style={s.lead}>Keep the notch exactly where it belongs.</Text>
           <View style={s.card}><Text style={s.cardTitle}>Screen edge</Text>
@@ -159,6 +211,17 @@ function App() {
               setStatus('Unsaved changes · Save changes to apply');
             }} style={s.textButton}>
               <Text style={[s.link, {color: accent}]}>Reset to top center</Text></Pressable></View>
+          <View style={s.card}><Text style={s.cardTitle}>Panel size</Text>
+            <Text style={s.hint}>Media, Files, Clipboard, and Settings use this size. Apps stays larger.</Text>
+            <RangeSlider label="Width" value={settings.panelWidth} min={540} max={760}
+              step={1} buttonStep={10} unit=" px" accent={accent}
+              onChange={v => change('panelWidth', v)}/>
+            <RangeSlider label="Height" value={settings.panelHeight} min={330} max={500}
+              step={1} buttonStep={10} unit=" px" accent={accent}
+              onChange={v => change('panelHeight', v)}/>
+            <Pressable onPress={() => {change('panelWidth', 650); change('panelHeight', 400);}}
+              style={s.textButton}><Text style={[s.link, {color: accent}]}>Reset panel size</Text></Pressable>
+          </View>
         </>}
         {section === 'Appearance' && <>
           <Text style={s.lead}>A quieter surface with your colors.</Text>
@@ -187,7 +250,27 @@ function App() {
               onChange={v => change('accentColor', v)}/>
             <Segments options={['Letter', 'Music', 'Dot', 'Album', 'Brand']}
               value={settings.logoStyle} accent={accent} onChange={v => change('logoStyle', v)}/>
-            <Text style={s.hint}>Custom photo cropping remains available in the island.</Text>
+            <Text style={s.hint}>{settings.hasCustomMiniLogo
+              ? 'Custom picture saved' : 'No custom picture selected'}</Text>
+            <View style={s.actionRow}>
+              <Pressable accessibilityRole="button" onPress={() => command('/api/logo/editor', 'Opening picture editor…')}
+                style={[s.smallAction, {borderColor: accent}]}><Text style={[s.link, {color: accent}]}>Choose and crop picture</Text></Pressable>
+              <Pressable accessibilityRole="button" disabled={!settings.hasCustomMiniLogo}
+                onPress={() => command('/api/logo/clear', 'Removing custom picture…')}
+                style={[s.smallAction, !settings.hasCustomMiniLogo && s.disabled]}>
+                <Text style={s.link}>Remove</Text></Pressable>
+            </View>
+          </View>
+          <View style={s.card}><Text style={s.cardTitle}>Windows notifications</Text>
+            <Text style={s.hint}>{settings.notificationStatus || 'Check the island notification settings.'}</Text>
+            <View style={s.actionRow}>
+              <Pressable accessibilityRole="button" disabled={!settings.notificationsSupported}
+                onPress={() => command('/api/notifications/enable', 'Requesting Windows notification access…')}
+                style={[s.smallAction, !settings.notificationsSupported && s.disabled]}>
+                <Text style={s.link}>Enable alerts</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => command('/api/notifications/test', 'Testing notch animation…')}
+                style={s.smallAction}><Text style={s.link}>Test animation</Text></Pressable>
+            </View>
           </View>
         </>}
         {section === 'Storage' && <>
@@ -206,6 +289,7 @@ function App() {
                 onValueChange={v => change('tempVaultAutoCopy', v)}/></View>
           </View><Text style={s.footnote}>Send individual files with the TempVault button in the island’s Files panel.</Text>
         </>}
+        </ScreenBoundary>
       </ScrollView>}
     </View>
   </View>;
@@ -265,6 +349,9 @@ const s = StyleSheet.create({
   dot: {width: 9, height: 9, borderRadius: 5, backgroundColor: '#6A6E70'},
   flex: {flex: 1, marginRight: 12},
   footnote: {color: '#8B9798', fontSize: 11, lineHeight: 17, marginTop: 4},
+  actionRow: {flexDirection: 'row', gap: 10, marginTop: 8},
+  smallAction: {paddingHorizontal: 13, paddingVertical: 9, borderWidth: 1,
+    borderColor: '#544B5C', borderRadius: 8, alignSelf: 'flex-start', cursor: 'pointer'},
   empty: {flex: 1, justifyContent: 'center', alignItems: 'center', gap: 15},
   reconnect: {paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1,
     borderColor: '#594975', borderRadius: 8, cursor: 'pointer'},

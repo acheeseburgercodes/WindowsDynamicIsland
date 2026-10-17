@@ -30,12 +30,14 @@ public partial class MainWindow : Window
     private const double NotificationHeight = 78;
     private const double ExpandedWidth = 760;
     private const double ExpandedHeight = 530;
-    private const double StandardPanelWidth = 650;
-    private const double StandardPanelHeight = 400;
+    private const int DefaultPanelWidth = 650;
+    private const int DefaultPanelHeight = 400;
     private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
 
     private readonly IslandManager _islandManager = new();
     private readonly MediaSessionService _mediaService = new();
+    private readonly WeatherService _weatherService = new();
+    private readonly HardwareMonitorService _hardwareMonitor = new();
     private readonly BitmapImage _brandLogo = new(new Uri("pack://application:,,,/Assets/island-logo.png", UriKind.Absolute));
     private readonly ConfigurationService _configurationService = new();
     private readonly FileDockStorageService _fileDockStorage = new();
@@ -56,6 +58,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _settingsSaveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DispatcherTimer _mediaProgressTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private readonly DispatcherTimer _powerTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _hardwareTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _ambientTimer = new() { Interval = TimeSpan.FromSeconds(4) };
     private readonly ClipboardService _clipboardService = new();
 
@@ -85,6 +88,7 @@ public partial class MainWindow : Window
     private UIElement? _activePanel;
     private FrameworkElement? _visibleStateContent;
     private bool _installedAppsLoaded;
+    private bool _weatherLoaded;
     private bool _isAnimating;
     private bool _isPinnedToAllDesktops;
     private int _desktopPinAttempts;
@@ -128,6 +132,7 @@ public partial class MainWindow : Window
         _mediaProgressTimer.Tick += (_, _) => ApplyMediaProgress();
         _mediaProgressTimer.Start();
         _powerTimer.Tick += (_, _) => RefreshPowerBorder();
+        _hardwareTimer.Tick += (_, _) => ApplyHardwareSnapshot(_hardwareMonitor.Capture());
         _topmostTimer.Tick += (_, _) =>
         {
             if (!IsVisible || WindowState == WindowState.Minimized) return;
@@ -196,6 +201,8 @@ public partial class MainWindow : Window
         }
 
         _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.1, 1);
+        _configuration.PanelWidth = Math.Clamp(_configuration.PanelWidth, 540, 760);
+        _configuration.PanelHeight = Math.Clamp(_configuration.PanelHeight, 330, 500);
         if (!Enum.IsDefined(_configuration.SurfaceStyle))
             _configuration.SurfaceStyle = IslandSurfaceStyle.Solid;
         if (!Enum.IsDefined(_configuration.GradientDirection))
@@ -249,6 +256,7 @@ public partial class MainWindow : Window
         GradientEndColorTextBox.Text = _configuration.GradientEndColor;
         GradientOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Gradient
             ? Visibility.Visible : Visibility.Collapsed;
+        WeatherLocationTextBox.Text = _configuration.WeatherLocation;
         try
         {
             _customMiniLogo = _miniLogoStorage.Load(_configuration.MiniLogoImagePath);
@@ -275,7 +283,11 @@ public partial class MainWindow : Window
         {
             await _settingsBridge.StartAsync(
                 () => Dispatcher.InvokeAsync(GetSettingsSnapshot).Task,
-                settings => Dispatcher.InvokeAsync(() => ApplyCompanionSettingsAsync(settings)).Task.Unwrap());
+                settings => Dispatcher.InvokeAsync(() => ApplyCompanionSettingsAsync(settings)).Task.Unwrap(),
+                () => Dispatcher.InvokeAsync(ChooseMiniLogo).Task,
+                () => Dispatcher.InvokeAsync(ClearMiniLogo).Task,
+                () => Dispatcher.InvokeAsync(EnableNotificationsAsync).Task.Unwrap(),
+                () => Dispatcher.InvokeAsync(TestNotificationAsync).Task.Unwrap());
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
@@ -484,6 +496,9 @@ public partial class MainWindow : Window
     private void OnIslandStateChanged(object? sender, IslandState state)
     {
         UpdateLiquidBorder(state);
+        UpdateAtmosphere(state);
+        _hardwareTimer.IsEnabled = state is IslandState.Expanded or IslandState.Interaction &&
+                                   _activePanel == HardwarePanel;
         var (width, height) = state switch
         {
             IslandState.Preview => (PreviewWidth, PreviewHeight),
@@ -501,8 +516,8 @@ public partial class MainWindow : Window
 
     private (double Width, double Height) GetExpandedSize() =>
         _activePanel == AppsPanel
-            ? (ExpandedWidth, ExpandedHeight)
-            : (StandardPanelWidth, StandardPanelHeight);
+            ? (Math.Max(ExpandedWidth, _configuration.PanelWidth), Math.Max(ExpandedHeight, _configuration.PanelHeight))
+            : (_configuration.PanelWidth, _configuration.PanelHeight);
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
@@ -544,6 +559,24 @@ public partial class MainWindow : Window
             }
             : null);
         if (!accentBorder) LiquidBorder.Opacity = 1;
+    }
+
+    private void UpdateAtmosphere(IslandState state)
+    {
+        var corners = GetIslandCorners(state);
+        AtmosphereBase.CornerRadius = corners;
+        AtmosphereVignette.CornerRadius = corners;
+        var targetOpacity = state is IslandState.Expanded or IslandState.Interaction
+            ? (_configuration.Theme == IslandTheme.Light ? 0.34 : 0.92)
+            : 0;
+        AtmosphereLayer.BeginAnimation(OpacityProperty, new DoubleAnimation(
+            AtmosphereLayer.Opacity, targetOpacity, TimeSpan.FromMilliseconds(targetOpacity > 0 ? 280 : 160))
+        {
+            EasingFunction = new CubicEase
+            {
+                EasingMode = targetOpacity > 0 ? EasingMode.EaseOut : EasingMode.EaseIn
+            }
+        }, HandoffBehavior.SnapshotAndReplace);
     }
 
     private void RefreshPowerBorder()
@@ -761,6 +794,17 @@ public partial class MainWindow : Window
     private void MediaNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(MediaPanel);
     private void FilesNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(FilesPanel);
     private void SettingsNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(SettingsPanel);
+    private async void WeatherNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPanel(WeatherPanel);
+        if (!_weatherLoaded) await RefreshWeatherAsync();
+    }
+
+    private void HardwareNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        ShowPanel(HardwarePanel);
+        ApplyHardwareSnapshot(_hardwareMonitor.Capture());
+    }
     private void OpenSettingsAppButton_Click(object sender, RoutedEventArgs e)
     {
         if (LegacyAppearanceControls.Visibility == Visibility.Visible)
@@ -840,7 +884,8 @@ public partial class MainWindow : Window
             }
         }
         var version = ++_panelAnimationVersion;
-        foreach (var other in new UIElement[] { MediaPanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
+        _hardwareTimer.IsEnabled = panel == HardwarePanel;
+        foreach (var other in new UIElement[] { MediaPanel, WeatherPanel, HardwarePanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
         {
             if (other == panel || other == outgoing) continue;
             other.BeginAnimation(OpacityProperty, null);
@@ -910,10 +955,98 @@ public partial class MainWindow : Window
     private void UpdateActiveNavigation()
     {
         MediaNavButton.Tag = _activePanel == MediaPanel ? "Active" : null;
+        WeatherNavButton.Tag = _activePanel == WeatherPanel ? "Active" : null;
+        HardwareNavButton.Tag = _activePanel == HardwarePanel ? "Active" : null;
         FilesNavButton.Tag = _activePanel == FilesPanel ? "Active" : null;
         ClipboardNavButton.Tag = _activePanel == ClipboardPanel ? "Active" : null;
         AppsNavButton.Tag = _activePanel == AppsPanel ? "Active" : null;
         SettingsNavButton.Tag = _activePanel == SettingsPanel ? "Active" : null;
+        ActivePanelTitle.Text = _activePanel switch
+        {
+            UIElement panel when panel == WeatherPanel => "Weather",
+            UIElement panel when panel == HardwarePanel => "System pulse",
+            UIElement panel when panel == FilesPanel => "File shelf",
+            UIElement panel when panel == ClipboardPanel => "Clipboard",
+            UIElement panel when panel == AppsPanel => "App preview",
+            UIElement panel when panel == SettingsPanel => "Settings",
+            _ => "Now playing"
+        };
+    }
+
+    private void PanelViewport_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (_islandManager.State is not (IslandState.Expanded or IslandState.Interaction) ||
+            e.OriginalSource is not DependencyObject source)
+            return;
+
+        var scroller = FindAncestor<ScrollViewer>(source);
+        if (scroller is not null && scroller.ScrollableHeight > 0)
+        {
+            var canScroll = e.Delta < 0
+                ? scroller.VerticalOffset < scroller.ScrollableHeight
+                : scroller.VerticalOffset > 0;
+            if (canScroll) return;
+        }
+
+        UIElement[] panels = [MediaPanel, WeatherPanel, HardwarePanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel];
+        var current = Array.IndexOf(panels, _activePanel);
+        if (current < 0) current = 0;
+        var next = Math.Clamp(current + (e.Delta < 0 ? 1 : -1), 0, panels.Length - 1);
+        if (next == current) return;
+
+        e.Handled = true;
+        ShowPanel(panels[next]);
+        if (panels[next] == WeatherPanel && !_weatherLoaded) _ = RefreshWeatherAsync();
+        if (panels[next] == ClipboardPanel) _ = PasteClipboardContentAsync(false);
+        if (panels[next] == AppsPanel) RefreshRunningApplications();
+    }
+
+    private async void WeatherRefreshButton_Click(object sender, RoutedEventArgs e) =>
+        await RefreshWeatherAsync();
+
+    private async Task RefreshWeatherAsync()
+    {
+        WeatherRefreshButton.IsEnabled = false;
+        WeatherStatusText.Text = "Loading current conditions…";
+        _configuration.WeatherLocation = WeatherLocationTextBox.Text.Trim();
+        QueueSettingsSave();
+        try
+        {
+            var weather = await _weatherService.GetCurrentAsync(_configuration.WeatherLocation);
+            WeatherLocationText.Text = string.IsNullOrWhiteSpace(weather.Location)
+                ? "Current location" : weather.Location;
+            WeatherTemperatureText.Text = $"{weather.TemperatureC}°";
+            WeatherConditionText.Text = weather.Condition;
+            WeatherFeelsText.Text = $"{weather.FeelsLikeC}°";
+            WeatherHumidityText.Text = $"{weather.HumidityPercent}%";
+            WeatherWindText.Text = $"{weather.WindKph} km/h";
+            WeatherStatusText.Text = $"Updated {DateTime.Now:h:mm tt} · weather data from wttr.in";
+            _weatherLoaded = true;
+        }
+        catch (Exception exception) when (exception is System.Net.Http.HttpRequestException or TaskCanceledException or InvalidOperationException or System.Text.Json.JsonException)
+        {
+            WeatherStatusText.Text = $"Could not load weather: {exception.Message}";
+        }
+        finally
+        {
+            WeatherRefreshButton.IsEnabled = true;
+        }
+    }
+
+    private void ApplyHardwareSnapshot(HardwareSnapshot snapshot)
+    {
+        CpuProgress.Value = snapshot.CpuPercent;
+        CpuValueText.Text = $"{snapshot.CpuPercent:0}%";
+        MemoryProgress.Value = snapshot.MemoryPercent;
+        MemoryValueText.Text = $"{snapshot.MemoryPercent:0}%";
+        MemoryDetailText.Text = $"{snapshot.UsedMemoryGb:0.0} of {snapshot.TotalMemoryGb:0.0} GB";
+        StorageProgress.Value = snapshot.StoragePercent;
+        StorageValueText.Text = $"{snapshot.StoragePercent:0}%";
+        StorageDetailText.Text = $"{snapshot.UsedStorageGb:0} of {snapshot.TotalStorageGb:0} GB";
+        BatteryProgress.Value = snapshot.BatteryPercent ?? 0;
+        BatteryValueText.Text = snapshot.BatteryPercent is int percent ? $"{percent}%" : "Desktop";
+        BatteryDetailText.Text = snapshot.IsPluggedIn ? "Connected to power" : "On battery";
+        HardwareUpdatedText.Text = $"LIVE · {DateTime.Now:h:mm:ss tt}";
     }
 
     private void OnMediaChanged(object? sender, MediaSnapshot snapshot) =>
@@ -953,14 +1086,17 @@ public partial class MainWindow : Window
             _islandManager.TransitionTo(IslandState.Collapsed);
     }
 
-    private async void EnableNotificationsButton_Click(object sender, RoutedEventArgs e)
+    private async Task EnableNotificationsAsync()
     {
         NotificationPermissionStatus.Text = await _notificationService.StartAsync(requestAccess: true);
         _configuration.NotificationsEnabled = _notificationService.IsListening;
         await SaveConfigurationAsync();
     }
 
-    private async void TestNotificationButton_Click(object sender, RoutedEventArgs e)
+    private async void EnableNotificationsButton_Click(object sender, RoutedEventArgs e) =>
+        await EnableNotificationsAsync();
+
+    private async Task TestNotificationAsync()
     {
         _suppressHoverUntilPointerLeaves = true;
         _islandManager.TransitionTo(IslandState.Collapsed);
@@ -968,6 +1104,9 @@ public partial class MainWindow : Window
         ShowNotification(new NotificationPreview("Dynamic Island", "Notch animation is ready",
             "New alerts will drop down here."));
     }
+
+    private async void TestNotificationButton_Click(object sender, RoutedEventArgs e) =>
+        await TestNotificationAsync();
 
     private void ApplyMediaSnapshot(MediaSnapshot snapshot)
     {
@@ -1906,6 +2045,7 @@ public partial class MainWindow : Window
         }
 
         ApplySurfaceOpacity(_configuration.SurfaceOpacity);
+        UpdateAtmosphere(_islandManager.State);
 
     }
 
@@ -1967,6 +2107,7 @@ public partial class MainWindow : Window
             var color = (Color)ColorConverter.ConvertFromString(value ?? string.Empty);
             var normalized = $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
             Application.Current.Resources["AccentBrush"] = new SolidColorBrush(color);
+            AtmosphereAccentStop.Color = color;
             AccentColorTextBox.Text = normalized;
             _configuration.AccentColor = normalized;
             if (_isPluggedIn && _islandManager.State == IslandState.Collapsed)
@@ -2041,7 +2182,9 @@ public partial class MainWindow : Window
         PreviewFallbackIcon.FontSize = previewSize;
     }
 
-    private void ChooseMiniLogoButton_Click(object sender, RoutedEventArgs e)
+    private void ChooseMiniLogoButton_Click(object sender, RoutedEventArgs e) => ChooseMiniLogo();
+
+    private void ChooseMiniLogo()
     {
         var dialog = new OpenFileDialog
         {
@@ -2073,7 +2216,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ClearMiniLogoButton_Click(object sender, RoutedEventArgs e)
+    private void ClearMiniLogoButton_Click(object sender, RoutedEventArgs e) => ClearMiniLogo();
+
+    private void ClearMiniLogo()
     {
         try
         {
@@ -2202,6 +2347,8 @@ public partial class MainWindow : Window
         Alignment = (int)_configuration.Alignment,
         HorizontalOffset = _configuration.HorizontalOffset,
         VerticalOffset = _configuration.VerticalOffset,
+        PanelWidth = _configuration.PanelWidth,
+        PanelHeight = _configuration.PanelHeight,
         Theme = (int)_configuration.Theme,
         SurfaceStyle = (int)_configuration.SurfaceStyle,
         AccentColor = _configuration.AccentColor,
@@ -2211,7 +2358,11 @@ public partial class MainWindow : Window
         LogoStyle = (int)_configuration.LogoStyle,
         TempVaultRoot = _configuration.TempVaultRoot,
         TempVaultAutoCopy = _configuration.TempVaultAutoCopy,
-        TempVaultConnected = TempVaultStorageService.IsAvailable(_configuration.TempVaultRoot)
+        TempVaultConnected = TempVaultStorageService.IsAvailable(_configuration.TempVaultRoot),
+        NotificationsSupported = _notificationService.IsSupported,
+        NotificationsEnabled = _notificationService.IsListening,
+        NotificationStatus = NotificationPermissionStatus.Text,
+        HasCustomMiniLogo = _customMiniLogo is not null
     };
 
     private async Task ApplyCompanionSettingsAsync(IslandSettingsSnapshot settings)
@@ -2237,6 +2388,8 @@ public partial class MainWindow : Window
             _configuration.Alignment = (IslandAlignment)settings.Alignment;
             _configuration.HorizontalOffset = Math.Clamp(settings.HorizontalOffset, -500, 500);
             _configuration.VerticalOffset = Math.Clamp(settings.VerticalOffset, -500, 500);
+            _configuration.PanelWidth = settings.PanelWidth == 0 ? DefaultPanelWidth : Math.Clamp(settings.PanelWidth, 540, 760);
+            _configuration.PanelHeight = settings.PanelHeight == 0 ? DefaultPanelHeight : Math.Clamp(settings.PanelHeight, 330, 500);
             _configuration.Theme = (IslandTheme)settings.Theme;
             _configuration.SurfaceStyle = (IslandSurfaceStyle)settings.SurfaceStyle;
             _configuration.GradientDirection = (IslandGradientDirection)settings.GradientDirection;
@@ -2263,6 +2416,11 @@ public partial class MainWindow : Window
             TryApplyAccent(settings.AccentColor);
             ApplyLogoStyle();
             ApplyWindowPlacement();
+            if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
+            {
+                var (width, height) = GetExpandedSize();
+                AnimateIslandResize(width, height, _islandManager.State);
+            }
             await SaveConfigurationAsync();
         }
         finally
@@ -2276,12 +2434,14 @@ public partial class MainWindow : Window
         _topmostTimer.Stop();
         _ambientTimer.Stop();
         _powerTimer.Stop();
+        _hardwareTimer.Stop();
         _collapseTimer.Stop();
         _settingsSaveTimer.Stop();
         _interactiveAppPanel.Detach();
         _liveAppPreview.Detach();
 
         _mediaService.Dispose();
+        _weatherService.Dispose();
         _notificationService.Dispose();
         _ = _settingsBridge.DisposeAsync();
     }

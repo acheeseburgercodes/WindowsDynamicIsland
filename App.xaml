@@ -26,6 +26,8 @@
             <Geometry x:Key="IconClipboard">M8,2 L16,2 16,4 19,4 19,21 5,21 5,4 8,4 Z M10,4 L10,6 14,6 14,4 Z M7,8 L7,19 17,19 17,8 Z M9,11 L15,11 15,12 9,12 Z M9,14 L15,14 15,15 9,15 Z</Geometry>
             <Geometry x:Key="IconApps">M3,3 L10,3 10,10 3,10 Z M14,3 L21,3 21,10 14,10 Z M3,14 L10,14 10,21 3,21 Z M14,14 L21,14 21,21 14,21 Z</Geometry>
             <Geometry x:Key="IconSettings">M10,2 L14,2 14.6,4.2 16.2,4.9 18.2,3.8 20.8,6.4 19.7,8.4 20.4,10 22.5,10.6 22.5,14 20.4,14.6 19.7,16.2 20.8,18.2 18.2,20.8 16.2,19.7 14.6,20.4 14,22.5 10,22.5 9.4,20.4 7.8,19.7 5.8,20.8 3.2,18.2 4.3,16.2 3.6,14.6 1.5,14 1.5,10.6 3.6,10 4.3,8.4 3.2,6.4 5.8,3.8 7.8,4.9 9.4,4.2 Z M12,8.5 A3.5,3.5 0 1 0 12,15.5 A3.5,3.5 0 1 0 12,8.5 Z</Geometry>
+            <Geometry x:Key="IconWeather">M12,4 A4,4 0 1 1 12,12 A4,4 0 1 1 12,4 M12,0 L12,2 M12,14 L12,16 M4,8 L2,8 M22,8 L20,8 M5.3,1.3 L6.7,2.7 M17.3,13.3 L18.7,14.7 M18.7,1.3 L17.3,2.7 M6.7,13.3 L5.3,14.7 M6,20 C6,17.8 7.8,16 10,16 C11.4,16 12.7,16.8 13.4,18 C14,17.4 14.9,17 16,17 C18.2,17 20,18.8 20,21 L6,21 Z</Geometry>
+            <Geometry x:Key="IconHardware">M7,3 L17,3 17,6 20,6 20,18 17,18 17,21 7,21 7,18 4,18 4,6 7,6 Z M8,8 L16,8 16,16 8,16 Z M10,10 L14,10 14,14 10,14 Z</Geometry>
             <Geometry x:Key="IconPrevious">M5,5 L7,5 7,19 5,19 Z M18,5 L18,19 8,12 Z</Geometry>
             <Geometry x:Key="IconNext">M17,5 L19,5 19,19 17,19 Z M6,5 L16,12 6,19 Z</Geometry>
             <Geometry x:Key="IconPlay">M8,4.5 C8,3.7 8.9,3.25 9.6,3.7 L20,10.65 C21,11.3 21,12.7 20,13.35 L9.6,20.3 C8.9,20.75 8,20.3 8,19.5 Z</Geometry>
@@ -151,6 +153,25 @@
                         <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
                     </Trigger>
                 </Style.Triggers>
+            </Style>
+
+            <Style x:Key="MetricProgressBar" TargetType="ProgressBar">
+                <Setter Property="Height" Value="5" />
+                <Setter Property="Background" Value="#24FFFFFF" />
+                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ProgressBar">
+                            <Grid ClipToBounds="True">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="3" />
+                                <Border x:Name="PART_Track" CornerRadius="3" />
+                                <Border x:Name="PART_Indicator" HorizontalAlignment="Left"
+                                        Background="{TemplateBinding Foreground}" CornerRadius="3" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style x:Key="AppRunnerPrimaryButton" TargetType="Button" BasedOn="{StaticResource AppRunnerActionButton}">

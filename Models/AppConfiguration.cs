@@ -16,6 +16,10 @@ public sealed class AppConfiguration
 
     public int VerticalOffset { get; set; }
 
+    public int PanelWidth { get; set; } = 650;
+
+    public int PanelHeight { get; set; } = 400;
+
     public bool NotificationsEnabled { get; set; }
 
     public IslandLogoStyle LogoStyle { get; set; } = IslandLogoStyle.BrandMark;
@@ -37,6 +41,8 @@ public sealed class AppConfiguration
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";
 
     public bool TempVaultAutoCopy { get; set; }
+
+    public string WeatherLocation { get; set; } = string.Empty;
 
     public List<DockedFileItem> DockedFiles { get; set; } = [];
 

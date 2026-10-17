@@ -15,7 +15,8 @@ public sealed class SettingsBridgeService : IAsyncDisposable
     private WebApplication? _app;
 
     public async Task StartAsync(Func<Task<IslandSettingsSnapshot>> read,
-        Func<IslandSettingsSnapshot, Task> update)
+        Func<IslandSettingsSnapshot, Task> update, Func<Task> editLogo, Func<Task> clearLogo,
+        Func<Task> enableNotifications, Func<Task> testNotification)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseKestrel(options => options.ListenLocalhost(Port));
@@ -39,6 +40,30 @@ public sealed class SettingsBridgeService : IAsyncDisposable
             {
                 return Results.BadRequest(new { error = exception.Message });
             }
+        });
+        app.MapPost("/api/logo/editor", async (HttpContext context) =>
+        {
+            if (!IsCompanionRequest(context)) return Results.StatusCode(403);
+            await editLogo();
+            return Results.Ok(await read());
+        });
+        app.MapPost("/api/logo/clear", async (HttpContext context) =>
+        {
+            if (!IsCompanionRequest(context)) return Results.StatusCode(403);
+            await clearLogo();
+            return Results.Ok(await read());
+        });
+        app.MapPost("/api/notifications/enable", async (HttpContext context) =>
+        {
+            if (!IsCompanionRequest(context)) return Results.StatusCode(403);
+            await enableNotifications();
+            return Results.Ok(await read());
+        });
+        app.MapPost("/api/notifications/test", async (HttpContext context) =>
+        {
+            if (!IsCompanionRequest(context)) return Results.StatusCode(403);
+            await testNotification();
+            return Results.Ok();
         });
         await app.StartAsync();
         _app = app;

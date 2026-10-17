@@ -7,6 +7,8 @@ public sealed class IslandSettingsSnapshot
     public int Alignment { get; set; }
     public int HorizontalOffset { get; set; }
     public int VerticalOffset { get; set; }
+    public int PanelWidth { get; set; }
+    public int PanelHeight { get; set; }
     public int Theme { get; set; }
     public int SurfaceStyle { get; set; }
     public string AccentColor { get; set; } = "#FF6ED6A9";
@@ -17,4 +19,8 @@ public sealed class IslandSettingsSnapshot
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";
     public bool TempVaultAutoCopy { get; set; }
     public bool TempVaultConnected { get; set; }
+    public bool NotificationsSupported { get; set; }
+    public bool NotificationsEnabled { get; set; }
+    public string NotificationStatus { get; set; } = string.Empty;
+    public bool HasCustomMiniLogo { get; set; }
 }

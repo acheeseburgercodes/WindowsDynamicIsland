@@ -72,6 +72,12 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
   auto appWindow{reactNativeWin32App.AppWindow()};
   appWindow.Title(L"Island Control Center");
   appWindow.Resize({980, 680});
+  // Keep the configuration surface at its designed size: maximizing it only
+  // stretches the React Native layout and makes the settings harder to use.
+  if (auto presenter = appWindow.Presenter().try_as<winrt::Microsoft::UI::Windowing::OverlappedPresenter>()) {
+    presenter.IsMaximizable(false);
+    presenter.IsResizable(false);
+  }
   auto titleBar{appWindow.TitleBar()};
   titleBar.BackgroundColor(winrt::Windows::UI::Color{255, 7, 7, 9});
   titleBar.ForegroundColor(winrt::Windows::UI::Color{255, 246, 244, 249});
