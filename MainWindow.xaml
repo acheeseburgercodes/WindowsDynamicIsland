@@ -31,6 +31,37 @@
             CornerRadius="0,0,15,15"
             SnapsToDevicePixels="True">
         <Grid>
+            <Grid x:Name="AtmosphereLayer" Opacity="0" IsHitTestVisible="False" ClipToBounds="True">
+                <Border x:Name="AtmosphereBase" CornerRadius="0,0,15,15">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                            <GradientStop Color="#181D2030" Offset="0" />
+                            <GradientStop Color="#780B0C12" Offset="0.48" />
+                            <GradientStop Color="#D9040508" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+                <Ellipse Width="520" Height="240" HorizontalAlignment="Center" VerticalAlignment="Top"
+                         Margin="0,-138,0,0" Opacity="0.18">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                            <GradientStop Color="{Binding Color, Source={DynamicResource AccentBrush}}" Offset="0" />
+                            <GradientStop Color="#006ED6A9" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Ellipse Width="340" Height="300" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                         Margin="0,0,-190,-195" Fill="{DynamicResource AccentBrush}" Opacity="0.055" />
+                <Border x:Name="AtmosphereVignette" CornerRadius="0,0,15,15">
+                    <Border.Background>
+                        <RadialGradientBrush Center="0.5,0.22" GradientOrigin="0.5,0.12" RadiusX="0.82" RadiusY="0.9">
+                            <GradientStop Color="#00101016" Offset="0.28" />
+                            <GradientStop Color="#38000000" Offset="0.72" />
+                            <GradientStop Color="#A3000000" Offset="1" />
+                        </RadialGradientBrush>
+                    </Border.Background>
+                </Border>
+            </Grid>
             <Grid x:Name="CollapsedContent" Cursor="Hand">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
                     <Border x:Name="MiniLogoContainer" Width="16" Height="16" Background="{StaticResource PrimaryActionBrush}" CornerRadius="8">

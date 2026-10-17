@@ -496,6 +496,7 @@ public partial class MainWindow : Window
     private void OnIslandStateChanged(object? sender, IslandState state)
     {
         UpdateLiquidBorder(state);
+        UpdateAtmosphere(state);
         _hardwareTimer.IsEnabled = state is IslandState.Expanded or IslandState.Interaction &&
                                    _activePanel == HardwarePanel;
         var (width, height) = state switch
@@ -558,6 +559,24 @@ public partial class MainWindow : Window
             }
             : null);
         if (!accentBorder) LiquidBorder.Opacity = 1;
+    }
+
+    private void UpdateAtmosphere(IslandState state)
+    {
+        var corners = GetIslandCorners(state);
+        AtmosphereBase.CornerRadius = corners;
+        AtmosphereVignette.CornerRadius = corners;
+        var targetOpacity = state is IslandState.Expanded or IslandState.Interaction
+            ? (_configuration.Theme == IslandTheme.Light ? 0.34 : 0.92)
+            : 0;
+        AtmosphereLayer.BeginAnimation(OpacityProperty, new DoubleAnimation(
+            AtmosphereLayer.Opacity, targetOpacity, TimeSpan.FromMilliseconds(targetOpacity > 0 ? 280 : 160))
+        {
+            EasingFunction = new CubicEase
+            {
+                EasingMode = targetOpacity > 0 ? EasingMode.EaseOut : EasingMode.EaseIn
+            }
+        }, HandoffBehavior.SnapshotAndReplace);
     }
 
     private void RefreshPowerBorder()
@@ -2026,6 +2045,7 @@ public partial class MainWindow : Window
         }
 
         ApplySurfaceOpacity(_configuration.SurfaceOpacity);
+        UpdateAtmosphere(_islandManager.State);
 
     }
 
