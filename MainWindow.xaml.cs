@@ -1036,6 +1036,7 @@ public partial class MainWindow : Window
                 ? "Current location" : weather.Location;
             WeatherTemperatureText.Text = $"{weather.TemperatureC}°";
             WeatherConditionText.Text = weather.Condition;
+            WeatherHeroIcon.Text = GetWeatherEmoji(weather.Condition);
             WeatherFeelsText.Text = $"{weather.FeelsLikeC}°";
             WeatherHumidityText.Text = $"{weather.HumidityPercent}%";
             WeatherWindText.Text = $"{weather.WindKph} km/h";
@@ -1050,6 +1051,19 @@ public partial class MainWindow : Window
         {
             WeatherRefreshButton.IsEnabled = true;
         }
+    }
+
+    private static string GetWeatherEmoji(string? condition)
+    {
+        var value = condition?.ToLowerInvariant() ?? string.Empty;
+        if (value.Contains("thunder") || value.Contains("storm")) return "⛈️";
+        if (value.Contains("snow") || value.Contains("sleet") || value.Contains("blizzard")) return "🌨️";
+        if (value.Contains("rain") || value.Contains("drizzle") || value.Contains("shower")) return "🌦️";
+        if (value.Contains("fog") || value.Contains("mist") || value.Contains("haze")) return "🌫️";
+        if (value.Contains("overcast")) return "☁️";
+        if (value.Contains("cloud")) return "⛅";
+        if (value.Contains("clear") || value.Contains("sun")) return "☀️";
+        return "🌤️";
     }
 
     private void ApplyHardwareSnapshot(HardwareSnapshot snapshot)
