@@ -20,6 +20,10 @@ public sealed class AppConfiguration
 
     public int PanelHeight { get; set; } = 400;
 
+    public int AppPanelWidth { get; set; } = 920;
+
+    public int AppPanelHeight { get; set; } = 600;
+
     public bool NotificationsEnabled { get; set; }
 
     public IslandLogoStyle LogoStyle { get; set; } = IslandLogoStyle.BrandMark;

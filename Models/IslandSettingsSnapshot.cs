@@ -9,6 +9,8 @@ public sealed class IslandSettingsSnapshot
     public int VerticalOffset { get; set; }
     public int PanelWidth { get; set; }
     public int PanelHeight { get; set; }
+    public int AppPanelWidth { get; set; }
+    public int AppPanelHeight { get; set; }
     public int Theme { get; set; }
     public int SurfaceStyle { get; set; }
     public string AccentColor { get; set; } = "#FF6ED6A9";

@@ -30,8 +30,10 @@ public partial class MainWindow : Window
     private const double NotificationHeight = 78;
     private const int DefaultPanelWidth = 650;
     private const int DefaultPanelHeight = 400;
-    private const int AppPanelWidth = 920;
-    private const int AppPanelHeight = 600;
+    private const int DefaultAppPanelWidth = 920;
+    private const int DefaultAppPanelHeight = 600;
+    private const int MinimumAppPanelWidth = 720;
+    private const int MinimumAppPanelHeight = 480;
     private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
 
     private readonly IslandManager _islandManager = new();
@@ -90,6 +92,9 @@ public partial class MainWindow : Window
     private bool _installedAppsLoaded;
     private bool _weatherLoaded;
     private bool _isAnimating;
+    private bool _isAppPanelResizing;
+    private double _appResizeWidth;
+    private double _appResizeHeight;
     private bool _isPinnedToAllDesktops;
     private int _desktopPinAttempts;
     private int _desktopPinTimerTicks;
@@ -209,6 +214,13 @@ public partial class MainWindow : Window
         _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.1, 1);
         _configuration.PanelWidth = Math.Clamp(_configuration.PanelWidth, 540, 760);
         _configuration.PanelHeight = Math.Clamp(_configuration.PanelHeight, 330, 500);
+        _configuration.AppPanelWidth = Math.Clamp(
+            _configuration.AppPanelWidth == 0 ? DefaultAppPanelWidth : _configuration.AppPanelWidth,
+            MinimumAppPanelWidth, 1280);
+        _configuration.AppPanelHeight = Math.Clamp(
+            _configuration.AppPanelHeight == 0 ? DefaultAppPanelHeight : _configuration.AppPanelHeight,
+            MinimumAppPanelHeight, 800);
+        AppResizeSizeText.Text = $"{_configuration.AppPanelWidth} × {_configuration.AppPanelHeight}";
         if (!Enum.IsDefined(_configuration.SurfaceStyle))
             _configuration.SurfaceStyle = IslandSurfaceStyle.Solid;
         if (!Enum.IsDefined(_configuration.GradientDirection))
@@ -351,7 +363,7 @@ public partial class MainWindow : Window
         // A hosted native window can take focus while the pointer is still inside
         // the island. Only an actual click elsewhere should dismiss the panel.
         await Task.Delay(90);
-        if (!IsLoaded || IsActive || _isDragging || _isFileDragInProgress || _isLogoEditorOpen || _isModalDialogOpen)
+        if (!IsLoaded || IsActive || _isDragging || _isAppPanelResizing || _isFileDragInProgress || _isLogoEditorOpen || _isModalDialogOpen)
             return;
         var pointer = Mouse.GetPosition(this);
         if (pointer.X >= 0 && pointer.Y >= 0 && pointer.X < ActualWidth && pointer.Y < ActualHeight)
@@ -480,7 +492,7 @@ public partial class MainWindow : Window
         var current = source;
         while (current is not null)
         {
-            if (current is Button or Slider or ComboBox or TextBox or ListViewItem or ListBoxItem or ScrollBar)
+            if (current is Button or Slider or ComboBox or TextBox or ListViewItem or ListBoxItem or ScrollBar or Thumb)
             {
                 return true;
             }
@@ -493,7 +505,7 @@ public partial class MainWindow : Window
 
     private void CollapseTimer_Tick(object? sender, EventArgs e)
     {
-        if (_isDragging || _isFileDragInProgress || _isLogoEditorOpen || IsMouseOver || _interactiveAppPanel.IsAttached || _liveAppPreview.IsAttached ||
+        if (_isDragging || _isAppPanelResizing || _isFileDragInProgress || _isLogoEditorOpen || IsMouseOver || _interactiveAppPanel.IsAttached || _liveAppPreview.IsAttached ||
             EdgeComboBox.IsDropDownOpen || AlignmentComboBox.IsDropDownOpen)
         {
             _collapseTimer.Stop();
@@ -527,8 +539,50 @@ public partial class MainWindow : Window
 
     private (double Width, double Height) GetExpandedSize() =>
         _activePanel == AppsPanel
-            ? (Math.Max(_configuration.PanelWidth, AppPanelWidth), Math.Max(_configuration.PanelHeight, AppPanelHeight))
+            ? (_configuration.AppPanelWidth, _configuration.AppPanelHeight)
             : (_configuration.PanelWidth, _configuration.PanelHeight);
+
+    private void AppResizeThumb_DragStarted(object sender, DragStartedEventArgs e)
+    {
+        if (_activePanel != AppsPanel) return;
+        _isAppPanelResizing = true;
+        _collapseTimer.Stop();
+        _resizeAnimationVersion++;
+        var scale = (ScaleTransform)IslandSurface.RenderTransform;
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        scale.ScaleX = 1;
+        scale.ScaleY = 1;
+        _isAnimating = false;
+        _appResizeWidth = Math.Max(MinimumAppPanelWidth, ActualWidth);
+        _appResizeHeight = Math.Max(MinimumAppPanelHeight, ActualHeight);
+        AppResizeSizeText.Text = $"{Math.Round(_appResizeWidth)} × {Math.Round(_appResizeHeight)}";
+    }
+
+    private void AppResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
+    {
+        if (!_isAppPanelResizing) return;
+        var workArea = SystemParameters.WorkArea;
+        var maxWidth = Math.Max(MinimumAppPanelWidth, Math.Min(1280, workArea.Width - 16));
+        var maxHeight = Math.Max(MinimumAppPanelHeight, Math.Min(800, workArea.Height - 16));
+        _appResizeWidth = Math.Clamp(_appResizeWidth + e.HorizontalChange, MinimumAppPanelWidth, maxWidth);
+        _appResizeHeight = Math.Clamp(_appResizeHeight + e.VerticalChange, MinimumAppPanelHeight, maxHeight);
+        _configuration.AppPanelWidth = (int)Math.Round(_appResizeWidth);
+        _configuration.AppPanelHeight = (int)Math.Round(_appResizeHeight);
+        AppResizeSizeText.Text = $"{_configuration.AppPanelWidth} × {_configuration.AppPanelHeight}";
+        _windowService.ResizeAndPosition(_appResizeWidth, _appResizeHeight);
+        UpdateInteractivePanel();
+        e.Handled = true;
+    }
+
+    private async void AppResizeThumb_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        if (!_isAppPanelResizing) return;
+        _isAppPanelResizing = false;
+        AppResizeSizeText.Text = $"{_configuration.AppPanelWidth} × {_configuration.AppPanelHeight}";
+        await SaveConfigurationAsync();
+        UpdateInteractivePanel();
+    }
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
@@ -2421,6 +2475,8 @@ public partial class MainWindow : Window
         VerticalOffset = _configuration.VerticalOffset,
         PanelWidth = _configuration.PanelWidth,
         PanelHeight = _configuration.PanelHeight,
+        AppPanelWidth = _configuration.AppPanelWidth,
+        AppPanelHeight = _configuration.AppPanelHeight,
         Theme = (int)_configuration.Theme,
         SurfaceStyle = (int)_configuration.SurfaceStyle,
         AccentColor = _configuration.AccentColor,
@@ -2464,6 +2520,11 @@ public partial class MainWindow : Window
             _configuration.VerticalOffset = Math.Clamp(settings.VerticalOffset, -500, 500);
             _configuration.PanelWidth = settings.PanelWidth == 0 ? DefaultPanelWidth : Math.Clamp(settings.PanelWidth, 540, 760);
             _configuration.PanelHeight = settings.PanelHeight == 0 ? DefaultPanelHeight : Math.Clamp(settings.PanelHeight, 330, 500);
+            _configuration.AppPanelWidth = settings.AppPanelWidth == 0
+                ? DefaultAppPanelWidth : Math.Clamp(settings.AppPanelWidth, MinimumAppPanelWidth, 1280);
+            _configuration.AppPanelHeight = settings.AppPanelHeight == 0
+                ? DefaultAppPanelHeight : Math.Clamp(settings.AppPanelHeight, MinimumAppPanelHeight, 800);
+            AppResizeSizeText.Text = $"{_configuration.AppPanelWidth} × {_configuration.AppPanelHeight}";
             _configuration.Theme = (IslandTheme)settings.Theme;
             _configuration.SurfaceStyle = (IslandSurfaceStyle)settings.SurfaceStyle;
             _configuration.BackgroundColor = settings.BackgroundColor;
