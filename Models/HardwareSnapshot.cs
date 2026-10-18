@@ -9,4 +9,6 @@ public sealed record HardwareSnapshot(
     double UsedStorageGb,
     double TotalStorageGb,
     int? BatteryPercent,
-    bool IsPluggedIn);
+    bool IsPluggedIn,
+    double DownloadMbps,
+    double UploadMbps);

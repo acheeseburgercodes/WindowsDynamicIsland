@@ -7,9 +7,12 @@ The application source is licensed under the [MIT License](LICENSE). Self-contai
 ## Features
 
 - Album artwork, live timeline and seeking where supported, media controls, and a button to open the source player
-- Compact dashboard rail with wheel-driven vertical switching between media, weather, system, files, clipboard, apps, and settings
+- Compact dashboard rail with wheel-driven vertical switching between media, weather, system, activity, controls, focus, files, clipboard, apps, and settings
 - On-demand weather conditions from wttr.in with an optional city field; a blank location uses wttr.in's approximate IP location
-- Live CPU, memory, primary-storage, and battery/power telemetry without a background collector when the System dashboard is closed
+- Live CPU, memory, primary-storage, battery/power, and network-throughput telemetry without a background collector when the System or Controls dashboard is closed
+- Activity stack for playback, focus sessions, persistent files, and real file-dock copy progress
+- Quick controls for native output volume and microphone mute, plus direct Windows surfaces for audio, Wi-Fi, display, Bluetooth, Focus Assist, and screen capture
+- Pomodoro-style focus timer with 5, 15, and 25 minute presets and a compact top-edge countdown state
 - Durable file shelf with drag-in and drag-out, file picker, clipboard paste, open, copy, and remove actions
 - Global island drop target: files can be dropped on the idle pill and are copied into app-managed storage
 - Editable Windows text clipboard view with copy and paste controls
@@ -24,7 +27,7 @@ The application source is licensed under the [MIT License](LICENSE). Self-contai
 - Optional two-color gradient surface with hex or picker controls and selectable direction
 - Persisted dark and light appearance modes
 - Top, left, or right screen anchoring with start/center/end alignment and X/Y calibration
-- Three-stage interaction: mini idle pill, compact hover preview, and animated full expansion
+- Three-stage interaction: nearly invisible 2px idle handle, compact hover preview, and animated full expansion
 - Fade-and-slide animations when switching the full island's tabs
 - Optional custom picture for the minimized mini logo, copied into local app storage
 - Photo crop-and-rotate editor before saving a custom mini logo
