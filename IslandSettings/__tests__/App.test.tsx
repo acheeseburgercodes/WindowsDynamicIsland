@@ -23,6 +23,7 @@ test('Appearance remains renderable with fractional opacity and exposes photo co
     surfaceStyle: 0, accentColor: '#FF6ED6A9', backgroundColor: '#FF111113', gradientStartColor: '#FF334654',
     gradientEndColor: '#FF161821', gradientDirection: 2, logoStyle: 4,
     useAlbumArtBackdrop: true, useMediaArtworkColors: true, useAudioReactiveEffects: true,
+    minimizedAppearance: 0,
     tempVaultRoot: 'D:\\TempVault\\storage', tempVaultAutoCopy: false,
     tempVaultConnected: false, notificationsSupported: false,
     notificationsEnabled: false, notificationStatus: 'Requires MSIX',

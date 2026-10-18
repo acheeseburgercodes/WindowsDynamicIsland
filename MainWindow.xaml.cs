@@ -22,11 +22,13 @@ namespace DynamicIsland;
 
 public partial class MainWindow : Window
 {
-    private const double CollapsedWidth = 170;
+    private const double CollapsedWidth = 250;
     private const double CollapsedHeight = 8;
+    private const double ClassicCollapsedWidth = 112;
+    private const double ClassicCollapsedHeight = 30;
     private const double FocusCollapsedWidth = 112;
     private const double FocusCollapsedHeight = 26;
-    private const double PreviewWidth = 500;
+    private const double PreviewWidth = 410;
     private const double PreviewHeight = 58;
     private const double NotificationWidth = 430;
     private const double NotificationHeight = 78;
@@ -83,7 +85,7 @@ public partial class MainWindow : Window
     private bool _isUpdatingSeek;
     private DockedFileItem? _fileDragItem;
     private BitmapSource? _currentArtwork;
-    private Color? _currentArtworkColor;
+    private IReadOnlyList<Color> _currentArtworkPalette = [];
     private BitmapSource? _customMiniLogo;
     private BitmapSource? _clipboardImage;
     private List<string> _clipboardFiles = [];
@@ -317,7 +319,8 @@ public partial class MainWindow : Window
         ApplyTheme();
         ApplyLogoStyle();
         ApplyMediaAtmosphere();
-        _windowService.ResizeAndPosition(CollapsedWidth, CollapsedHeight);
+        var (collapsedWidth, collapsedHeight) = GetCollapsedSize();
+        _windowService.ResizeAndPosition(collapsedWidth, collapsedHeight);
         ApplyCollapsedAppearance(IslandState.Collapsed);
         UpdateLiquidBorder(IslandState.Collapsed);
         _settingsLoaded = true;
@@ -565,15 +568,23 @@ public partial class MainWindow : Window
             ? (_configuration.AppPanelWidth, _configuration.AppPanelHeight)
             : (_configuration.PanelWidth, _configuration.PanelHeight);
 
-    private (double Width, double Height) GetCollapsedSize() => _focusRunning
-        ? (FocusCollapsedWidth, FocusCollapsedHeight)
-        : (CollapsedWidth, CollapsedHeight);
+    private (double Width, double Height) GetCollapsedSize()
+    {
+        if (_focusRunning) return (FocusCollapsedWidth, FocusCollapsedHeight);
+        return _configuration.MinimizedAppearance == MinimizedAppearance.ClassicNotch
+            ? (ClassicCollapsedWidth, ClassicCollapsedHeight)
+            : (CollapsedWidth, CollapsedHeight);
+    }
 
     private void ApplyCollapsedAppearance(IslandState state)
     {
         var collapsed = state == IslandState.Collapsed;
-        IslandSurface.Padding = collapsed ? new Thickness(0) : new Thickness(6, 4, 6, 4);
-        if (collapsed)
+        var classicNotch = collapsed && !_focusRunning &&
+                           _configuration.MinimizedAppearance == MinimizedAppearance.ClassicNotch;
+        IslandSurface.Padding = collapsed
+            ? classicNotch ? new Thickness(6, 4, 6, 4) : new Thickness(0)
+            : new Thickness(6, 4, 6, 4);
+        if (collapsed && !classicNotch)
         {
             IslandSurface.Background = Brushes.Transparent;
             AtmosphereLayer.Opacity = 0;
@@ -584,7 +595,8 @@ public partial class MainWindow : Window
             ApplySurfaceOpacity(_configuration.SurfaceOpacity);
         }
         FocusTimerMini.Visibility = collapsed && _focusRunning ? Visibility.Visible : Visibility.Collapsed;
-        MinimizedHandle.Visibility = collapsed && !_focusRunning ? Visibility.Visible : Visibility.Collapsed;
+        MinimizedHandle.Visibility = collapsed && !_focusRunning && !classicNotch ? Visibility.Visible : Visibility.Collapsed;
+        ClassicNotchContent.Visibility = classicNotch ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void AppResizeThumb_DragStarted(object sender, DragStartedEventArgs e)
@@ -631,8 +643,10 @@ public partial class MainWindow : Window
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
-        var showBorder = state == IslandState.Preview;
-        var accentBorder = false;
+        var classicNotch = state == IslandState.Collapsed && !_focusRunning &&
+                           _configuration.MinimizedAppearance == MinimizedAppearance.ClassicNotch;
+        var showBorder = state == IslandState.Preview || classicNotch;
+        var accentBorder = classicNotch && _isPluggedIn;
         LiquidBorder.Visibility = showBorder ? Visibility.Visible : Visibility.Collapsed;
         var thickness = accentBorder ? 2 : 1.5;
         LiquidBorder.BorderThickness = _configuration.Edge == IslandEdge.Top && _configuration.VerticalOffset <= 0
@@ -670,10 +684,10 @@ public partial class MainWindow : Window
             }
             : null);
         if (!accentBorder) LiquidBorder.Opacity = 1;
-        if (state == IslandState.Collapsed)
+        if (state == IslandState.Collapsed && !classicNotch)
             MinimizedHandle.Background = _isPluggedIn
-                ? Application.Current.Resources["AccentBrush"] as Brush ?? Brushes.White
-                : new SolidColorBrush(Color.FromArgb(128, 110, 116, 128));
+                ? CreateMutedAccentBrush()
+                : new SolidColorBrush(Color.FromArgb(56, 16, 20, 24));
     }
 
     private void UpdateAtmosphere(IslandState state)
@@ -733,6 +747,17 @@ public partial class MainWindow : Window
         for (var i = 0; i < colors.Length; i++)
             brush.GradientStops.Add(new GradientStop(colors[i], offsets[i]));
         return brush;
+    }
+
+    private static Brush CreateMutedAccentBrush()
+    {
+        var accent = Application.Current.Resources["AccentBrush"] is SolidColorBrush brush
+            ? brush.Color
+            : Color.FromRgb(110, 214, 169);
+        return new SolidColorBrush(Color.FromArgb(72,
+            (byte)Math.Round(accent.R * 0.58),
+            (byte)Math.Round(accent.G * 0.58),
+            (byte)Math.Round(accent.B * 0.58)));
     }
 
     private static Color Mix(Color source, Color target, double amount) => Color.FromRgb(
@@ -1415,7 +1440,7 @@ public partial class MainWindow : Window
         if (thumbnailChanged)
         {
             _currentArtwork = CreateImage(snapshot.Thumbnail);
-            _currentArtworkColor = _currentArtwork is null ? null : ExtractArtworkColor(_currentArtwork);
+            _currentArtworkPalette = _currentArtwork is null ? [] : ExtractArtworkPalette(_currentArtwork);
             Artwork.Source = _currentArtwork;
             MediaBackdropArtwork.Source = _currentArtwork;
         }
@@ -1472,28 +1497,32 @@ public partial class MainWindow : Window
         var hasArtwork = _currentMediaSnapshot.HasSession && _currentArtwork is not null;
         MediaBackdropArtwork.Opacity = hasArtwork && _configuration.UseAlbumArtBackdrop ? 0.34 : 0;
 
-        if (_currentArtworkColor is not { } artworkColor || !hasArtwork)
+        if (_currentArtworkPalette.Count == 0 || !hasArtwork)
         {
             MediaColorWash.Opacity = 0;
             return;
         }
 
-        var transparent = Color.FromArgb(0, artworkColor.R, artworkColor.G, artworkColor.B);
-        MediaColorWash.Background = new RadialGradientBrush
+        var palette = _currentArtworkPalette;
+        var first = palette[0];
+        var second = palette.Count > 1 ? palette[1] : BlendColor(first, Colors.Black, 0.34);
+        var third = palette.Count > 2 ? palette[2] : BlendColor(first, Colors.White, 0.24);
+        MediaColorWash.Background = new LinearGradientBrush
         {
-            Center = new Point(0.32, 0.2),
-            GradientOrigin = new Point(0.28, 0.14),
-            RadiusX = 0.82,
-            RadiusY = 0.88,
+            StartPoint = new Point(0.04, 0.08),
+            EndPoint = new Point(0.96, 0.92),
             GradientStops =
             {
-                new GradientStop(Color.FromArgb(150, artworkColor.R, artworkColor.G, artworkColor.B), 0),
-                new GradientStop(Color.FromArgb(55, artworkColor.R, artworkColor.G, artworkColor.B), 0.48),
-                new GradientStop(transparent, 1)
+                new GradientStop(Color.FromArgb(220, first.R, first.G, first.B), 0),
+                new GradientStop(Color.FromArgb(185, second.R, second.G, second.B), 0.43),
+                new GradientStop(Color.FromArgb(205, third.R, third.G, third.B), 0.78),
+                new GradientStop(Color.FromArgb(130, first.R, first.G, first.B), 1)
             }
         };
-        MediaColorWash.Opacity = _configuration.UseMediaArtworkColors ? 0.34 : 0;
-        var waveColor = BlendColor(artworkColor, Colors.White, 0.2);
+        MediaColorWash.Opacity = _configuration.UseMediaArtworkColors && _islandManager.State != IslandState.Collapsed
+            ? (_islandManager.State == IslandState.Preview ? 0.56 : 0.44)
+            : 0;
+        var waveColor = BlendColor(first, Colors.White, 0.3);
         foreach (var bar in _audioWaveBars) bar.Fill = new SolidColorBrush(waveColor);
     }
 
@@ -1503,7 +1532,7 @@ public partial class MainWindow : Window
                       _currentMediaSnapshot.HasSession && _currentMediaSnapshot.IsPlaying;
         var peak = enabled ? _audioLevelService.GetPeakLevel() : 0;
         _smoothedAudioLevel = (_smoothedAudioLevel * 0.68) + (peak * 0.32);
-        _audioWavePhase += 0.34 + (_smoothedAudioLevel * 0.42);
+        _audioWavePhase += enabled ? 0.12 + (_smoothedAudioLevel * 0.92) : 0.012;
 
         var width = Math.Max(1, AudioWaveCanvas.ActualWidth);
         var spacing = width / _audioWaveBars.Count;
@@ -1517,16 +1546,34 @@ public partial class MainWindow : Window
         }
 
         AudioWaveCanvas.Opacity = enabled ? Math.Clamp(0.18 + _smoothedAudioLevel * 0.72, 0, 0.78) : 0;
-        if (_islandManager.State != IslandState.Collapsed && _configuration.UseMediaArtworkColors && _currentArtworkColor is not null &&
-            _currentMediaSnapshot.HasSession)
+        if (_islandManager.State != IslandState.Collapsed && _configuration.UseMediaArtworkColors &&
+            _currentArtworkPalette.Count > 0 && _currentMediaSnapshot.HasSession)
+        {
+            var preview = _islandManager.State == IslandState.Preview;
             MediaColorWash.Opacity = enabled
-                ? Math.Clamp(0.28 + _smoothedAudioLevel * 0.18, 0, 0.48)
-                : 0.34;
+                ? Math.Clamp((preview ? 0.5 : 0.38) + _smoothedAudioLevel * 0.22, 0, preview ? 0.7 : 0.6)
+                : preview ? 0.54 : 0.43;
+            if (MediaColorWash.Background is LinearGradientBrush gradient)
+            {
+                var beat = enabled ? _smoothedAudioLevel : 0;
+                var radius = 0.16 + beat * 0.22;
+                var x = 0.5 + Math.Sin(_audioWavePhase * 0.47) * radius;
+                var y = 0.5 + Math.Cos(_audioWavePhase * 0.37) * radius;
+                gradient.StartPoint = new Point(Math.Clamp(x - 0.36, -0.2, 0.7), Math.Clamp(y - 0.3, -0.2, 0.7));
+                gradient.EndPoint = new Point(Math.Clamp(1.15 - x * 0.18, 0.55, 1.15),
+                    Math.Clamp(1.12 - y * 0.16, 0.55, 1.15));
+                if (gradient.GradientStops.Count >= 4)
+                {
+                    gradient.GradientStops[1].Offset = Math.Clamp(0.38 + Math.Sin(_audioWavePhase) * (0.035 + beat * 0.08), 0.24, 0.55);
+                    gradient.GradientStops[2].Offset = Math.Clamp(0.76 + Math.Cos(_audioWavePhase * 0.8) * (0.025 + beat * 0.06), 0.62, 0.9);
+                }
+            }
+        }
         else
             MediaColorWash.Opacity = 0;
     }
 
-    private static Color ExtractArtworkColor(BitmapSource source)
+    private static IReadOnlyList<Color> ExtractArtworkPalette(BitmapSource source)
     {
         var converted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
         var stride = converted.PixelWidth * 4;
@@ -1534,7 +1581,7 @@ public partial class MainWindow : Window
         converted.CopyPixels(pixels, stride, 0);
         var stepX = Math.Max(1, converted.PixelWidth / 48);
         var stepY = Math.Max(1, converted.PixelHeight / 48);
-        double totalWeight = 0, red = 0, green = 0, blue = 0;
+        var buckets = new Dictionary<int, (double Weight, double Red, double Green, double Blue)>();
         for (var y = 0; y < converted.PixelHeight; y += stepY)
         for (var x = 0; x < converted.PixelWidth; x += stepX)
         {
@@ -1549,13 +1596,30 @@ public partial class MainWindow : Window
             var luminance = (r * 0.2126) + (g * 0.7152) + (b * 0.0722);
             if (luminance < 0.045 || luminance > 0.93) continue;
             var weight = 0.35 + (saturation * 2.4) + (1 - Math.Abs(luminance - 0.52));
-            red += r * weight; green += g * weight; blue += b * weight; totalWeight += weight;
+            var key = ((int)(r * 15) << 8) | ((int)(g * 15) << 4) | (int)(b * 15);
+            buckets.TryGetValue(key, out var bucket);
+            buckets[key] = (bucket.Weight + weight, bucket.Red + r * weight,
+                bucket.Green + g * weight, bucket.Blue + b * weight);
         }
-        return totalWeight <= 0
-            ? Color.FromRgb(110, 214, 169)
-            : Color.FromRgb((byte)(255 * red / totalWeight), (byte)(255 * green / totalWeight),
-                (byte)(255 * blue / totalWeight));
+        var candidates = buckets.Values.OrderByDescending(bucket => bucket.Weight)
+            .Select(bucket => Color.FromRgb(
+                (byte)Math.Round(255 * bucket.Red / bucket.Weight),
+                (byte)Math.Round(255 * bucket.Green / bucket.Weight),
+                (byte)Math.Round(255 * bucket.Blue / bucket.Weight))).ToList();
+        var palette = new List<Color>();
+        foreach (var candidate in candidates)
+        {
+            if (palette.All(existing => ColorDistance(existing, candidate) >= 64)) palette.Add(candidate);
+            if (palette.Count == 3) break;
+        }
+        if (palette.Count == 0) palette.Add(Color.FromRgb(110, 214, 169));
+        if (palette.Count == 1) palette.Add(BlendColor(palette[0], Colors.Black, 0.38));
+        if (palette.Count == 2) palette.Add(BlendColor(palette[0], Colors.White, 0.28));
+        return palette;
     }
+
+    private static double ColorDistance(Color first, Color second) => Math.Sqrt(
+        Math.Pow(first.R - second.R, 2) + Math.Pow(first.G - second.G, 2) + Math.Pow(first.B - second.B, 2));
 
     private static Color BlendColor(Color first, Color second, double amount) => Color.FromRgb(
         (byte)Math.Round(first.R + (second.R - first.R) * amount),
@@ -2322,7 +2386,8 @@ public partial class MainWindow : Window
 
     private void ApplySurfaceOpacity(double opacity)
     {
-        if (_islandManager.State == IslandState.Collapsed)
+        if (_islandManager.State == IslandState.Collapsed &&
+            (_configuration.MinimizedAppearance == MinimizedAppearance.EdgeLine || _focusRunning))
         {
             IslandSurface.Background = Brushes.Transparent;
             OpacityValueText.Text = $"{opacity:P0}";
@@ -2804,7 +2869,8 @@ public partial class MainWindow : Window
         HasCustomMiniLogo = _customMiniLogo is not null,
         UseAlbumArtBackdrop = _configuration.UseAlbumArtBackdrop,
         UseMediaArtworkColors = _configuration.UseMediaArtworkColors,
-        UseAudioReactiveEffects = _configuration.UseAudioReactiveEffects
+        UseAudioReactiveEffects = _configuration.UseAudioReactiveEffects,
+        MinimizedAppearance = (int)_configuration.MinimizedAppearance
     };
 
     private async Task ApplyCompanionSettingsAsync(IslandSettingsSnapshot settings)
@@ -2815,6 +2881,7 @@ public partial class MainWindow : Window
             !Enum.IsDefined(typeof(IslandSurfaceStyle), settings.SurfaceStyle) ||
             !Enum.IsDefined(typeof(IslandGradientDirection), settings.GradientDirection) ||
             !Enum.IsDefined(typeof(IslandLogoStyle), settings.LogoStyle) ||
+            !Enum.IsDefined(typeof(MinimizedAppearance), settings.MinimizedAppearance) ||
             !TryParseSurfaceColor(settings.AccentColor, out _) ||
             !TryParseSurfaceColor(settings.BackgroundColor, out _) ||
             !TryParseSurfaceColor(settings.GradientStartColor, out _) ||
@@ -2850,6 +2917,7 @@ public partial class MainWindow : Window
             _configuration.UseAlbumArtBackdrop = settings.UseAlbumArtBackdrop;
             _configuration.UseMediaArtworkColors = settings.UseMediaArtworkColors;
             _configuration.UseAudioReactiveEffects = settings.UseAudioReactiveEffects;
+            _configuration.MinimizedAppearance = (MinimizedAppearance)settings.MinimizedAppearance;
 
             OpacitySlider.Value = _configuration.SurfaceOpacity * 100;
             EdgeComboBox.SelectedIndex = settings.Edge;
@@ -2872,10 +2940,17 @@ public partial class MainWindow : Window
             ApplyMediaAtmosphere();
             ApplyLogoStyle();
             ApplyWindowPlacement();
+            ApplyCollapsedAppearance(_islandManager.State);
+            UpdateLiquidBorder(_islandManager.State);
             if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
             {
                 var (width, height) = GetExpandedSize();
                 AnimateIslandResize(width, height, _islandManager.State);
+            }
+            else if (_islandManager.State == IslandState.Collapsed)
+            {
+                var (width, height) = GetCollapsedSize();
+                AnimateIslandResize(width, height, IslandState.Collapsed);
             }
             await SaveConfigurationAsync();
         }
