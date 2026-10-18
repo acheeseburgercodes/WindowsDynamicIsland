@@ -62,6 +62,8 @@
                     </Border.Background>
                 </Border>
             </Grid>
+            <Border x:Name="MediaColorWash" CornerRadius="0,0,15,15" Opacity="0"
+                    IsHitTestVisible="False" />
             <Grid x:Name="CollapsedContent" Cursor="Hand">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
                     <Border x:Name="MiniLogoContainer" Width="16" Height="16" Background="{StaticResource PrimaryActionBrush}" CornerRadius="8">
@@ -202,8 +204,25 @@
                     <Grid x:Name="PanelViewport" Grid.Column="1" ClipToBounds="True">
                     <Grid x:Name="MediaPanel" Margin="4,7,4,8" VerticalAlignment="Stretch">
                         <Border CornerRadius="20" Background="{DynamicResource PanelSurfaceBrush}"
-                                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Padding="16">
+                                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" ClipToBounds="True">
                         <Grid>
+                        <Image x:Name="MediaBackdropArtwork" Stretch="UniformToFill" Opacity="0"
+                               IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                            <Image.Effect><BlurEffect Radius="24" RenderingBias="Performance" /></Image.Effect>
+                            <Image.RenderTransform><ScaleTransform ScaleX="1.14" ScaleY="1.14" /></Image.RenderTransform>
+                        </Image>
+                        <Border x:Name="MediaBackdropVeil" IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#B8101116" Offset="0" />
+                                    <GradientStop Color="#D9131419" Offset="0.55" />
+                                    <GradientStop Color="#F018191D" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <Canvas x:Name="AudioWaveCanvas" Height="68" VerticalAlignment="Bottom"
+                                Margin="18,0,18,10" Opacity="0" IsHitTestVisible="False" />
+                        <Grid Margin="16">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="144" />
                             <ColumnDefinition Width="*" />
@@ -293,6 +312,7 @@
                             </StackPanel>
                             <TextBlock x:Name="MediaStatusText" Grid.Row="4" Margin="0,8,0,0" FontSize="10"
                                        Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
+                        </Grid>
                         </Grid>
                         </Grid>
                         </Border>

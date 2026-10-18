@@ -6,6 +6,7 @@ type Settings = {
   horizontalOffset: number; verticalOffset: number; theme: number;
   surfaceStyle: number; accentColor: string; backgroundColor: string; gradientStartColor: string;
   gradientEndColor: string; gradientDirection: number; logoStyle: number;
+  useAlbumArtBackdrop: boolean; useMediaArtworkColors: boolean; useAudioReactiveEffects: boolean;
   tempVaultRoot: string; tempVaultAutoCopy: boolean; tempVaultConnected: boolean;
   panelWidth: number; panelHeight: number; appPanelWidth: number; appPanelHeight: number;
   notificationsSupported: boolean;
@@ -60,6 +61,42 @@ function Field({label, value, onChange}: {label: string; value: string; onChange
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange}
       autoCapitalize="none" autoCorrect={false} selectionColor="#65D7B5" style={s.input}/>
   </View>;
+}
+
+const colorPresets = ['#6ED6A9', '#B68CFF', '#6EA8FF', '#53D8FB', '#FFB84D', '#FF6B8A', '#F5F5F5', '#17181D'];
+
+function argbColor(value: string) {
+  const normalized = accentColor(value).slice(1).toUpperCase();
+  return `#FF${normalized}`;
+}
+
+function ColorField({label, value, accent, onChange}: {
+  label: string; value: string; accent: string; onChange: (v: string) => void;
+}) {
+  const selected = accentColor(value);
+  return <View style={s.colorField}>
+    <View style={s.between}><Text style={s.label}>{label}</Text>
+      <View style={[s.colorPreview, {backgroundColor: selected, shadowColor: selected}]} /></View>
+    <View style={s.colorRow}>
+      <TextInput accessibilityLabel={label} value={value} onChangeText={onChange}
+        autoCapitalize="characters" autoCorrect={false} selectionColor={accent} style={[s.input, s.colorInput]}/>
+      <View style={s.palette}>{colorPresets.map(color =>
+        <Pressable key={color} accessibilityRole="button" accessibilityLabel={`${label} ${color}`}
+          accessibilityState={{selected: selected.toUpperCase() === color}}
+          onPress={() => onChange(argbColor(color))}
+          style={[s.swatch, {backgroundColor: color}, selected.toUpperCase() === color && {borderColor: accent, borderWidth: 3}]} />
+      )}</View>
+    </View>
+  </View>;
+}
+
+function ToggleRow({label, hint, value, accent, onChange}: {
+  label: string; hint: string; value: boolean; accent: string; onChange: (v: boolean) => void;
+}) {
+  return <View style={s.toggleRow}><View style={s.toggleCopy}>
+    <Text style={s.toggleLabel}>{label}</Text><Text style={s.toggleHint}>{hint}</Text>
+  </View><Switch value={value} trackColor={{false: '#3A3D42', true: accent}}
+      thumbColor="#F7F8F8" onValueChange={onChange}/></View>;
 }
 
 function RangeSlider({label, value, min, max, step, buttonStep, unit, accent, onChange}: {
@@ -119,7 +156,10 @@ function App() {
       setSettings({...incoming, panelWidth: incoming.panelWidth || 650,
         panelHeight: incoming.panelHeight || 400,
         appPanelWidth: incoming.appPanelWidth || 920,
-        appPanelHeight: incoming.appPanelHeight || 600});
+        appPanelHeight: incoming.appPanelHeight || 600,
+        useAlbumArtBackdrop: incoming.useAlbumArtBackdrop ?? true,
+        useMediaArtworkColors: incoming.useMediaArtworkColors ?? true,
+        useAudioReactiveEffects: incoming.useAudioReactiveEffects ?? true});
       setStatus('Connected · changes update the running island');
       return true;
     } catch {
@@ -277,21 +317,21 @@ function App() {
             <RangeSlider label="Opacity" value={settings.surfaceOpacity} min={0.1} max={1}
               step={0.01} buttonStep={0.05} unit="%" accent={accent}
               onChange={v => change('surfaceOpacity', Math.round(v * 100) / 100)}/>
-            <Field label="Solid background color" value={settings.backgroundColor ?? '#FF111113'}
+            <ColorField label="Solid background" value={settings.backgroundColor ?? '#FF111113'} accent={accent}
               onChange={v => change('backgroundColor', v)}/>
             {settings.surfaceStyle === 1 && <>
-              <View style={s.row}><View style={s.half}><Field label="Gradient start"
+              <View style={s.row}><View style={s.half}><ColorField label="Gradient start"
                 value={settings.gradientStartColor}
-                onChange={v => change('gradientStartColor', v)}/></View>
-                <View style={s.half}><Field label="Gradient end"
+                accent={accent} onChange={v => change('gradientStartColor', v)}/></View>
+                <View style={s.half}><ColorField label="Gradient end"
                   value={settings.gradientEndColor}
-                  onChange={v => change('gradientEndColor', v)}/></View></View>
+                  accent={accent} onChange={v => change('gradientEndColor', v)}/></View></View>
               <Segments options={['Vertical', 'Horizontal', 'Diagonal']}
                 value={settings.gradientDirection} accent={accent}
                 onChange={v => change('gradientDirection', v)}/></>}
           </View>
           <View style={s.card}><Text style={s.cardTitle}>Accent and mini icon</Text>
-            <Field label="Accent hex color" value={settings.accentColor}
+            <ColorField label="Island accent" value={settings.accentColor} accent={accent}
               onChange={v => change('accentColor', v)}/>
             <Segments options={['Letter', 'Music', 'Dot', 'Album', 'Brand']}
               value={settings.logoStyle} accent={accent} onChange={v => change('logoStyle', v)}/>
@@ -305,6 +345,18 @@ function App() {
                 style={[s.smallAction, !settings.hasCustomMiniLogo && s.disabled]}>
                 <Text style={s.link}>Remove</Text></Pressable>
             </View>
+          </View>
+          <View style={s.card}><Text style={s.cardTitle}>Media atmosphere</Text>
+            <Text style={s.hint}>Turn each music-driven effect on or off independently.</Text>
+            <ToggleRow label="Faded cover backdrop" hint="Blend album artwork behind the media controls."
+              value={settings.useAlbumArtBackdrop} accent={accent}
+              onChange={v => change('useAlbumArtBackdrop', v)}/>
+            <ToggleRow label="Match the island to artwork" hint="Tint the notch using the playing track’s dominant color."
+              value={settings.useMediaArtworkColors} accent={accent}
+              onChange={v => change('useMediaArtworkColors', v)}/>
+            <ToggleRow label="Audio-reactive waves" hint="Pulse the artwork tint and waveform from the live Windows output level."
+              value={settings.useAudioReactiveEffects} accent={accent}
+              onChange={v => change('useAudioReactiveEffects', v)}/>
           </View>
           <View style={s.card}><Text style={s.cardTitle}>Windows notifications</Text>
             <Text style={s.hint}>{settings.notificationStatus || 'Check the island notification settings.'}</Text>
@@ -407,6 +459,18 @@ const s = StyleSheet.create({
   field: {marginTop: 12, marginBottom: 4},
   input: {backgroundColor: '#0B0A0D', borderColor: '#39313F', borderWidth: 1,
     borderRadius: 8, color: '#E8EFED', paddingHorizontal: 11, paddingVertical: 8, fontSize: 12},
+  colorField: {marginTop: 12, marginBottom: 5},
+  colorRow: {flexDirection: 'row', alignItems: 'center', gap: 12},
+  colorInput: {width: 142},
+  colorPreview: {width: 24, height: 24, borderRadius: 8, borderWidth: 1, borderColor: '#FFFFFF33',
+    shadowOpacity: 0.4, shadowRadius: 9, shadowOffset: {width: 0, height: 0}},
+  palette: {flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 7},
+  swatch: {width: 27, height: 27, borderRadius: 8, borderWidth: 1, borderColor: '#FFFFFF24', cursor: 'pointer'},
+  toggleRow: {minHeight: 58, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1,
+    borderTopColor: '#292C34', paddingVertical: 10},
+  toggleCopy: {flex: 1, marginRight: 18},
+  toggleLabel: {color: '#E7ECEA', fontSize: 12, fontWeight: '600'},
+  toggleHint: {color: '#818A90', fontSize: 10, lineHeight: 15, marginTop: 3},
   row: {flexDirection: 'row', gap: 12}, half: {flex: 1},
   between: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   textButton: {alignSelf: 'flex-start', paddingTop: 12, paddingBottom: 4, cursor: 'pointer'},

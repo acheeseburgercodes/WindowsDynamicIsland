@@ -18,6 +18,9 @@ public sealed class IslandSettingsSnapshot
     public string GradientStartColor { get; set; } = "#FF334654";
     public string GradientEndColor { get; set; } = "#FF161821";
     public int GradientDirection { get; set; }
+    public bool UseAlbumArtBackdrop { get; set; }
+    public bool UseMediaArtworkColors { get; set; }
+    public bool UseAudioReactiveEffects { get; set; }
     public int LogoStyle { get; set; }
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";
     public bool TempVaultAutoCopy { get; set; }

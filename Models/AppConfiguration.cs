@@ -42,6 +42,12 @@ public sealed class AppConfiguration
 
     public IslandGradientDirection GradientDirection { get; set; } = IslandGradientDirection.Diagonal;
 
+    public bool UseAlbumArtBackdrop { get; set; } = true;
+
+    public bool UseMediaArtworkColors { get; set; } = true;
+
+    public bool UseAudioReactiveEffects { get; set; } = true;
+
     public string? MiniLogoImagePath { get; set; }
 
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";

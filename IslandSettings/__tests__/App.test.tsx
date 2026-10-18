@@ -22,6 +22,7 @@ test('Appearance remains renderable with fractional opacity and exposes photo co
     appPanelWidth: 920, appPanelHeight: 600, theme: 0,
     surfaceStyle: 0, accentColor: '#FF6ED6A9', backgroundColor: '#FF111113', gradientStartColor: '#FF334654',
     gradientEndColor: '#FF161821', gradientDirection: 2, logoStyle: 4,
+    useAlbumArtBackdrop: true, useMediaArtworkColors: true, useAudioReactiveEffects: true,
     tempVaultRoot: 'D:\\TempVault\\storage', tempVaultAutoCopy: false,
     tempVaultConnected: false, notificationsSupported: false,
     notificationsEnabled: false, notificationStatus: 'Requires MSIX',
@@ -35,6 +36,7 @@ test('Appearance remains renderable with fractional opacity and exposes photo co
   expect(clickable).not.toBeNull();
   await ReactTestRenderer.act(() => clickable?.props.onPress());
   expect(renderer.root.findAll(node => node.props?.children === 'Choose and crop picture').length).toBeGreaterThan(0);
+  expect(renderer.root.findAll(node => node.props?.children === 'Audio-reactive waves').length).toBeGreaterThan(0);
   expect(renderer.root.findAll(node => node.props?.children === 'This screen could not render').length).toBe(0);
   await ReactTestRenderer.act(() => renderer.unmount());
 });
