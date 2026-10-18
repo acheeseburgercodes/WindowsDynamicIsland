@@ -1050,16 +1050,6 @@ public partial class MainWindow : Window
         ClipboardNavButton.Tag = _activePanel == ClipboardPanel ? "Active" : null;
         AppsNavButton.Tag = _activePanel == AppsPanel ? "Active" : null;
         SettingsNavButton.Tag = _activePanel == SettingsPanel ? "Active" : null;
-        ActivePanelTitle.Text = _activePanel switch
-        {
-            UIElement panel when panel == WeatherPanel => "Weather",
-            UIElement panel when panel == HardwarePanel => "System pulse",
-            UIElement panel when panel == FilesPanel => "File shelf",
-            UIElement panel when panel == ClipboardPanel => "Clipboard",
-            UIElement panel when panel == AppsPanel => "App preview",
-            UIElement panel when panel == SettingsPanel => "Settings",
-            _ => "Now playing"
-        };
     }
 
     private void PanelViewport_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
