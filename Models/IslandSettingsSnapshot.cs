@@ -21,6 +21,7 @@ public sealed class IslandSettingsSnapshot
     public bool UseAlbumArtBackdrop { get; set; }
     public bool UseMediaArtworkColors { get; set; }
     public bool UseAudioReactiveEffects { get; set; }
+    public int MinimizedAppearance { get; set; }
     public int LogoStyle { get; set; }
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";
     public bool TempVaultAutoCopy { get; set; }

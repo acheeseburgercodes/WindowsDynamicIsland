@@ -4,7 +4,7 @@
         xmlns:ui="clr-namespace:DynamicIsland.UI"
         Title="Dynamic Island"
         Icon="pack://application:,,,/Assets/island-logo.png"
-        Width="170" Height="8"
+        Width="250" Height="8"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -65,9 +65,9 @@
             <Border x:Name="MediaColorWash" CornerRadius="0,0,15,15" Opacity="0"
                     IsHitTestVisible="False" />
             <Grid x:Name="CollapsedContent" Cursor="Hand">
-                <Border x:Name="MinimizedHandle" Width="132" Height="2" CornerRadius="1"
+                <Border x:Name="MinimizedHandle" Width="220" Height="2" CornerRadius="1"
                         HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
-                        Background="#806E7480" />
+                        Background="#38101418" />
                 <Border x:Name="FocusTimerMini" Visibility="Collapsed" MinWidth="92" Height="24"
                         Padding="12,0" HorizontalAlignment="Center" VerticalAlignment="Top"
                         Background="#F00B0C10" CornerRadius="0,0,12,12">
@@ -75,7 +75,7 @@
                                VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
                                Foreground="{DynamicResource AccentBrush}" />
                 </Border>
-                <StackPanel Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
+                <StackPanel x:Name="ClassicNotchContent" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
                     <Border x:Name="MiniLogoContainer" Width="16" Height="16" Background="{StaticResource PrimaryActionBrush}" CornerRadius="8">
                         <Grid>
                             <Image x:Name="MiniLogoArtwork" Visibility="Collapsed" Stretch="Uniform" />
@@ -184,29 +184,24 @@
 
                 <Grid Grid.Row="1" PreviewMouseWheel="PanelViewport_PreviewMouseWheel">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="108" />
+                        <ColumnDefinition Width="112" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <Border Margin="0,7,10,8" Padding="5" CornerRadius="15"
                             Background="#241F2025" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                        <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel VerticalAlignment="Top">
-                            <Button x:Name="MediaNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="MediaNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconMusic}" /><TextBlock Text="Media" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Button x:Name="WeatherNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="WeatherNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconWeather}" /><TextBlock Text="Weather" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Button x:Name="HardwareNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="HardwareNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconHardware}" /><TextBlock Text="System" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Button x:Name="ActivityNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="ActivityNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconActivity}" /><TextBlock Text="Activity" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Button x:Name="ControlsNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="ControlsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconControls}" /><TextBlock Text="Controls" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Button x:Name="FocusNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="FocusNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconFocus}" /><TextBlock Text="Focus" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Border Height="1" Margin="6,5,6,8" Background="{DynamicResource DividerBrush}" />
-                            <Button x:Name="FilesNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="FilesNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconFiles}" /><TextBlock Text="Files" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Button x:Name="ClipboardNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="ClipboardNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconClipboard}" /><TextBlock Text="Clipboard" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Button x:Name="AppsNavButton" Style="{StaticResource IslandNavButton}" Margin="0,0,0,3" Click="AppsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconApps}" /><TextBlock Text="Apps" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <Button x:Name="SettingsNavButton" Style="{StaticResource IslandNavButton}" Click="SettingsNavButton_Click"><StackPanel Orientation="Horizontal"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconSettings}" /><TextBlock Text="Settings" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
-                            <TextBlock Text="SCROLL TO SWITCH" Margin="7,12,0,0" FontSize="7"
-                                       Foreground="{DynamicResource SecondaryTextBrush}" />
-                        </StackPanel>
-                        </ScrollViewer>
+                        <UniformGrid Columns="2" Rows="5" VerticalAlignment="Stretch">
+                            <Button x:Name="MediaNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Media" Click="MediaNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconMusic}" /></Button>
+                            <Button x:Name="WeatherNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Weather" Click="WeatherNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconWeather}" /></Button>
+                            <Button x:Name="HardwareNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="System" Click="HardwareNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconHardware}" /></Button>
+                            <Button x:Name="ActivityNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Activity" Click="ActivityNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconActivity}" /></Button>
+                            <Button x:Name="ControlsNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Controls" Click="ControlsNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconControls}" /></Button>
+                            <Button x:Name="FocusNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Focus" Click="FocusNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconFocus}" /></Button>
+                            <Button x:Name="FilesNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Files" Click="FilesNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconFiles}" /></Button>
+                            <Button x:Name="ClipboardNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Clipboard" Click="ClipboardNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconClipboard}" /></Button>
+                            <Button x:Name="AppsNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Apps" Click="AppsNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconApps}" /></Button>
+                            <Button x:Name="SettingsNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Settings" Click="SettingsNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconSettings}" /></Button>
+                        </UniformGrid>
                     </Border>
 
                     <Grid x:Name="PanelViewport" Grid.Column="1" ClipToBounds="True">

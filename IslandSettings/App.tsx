@@ -7,6 +7,7 @@ type Settings = {
   surfaceStyle: number; accentColor: string; backgroundColor: string; gradientStartColor: string;
   gradientEndColor: string; gradientDirection: number; logoStyle: number;
   useAlbumArtBackdrop: boolean; useMediaArtworkColors: boolean; useAudioReactiveEffects: boolean;
+  minimizedAppearance: number;
   tempVaultRoot: string; tempVaultAutoCopy: boolean; tempVaultConnected: boolean;
   panelWidth: number; panelHeight: number; appPanelWidth: number; appPanelHeight: number;
   notificationsSupported: boolean;
@@ -159,7 +160,8 @@ function App() {
         appPanelHeight: incoming.appPanelHeight || 600,
         useAlbumArtBackdrop: incoming.useAlbumArtBackdrop ?? true,
         useMediaArtworkColors: incoming.useMediaArtworkColors ?? true,
-        useAudioReactiveEffects: incoming.useAudioReactiveEffects ?? true});
+        useAudioReactiveEffects: incoming.useAudioReactiveEffects ?? true,
+        minimizedAppearance: incoming.minimizedAppearance ?? 0});
       setStatus('Connected · changes update the running island');
       return true;
     } catch {
@@ -308,6 +310,10 @@ function App() {
         </>}
         {section === 'Appearance' && <>
           <Text style={s.lead}>A quieter surface with your colors.</Text>
+          <View style={s.card}><Text style={s.cardTitle}>Minimized style</Text>
+            <Text style={s.hint}>Use the subtle top-edge line, or keep the earlier compact notch.</Text>
+            <Segments options={['Edge line', 'Classic notch']} value={settings.minimizedAppearance} accent={accent}
+              onChange={v => change('minimizedAppearance', v)}/></View>
           <View style={s.card}><Text style={s.cardTitle}>Theme</Text>
             <Segments options={['Dark', 'Light']} value={settings.theme} accent={accent}
               onChange={v => change('theme', v)}/></View>

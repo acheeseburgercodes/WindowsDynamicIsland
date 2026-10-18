@@ -48,6 +48,8 @@ public sealed class AppConfiguration
 
     public bool UseAudioReactiveEffects { get; set; } = true;
 
+    public MinimizedAppearance MinimizedAppearance { get; set; } = MinimizedAppearance.EdgeLine;
+
     public string? MiniLogoImagePath { get; set; }
 
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";

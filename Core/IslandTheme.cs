@@ -18,3 +18,9 @@ public enum IslandGradientDirection
     LeftToRight,
     Diagonal
 }
+
+public enum MinimizedAppearance
+{
+    EdgeLine,
+    ClassicNotch
+}
