@@ -6,14 +6,21 @@ type Settings = {
   horizontalOffset: number; verticalOffset: number; theme: number;
   surfaceStyle: number; accentColor: string; backgroundColor: string; gradientStartColor: string;
   gradientEndColor: string; gradientDirection: number; logoStyle: number;
+  useAlbumArtBackdrop: boolean; useMediaArtworkColors: boolean; useAudioReactiveEffects: boolean;
   tempVaultRoot: string; tempVaultAutoCopy: boolean; tempVaultConnected: boolean;
-  panelWidth: number; panelHeight: number; notificationsSupported: boolean;
+  panelWidth: number; panelHeight: number; appPanelWidth: number; appPanelHeight: number;
+  notificationsSupported: boolean;
   notificationsEnabled: boolean; notificationStatus: string; hasCustomMiniLogo: boolean;
 };
 type Section = 'Position' | 'Appearance' | 'Storage';
 const endpoint = 'http://127.0.0.1:38691/api/settings';
 const headers = {'X-DynamicIsland-Settings': '1', 'Content-Type': 'application/json'};
 const defaultAccent = '#B68CFF';
+const sectionMeta: Record<Section, {glyph: string; summary: string}> = {
+  Position: {glyph: '⌖', summary: 'Placement and workspace dimensions'},
+  Appearance: {glyph: '◐', summary: 'Color, material and identity'},
+  Storage: {glyph: '▣', summary: 'Persistent files and TempVault'},
+};
 
 class ScreenBoundary extends React.Component<{section: Section; children: React.ReactNode}, {failed: boolean}> {
   state = {failed: false};
@@ -54,6 +61,42 @@ function Field({label, value, onChange}: {label: string; value: string; onChange
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange}
       autoCapitalize="none" autoCorrect={false} selectionColor="#65D7B5" style={s.input}/>
   </View>;
+}
+
+const colorPresets = ['#6ED6A9', '#B68CFF', '#6EA8FF', '#53D8FB', '#FFB84D', '#FF6B8A', '#F5F5F5', '#17181D'];
+
+function argbColor(value: string) {
+  const normalized = accentColor(value).slice(1).toUpperCase();
+  return `#FF${normalized}`;
+}
+
+function ColorField({label, value, accent, onChange}: {
+  label: string; value: string; accent: string; onChange: (v: string) => void;
+}) {
+  const selected = accentColor(value);
+  return <View style={s.colorField}>
+    <View style={s.between}><Text style={s.label}>{label}</Text>
+      <View style={[s.colorPreview, {backgroundColor: selected, shadowColor: selected}]} /></View>
+    <View style={s.colorRow}>
+      <TextInput accessibilityLabel={label} value={value} onChangeText={onChange}
+        autoCapitalize="characters" autoCorrect={false} selectionColor={accent} style={[s.input, s.colorInput]}/>
+      <View style={s.palette}>{colorPresets.map(color =>
+        <Pressable key={color} accessibilityRole="button" accessibilityLabel={`${label} ${color}`}
+          accessibilityState={{selected: selected.toUpperCase() === color}}
+          onPress={() => onChange(argbColor(color))}
+          style={[s.swatch, {backgroundColor: color}, selected.toUpperCase() === color && {borderColor: accent, borderWidth: 3}]} />
+      )}</View>
+    </View>
+  </View>;
+}
+
+function ToggleRow({label, hint, value, accent, onChange}: {
+  label: string; hint: string; value: boolean; accent: string; onChange: (v: boolean) => void;
+}) {
+  return <View style={s.toggleRow}><View style={s.toggleCopy}>
+    <Text style={s.toggleLabel}>{label}</Text><Text style={s.toggleHint}>{hint}</Text>
+  </View><Switch value={value} trackColor={{false: '#3A3D42', true: accent}}
+      thumbColor="#F7F8F8" onValueChange={onChange}/></View>;
 }
 
 function RangeSlider({label, value, min, max, step, buttonStep, unit, accent, onChange}: {
@@ -111,7 +154,12 @@ function App() {
       if (!response.ok) throw new Error(String(response.status));
       const incoming = await response.json() as Settings;
       setSettings({...incoming, panelWidth: incoming.panelWidth || 650,
-        panelHeight: incoming.panelHeight || 400});
+        panelHeight: incoming.panelHeight || 400,
+        appPanelWidth: incoming.appPanelWidth || 920,
+        appPanelHeight: incoming.appPanelHeight || 600,
+        useAlbumArtBackdrop: incoming.useAlbumArtBackdrop ?? true,
+        useMediaArtworkColors: incoming.useMediaArtworkColors ?? true,
+        useAudioReactiveEffects: incoming.useAudioReactiveEffects ?? true});
       setStatus('Connected · changes update the running island');
       return true;
     } catch {
@@ -162,35 +210,51 @@ function App() {
       setStatus(path === '/api/logo/editor' ? 'Picture editor closed · settings updated' : 'Command completed');
     } catch (error) { setStatus(`Could not complete action: ${String(error)}`); }
   }
+  const meta = sectionMeta[section];
   return <View style={s.shell}>
+    <View pointerEvents="none" style={[s.ambientOrb, s.ambientOrbTop, {backgroundColor: tint(accent, 0.13)}]} />
+    <View pointerEvents="none" style={[s.ambientOrb, s.ambientOrbBottom, {backgroundColor: tint(accent, 0.07)}]} />
     <View style={s.sidebar}>
-      <View style={[s.mark, {backgroundColor: accent}]}><Text style={s.markText}>◖</Text></View>
-      <Text style={s.brand}>Island</Text><Text style={s.brandSub}>CONTROL CENTER</Text>
+      <View style={s.brandRow}>
+        <View style={[s.mark, {backgroundColor: accent, shadowColor: accent}]}><Text style={s.markText}>DI</Text></View>
+        <View><Text style={s.brand}>Island</Text><Text style={s.brandSub}>CONTROL CENTER</Text></View>
+      </View>
       <View style={s.nav}>{(['Position', 'Appearance', 'Storage'] as Section[]).map(item =>
         <Pressable key={item} onPress={() => setSection(item)}
           onHoverIn={() => setHoveredSection(item)} onHoverOut={() => setHoveredSection(null)}
           accessibilityRole="button" accessibilityState={{selected: section === item}}
           style={[s.navItem, hoveredSection === item && {backgroundColor: tint(accent, 0.11)},
-            section === item && {backgroundColor: tint(accent, 0.19), borderLeftColor: accent}]}>
-          <Text style={[s.navText, (section === item || hoveredSection === item) && {color: accent}]}>{item}</Text>
+            section === item && {backgroundColor: tint(accent, 0.19)}]}>
+          <View style={[s.navGlyph, section === item && {backgroundColor: tint(accent, 0.22)}]}>
+            <Text style={[s.navGlyphText, (section === item || hoveredSection === item) && {color: accent}]}>{sectionMeta[item].glyph}</Text>
+          </View>
+          <View style={s.navCopy}><Text style={[s.navText, (section === item || hoveredSection === item) && {color: accent}]}>{item}</Text>
+            <Text style={s.navHint}>{sectionMeta[item].summary}</Text></View>
         </Pressable>)}</View>
-      <Text style={s.footer}>WINDOWS DYNAMIC ISLAND</Text>
+      <View style={s.sidebarStatus}><View style={[s.statusDot, {backgroundColor: settings ? accent : '#686970'}]} />
+        <Text style={s.sidebarStatusText}>{settings ? 'ISLAND CONNECTED' : 'CONNECTING'}</Text></View>
     </View>
     <View style={s.content}>
-      <View style={s.topbar}><View><Text style={[s.eyebrow, {color: accent}]}>CONFIGURATION</Text>
-        <Text style={s.title}>{section}</Text></View>
+      <View style={s.topbar}><View><Text style={[s.eyebrow, {color: accent}]}>DYNAMIC ISLAND / CONFIGURATION</Text>
+        <Text style={s.title}>{section}</Text><Text style={s.titleSub}>{meta.summary}</Text></View>
         <Pressable onPress={save} disabled={!settings || saving}
-          style={[s.save, {backgroundColor: accent}, (!settings || saving) && s.disabled]}>
+          style={[s.save, {backgroundColor: accent, shadowColor: accent}, (!settings || saving) && s.disabled]}>
           <Text style={s.saveText}>{saving ? 'Saving…' : 'Save changes'}</Text>
         </Pressable></View>
-      <Text style={s.status}>{status}</Text>
+      <View style={s.connectionBar}><View style={[s.connectionDot, {backgroundColor: settings ? accent : '#7D7E86'}]} />
+        <Text style={s.status}>{status}</Text></View>
       {!settings ? <View style={s.empty}><ActivityIndicator color={accent}/>
         <Pressable onPress={load} style={s.reconnect}>
           <Text style={[s.link, {color: accent}]}>Reconnect</Text></Pressable></View>
       : <ScrollView style={s.scroll} contentContainerStyle={s.scrollInner}>
         <ScreenBoundary section={section}>
+        <View style={[s.sectionHero, {borderColor: tint(accent, 0.28)}]}>
+          <View style={[s.heroGlyph, {backgroundColor: tint(accent, 0.16)}]}><Text style={[s.heroGlyphText, {color: accent}]}>{meta.glyph}</Text></View>
+          <View style={s.flex}><Text style={s.heroTitle}>{section}</Text><Text style={s.heroText}>{meta.summary}</Text></View>
+          <View style={s.heroPips}><View style={[s.heroPip, {backgroundColor: accent}]} /><View style={s.heroPip} /><View style={s.heroPip} /></View>
+        </View>
         {section === 'Position' && <>
-          <Text style={s.lead}>Keep the notch exactly where it belongs.</Text>
+          <Text style={s.lead}>Keep the notch exactly where it belongs, then tune each workspace independently.</Text>
           <View style={s.card}><Text style={s.cardTitle}>Screen edge</Text>
             <Text style={s.hint}>Attach to the top, left, or right edge.</Text>
             <Segments options={['Top', 'Left', 'Right']} value={settings.edge} accent={accent}
@@ -211,16 +275,35 @@ function App() {
               setStatus('Unsaved changes · Save changes to apply');
             }} style={s.textButton}>
               <Text style={[s.link, {color: accent}]}>Reset to top center</Text></Pressable></View>
-          <View style={s.card}><Text style={s.cardTitle}>Panel size</Text>
-            <Text style={s.hint}>Every dashboard, including Apps, uses this size.</Text>
-            <RangeSlider label="Width" value={settings.panelWidth} min={540} max={760}
-              step={1} buttonStep={10} unit=" px" accent={accent}
-              onChange={v => change('panelWidth', v)}/>
-            <RangeSlider label="Height" value={settings.panelHeight} min={330} max={500}
-              step={1} buttonStep={10} unit=" px" accent={accent}
-              onChange={v => change('panelHeight', v)}/>
-            <Pressable onPress={() => {change('panelWidth', 650); change('panelHeight', 400);}}
-              style={s.textButton}><Text style={[s.link, {color: accent}]}>Reset panel size</Text></Pressable>
+          <View style={s.cardGrid}>
+            <View style={[s.card, s.gridCard]}><View style={s.cardHeadingRow}>
+              <View style={[s.cardIcon, {backgroundColor: tint(accent, 0.14)}]}><Text style={[s.cardIconText, {color: accent}]}>▭</Text></View>
+              <View><Text style={s.cardTitle}>Dashboard size</Text><Text style={s.cardKicker}>MEDIA · FILES · SETTINGS</Text></View>
+            </View>
+              <Text style={s.hint}>The compact size shared by every regular panel.</Text>
+              <RangeSlider label="Width" value={settings.panelWidth} min={540} max={760}
+                step={1} buttonStep={10} unit=" px" accent={accent}
+                onChange={v => change('panelWidth', v)}/>
+              <RangeSlider label="Height" value={settings.panelHeight} min={330} max={500}
+                step={1} buttonStep={10} unit=" px" accent={accent}
+                onChange={v => change('panelHeight', v)}/>
+              <Pressable onPress={() => {change('panelWidth', 650); change('panelHeight', 400);}}
+                style={s.textButton}><Text style={[s.link, {color: accent}]}>Reset dashboard</Text></Pressable>
+            </View>
+            <View style={[s.card, s.gridCard, {borderColor: tint(accent, 0.32)}]}><View style={s.cardHeadingRow}>
+              <View style={[s.cardIcon, {backgroundColor: tint(accent, 0.18)}]}><Text style={[s.cardIconText, {color: accent}]}>□</Text></View>
+              <View><Text style={s.cardTitle}>Apps workspace</Text><Text style={[s.cardKicker, {color: accent}]}>RESIZABLE IN THE ISLAND</Text></View>
+            </View>
+              <Text style={s.hint}>Drag its lower-right grip, or set an exact size here.</Text>
+              <RangeSlider label="Width" value={settings.appPanelWidth} min={720} max={1280}
+                step={1} buttonStep={20} unit=" px" accent={accent}
+                onChange={v => change('appPanelWidth', v)}/>
+              <RangeSlider label="Height" value={settings.appPanelHeight} min={480} max={800}
+                step={1} buttonStep={20} unit=" px" accent={accent}
+                onChange={v => change('appPanelHeight', v)}/>
+              <Pressable onPress={() => {change('appPanelWidth', 920); change('appPanelHeight', 600);}}
+                style={s.textButton}><Text style={[s.link, {color: accent}]}>Reset Apps workspace</Text></Pressable>
+            </View>
           </View>
         </>}
         {section === 'Appearance' && <>
@@ -234,21 +317,21 @@ function App() {
             <RangeSlider label="Opacity" value={settings.surfaceOpacity} min={0.1} max={1}
               step={0.01} buttonStep={0.05} unit="%" accent={accent}
               onChange={v => change('surfaceOpacity', Math.round(v * 100) / 100)}/>
-            <Field label="Solid background color" value={settings.backgroundColor ?? '#FF111113'}
+            <ColorField label="Solid background" value={settings.backgroundColor ?? '#FF111113'} accent={accent}
               onChange={v => change('backgroundColor', v)}/>
             {settings.surfaceStyle === 1 && <>
-              <View style={s.row}><View style={s.half}><Field label="Gradient start"
+              <View style={s.row}><View style={s.half}><ColorField label="Gradient start"
                 value={settings.gradientStartColor}
-                onChange={v => change('gradientStartColor', v)}/></View>
-                <View style={s.half}><Field label="Gradient end"
+                accent={accent} onChange={v => change('gradientStartColor', v)}/></View>
+                <View style={s.half}><ColorField label="Gradient end"
                   value={settings.gradientEndColor}
-                  onChange={v => change('gradientEndColor', v)}/></View></View>
+                  accent={accent} onChange={v => change('gradientEndColor', v)}/></View></View>
               <Segments options={['Vertical', 'Horizontal', 'Diagonal']}
                 value={settings.gradientDirection} accent={accent}
                 onChange={v => change('gradientDirection', v)}/></>}
           </View>
           <View style={s.card}><Text style={s.cardTitle}>Accent and mini icon</Text>
-            <Field label="Accent hex color" value={settings.accentColor}
+            <ColorField label="Island accent" value={settings.accentColor} accent={accent}
               onChange={v => change('accentColor', v)}/>
             <Segments options={['Letter', 'Music', 'Dot', 'Album', 'Brand']}
               value={settings.logoStyle} accent={accent} onChange={v => change('logoStyle', v)}/>
@@ -262,6 +345,18 @@ function App() {
                 style={[s.smallAction, !settings.hasCustomMiniLogo && s.disabled]}>
                 <Text style={s.link}>Remove</Text></Pressable>
             </View>
+          </View>
+          <View style={s.card}><Text style={s.cardTitle}>Media atmosphere</Text>
+            <Text style={s.hint}>Turn each music-driven effect on or off independently.</Text>
+            <ToggleRow label="Faded cover backdrop" hint="Blend album artwork behind the media controls."
+              value={settings.useAlbumArtBackdrop} accent={accent}
+              onChange={v => change('useAlbumArtBackdrop', v)}/>
+            <ToggleRow label="Match the island to artwork" hint="Tint the notch using the playing track’s dominant color."
+              value={settings.useMediaArtworkColors} accent={accent}
+              onChange={v => change('useMediaArtworkColors', v)}/>
+            <ToggleRow label="Audio-reactive waves" hint="Pulse the artwork tint and waveform from the live Windows output level."
+              value={settings.useAudioReactiveEffects} accent={accent}
+              onChange={v => change('useAudioReactiveEffects', v)}/>
           </View>
           <View style={s.card}><Text style={s.cardTitle}>Windows notifications</Text>
             <Text style={s.hint}>{settings.notificationStatus || 'Check the island notification settings.'}</Text>
@@ -298,31 +393,62 @@ function App() {
 }
 
 const s = StyleSheet.create({
-  shell: {flex: 1, flexDirection: 'row', backgroundColor: '#0B0B0E'},
-  sidebar: {width: 218, backgroundColor: '#070709', borderRightWidth: 1,
-    borderRightColor: '#29262F', paddingHorizontal: 18, paddingTop: 29},
-  mark: {width: 37, height: 37, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center'},
-  markText: {fontSize: 24, color: '#0B0B0E'},
-  brand: {fontSize: 21, color: '#F5F7F6', fontWeight: '700', marginTop: 14},
-  brandSub: {fontSize: 10, color: '#858B90', letterSpacing: 2, marginTop: 2},
-  nav: {marginTop: 41, gap: 5},
-  navItem: {paddingVertical: 11, paddingHorizontal: 12, borderRadius: 9,
-    borderLeftWidth: 2, borderLeftColor: 'transparent', cursor: 'pointer'},
-  navText: {color: '#A5ADB0', fontSize: 14, fontWeight: '500'},
-  footer: {position: 'absolute', bottom: 24, left: 18, color: '#626A6E', fontSize: 9, letterSpacing: 1},
-  content: {flex: 1, paddingTop: 30, paddingHorizontal: 32},
+  shell: {flex: 1, flexDirection: 'row', backgroundColor: '#090A0E', overflow: 'hidden'},
+  ambientOrb: {position: 'absolute', width: 360, height: 360, borderRadius: 180, opacity: 0.42},
+  ambientOrbTop: {right: -170, top: -210},
+  ambientOrbBottom: {left: 80, bottom: -300},
+  sidebar: {width: 242, backgroundColor: 'rgba(6, 7, 10, 0.94)', borderRightWidth: 1,
+    borderRightColor: '#252731', paddingHorizontal: 18, paddingTop: 25},
+  brandRow: {flexDirection: 'row', alignItems: 'center', gap: 11},
+  mark: {width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
+    shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: {width: 0, height: 0}},
+  markText: {fontSize: 12, color: '#090A0E', fontWeight: '900', letterSpacing: -0.5},
+  brand: {fontSize: 18, color: '#F5F7F6', fontWeight: '700'},
+  brandSub: {fontSize: 8, color: '#777F87', letterSpacing: 1.6, marginTop: 2},
+  nav: {marginTop: 38, gap: 7},
+  navItem: {minHeight: 58, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 12,
+    flexDirection: 'row', alignItems: 'center', cursor: 'pointer'},
+  navGlyph: {width: 34, height: 34, borderRadius: 10, backgroundColor: '#161820',
+    alignItems: 'center', justifyContent: 'center', marginRight: 10},
+  navGlyphText: {color: '#899097', fontSize: 17, fontWeight: '700'},
+  navCopy: {flex: 1},
+  navText: {color: '#BAC0C4', fontSize: 13, fontWeight: '700'},
+  navHint: {color: '#646B72', fontSize: 8.5, marginTop: 2},
+  sidebarStatus: {position: 'absolute', left: 20, bottom: 23, flexDirection: 'row', alignItems: 'center'},
+  statusDot: {width: 7, height: 7, borderRadius: 4, marginRight: 8},
+  sidebarStatusText: {color: '#70777E', fontSize: 8.5, letterSpacing: 1.15, fontWeight: '700'},
+  content: {flex: 1, paddingTop: 27, paddingHorizontal: 30},
   topbar: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   eyebrow: {fontSize: 10, letterSpacing: 2, fontWeight: '700'},
-  title: {color: '#F4F6F5', fontSize: 28, fontWeight: '700', marginTop: 4},
-  status: {color: '#919B9F', fontSize: 11, marginTop: 9, marginBottom: 16},
-  save: {borderRadius: 9, paddingHorizontal: 17, paddingVertical: 10, cursor: 'pointer'},
+  title: {color: '#F4F6F5', fontSize: 27, fontWeight: '700', marginTop: 3},
+  titleSub: {color: '#7F878E', fontSize: 10.5, marginTop: 2},
+  connectionBar: {height: 29, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#111319', borderWidth: 1, borderColor: '#252832', borderRadius: 9,
+    paddingHorizontal: 10, marginTop: 12, marginBottom: 13},
+  connectionDot: {width: 6, height: 6, borderRadius: 3, marginRight: 7},
+  status: {color: '#90989E', fontSize: 10},
+  save: {borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, cursor: 'pointer',
+    shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: {width: 0, height: 3}},
   saveText: {color: '#0B0B0E', fontSize: 12, fontWeight: '700'},
   disabled: {opacity: 0.45},
-  scroll: {flex: 1}, scrollInner: {paddingBottom: 36, maxWidth: 720},
-  lead: {color: '#BBC4C4', fontSize: 13, marginBottom: 17},
-  card: {backgroundColor: '#151419', borderWidth: 1, borderColor: '#302B36',
-    borderRadius: 14, padding: 18, marginBottom: 11},
+  scroll: {flex: 1}, scrollInner: {paddingBottom: 36, maxWidth: 880},
+  sectionHero: {height: 76, flexDirection: 'row', alignItems: 'center', backgroundColor: '#12141A',
+    borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, marginBottom: 15},
+  heroGlyph: {width: 43, height: 43, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 13},
+  heroGlyphText: {fontSize: 23, fontWeight: '700'},
+  heroTitle: {color: '#F1F3F4', fontSize: 14, fontWeight: '700'},
+  heroText: {color: '#818990', fontSize: 10, marginTop: 3},
+  heroPips: {flexDirection: 'row', gap: 5, alignItems: 'center'},
+  heroPip: {width: 5, height: 5, borderRadius: 3, backgroundColor: '#353841'},
+  lead: {color: '#AEB6BA', fontSize: 12, marginBottom: 13},
+  card: {backgroundColor: 'rgba(20, 21, 27, 0.96)', borderWidth: 1, borderColor: '#2B2E38',
+    borderRadius: 15, padding: 17, marginBottom: 11},
+  cardGrid: {flexDirection: 'row', gap: 11, alignItems: 'stretch'},
+  gridCard: {flex: 1},
+  cardHeadingRow: {flexDirection: 'row', alignItems: 'center', marginBottom: 7},
+  cardIcon: {width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginRight: 9},
+  cardIconText: {fontSize: 17, fontWeight: '700'},
+  cardKicker: {color: '#70777F', fontSize: 7.5, letterSpacing: 0.8, marginTop: 1},
   cardTitle: {color: '#F1F4F2', fontSize: 15, fontWeight: '700', marginBottom: 4},
   hint: {color: '#909B9E', fontSize: 11, marginBottom: 9, lineHeight: 17},
   label: {color: '#D5DCDA', fontSize: 12, fontWeight: '600', marginBottom: 7},
@@ -333,6 +459,18 @@ const s = StyleSheet.create({
   field: {marginTop: 12, marginBottom: 4},
   input: {backgroundColor: '#0B0A0D', borderColor: '#39313F', borderWidth: 1,
     borderRadius: 8, color: '#E8EFED', paddingHorizontal: 11, paddingVertical: 8, fontSize: 12},
+  colorField: {marginTop: 12, marginBottom: 5},
+  colorRow: {flexDirection: 'row', alignItems: 'center', gap: 12},
+  colorInput: {width: 142},
+  colorPreview: {width: 24, height: 24, borderRadius: 8, borderWidth: 1, borderColor: '#FFFFFF33',
+    shadowOpacity: 0.4, shadowRadius: 9, shadowOffset: {width: 0, height: 0}},
+  palette: {flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 7},
+  swatch: {width: 27, height: 27, borderRadius: 8, borderWidth: 1, borderColor: '#FFFFFF24', cursor: 'pointer'},
+  toggleRow: {minHeight: 58, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1,
+    borderTopColor: '#292C34', paddingVertical: 10},
+  toggleCopy: {flex: 1, marginRight: 18},
+  toggleLabel: {color: '#E7ECEA', fontSize: 12, fontWeight: '600'},
+  toggleHint: {color: '#818A90', fontSize: 10, lineHeight: 15, marginTop: 3},
   row: {flexDirection: 'row', gap: 12}, half: {flex: 1},
   between: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
   textButton: {alignSelf: 'flex-start', paddingTop: 12, paddingBottom: 4, cursor: 'pointer'},

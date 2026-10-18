@@ -9,6 +9,8 @@ public sealed class IslandSettingsSnapshot
     public int VerticalOffset { get; set; }
     public int PanelWidth { get; set; }
     public int PanelHeight { get; set; }
+    public int AppPanelWidth { get; set; }
+    public int AppPanelHeight { get; set; }
     public int Theme { get; set; }
     public int SurfaceStyle { get; set; }
     public string AccentColor { get; set; } = "#FF6ED6A9";
@@ -16,6 +18,9 @@ public sealed class IslandSettingsSnapshot
     public string GradientStartColor { get; set; } = "#FF334654";
     public string GradientEndColor { get; set; } = "#FF161821";
     public int GradientDirection { get; set; }
+    public bool UseAlbumArtBackdrop { get; set; }
+    public bool UseMediaArtworkColors { get; set; }
+    public bool UseAudioReactiveEffects { get; set; }
     public int LogoStyle { get; set; }
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";
     public bool TempVaultAutoCopy { get; set; }

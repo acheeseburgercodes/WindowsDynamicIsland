@@ -20,6 +20,10 @@ public sealed class AppConfiguration
 
     public int PanelHeight { get; set; } = 400;
 
+    public int AppPanelWidth { get; set; } = 920;
+
+    public int AppPanelHeight { get; set; } = 600;
+
     public bool NotificationsEnabled { get; set; }
 
     public IslandLogoStyle LogoStyle { get; set; } = IslandLogoStyle.BrandMark;
@@ -37,6 +41,12 @@ public sealed class AppConfiguration
     public string GradientEndColor { get; set; } = "#FF161821";
 
     public IslandGradientDirection GradientDirection { get; set; } = IslandGradientDirection.Diagonal;
+
+    public bool UseAlbumArtBackdrop { get; set; } = true;
+
+    public bool UseMediaArtworkColors { get; set; } = true;
+
+    public bool UseAudioReactiveEffects { get; set; } = true;
 
     public string? MiniLogoImagePath { get; set; }
 

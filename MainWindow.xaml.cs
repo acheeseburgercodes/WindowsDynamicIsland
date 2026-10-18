@@ -30,6 +30,10 @@ public partial class MainWindow : Window
     private const double NotificationHeight = 78;
     private const int DefaultPanelWidth = 650;
     private const int DefaultPanelHeight = 400;
+    private const int DefaultAppPanelWidth = 920;
+    private const int DefaultAppPanelHeight = 600;
+    private const int MinimumAppPanelWidth = 720;
+    private const int MinimumAppPanelHeight = 480;
     private const string PinningUnavailableMessage = "Windows blocked all-desktop pinning; the island may remain on one desktop.";
 
     private readonly IslandManager _islandManager = new();
@@ -47,6 +51,7 @@ public partial class MainWindow : Window
     private readonly LiveAppPreviewService _liveAppPreview = new();
     private readonly VirtualDesktopService _virtualDesktopService = new();
     private readonly SystemNotificationService _notificationService = new();
+    private readonly AudioLevelService _audioLevelService = new();
     private readonly ObservableCollection<DockedFileItem> _files = [];
     private readonly ObservableCollection<AppLauncherItem> _applications = [];
     private readonly ObservableCollection<RunningApplicationInfo> _runningApplications = [];
@@ -58,6 +63,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _powerTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _hardwareTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _ambientTimer = new() { Interval = TimeSpan.FromSeconds(4) };
+    private readonly DispatcherTimer _audioVisualTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private readonly ClipboardService _clipboardService = new();
 
     private AppConfiguration _configuration = new();
@@ -73,6 +79,7 @@ public partial class MainWindow : Window
     private bool _isUpdatingSeek;
     private DockedFileItem? _fileDragItem;
     private BitmapSource? _currentArtwork;
+    private Color? _currentArtworkColor;
     private BitmapSource? _customMiniLogo;
     private BitmapSource? _clipboardImage;
     private List<string> _clipboardFiles = [];
@@ -88,9 +95,15 @@ public partial class MainWindow : Window
     private bool _installedAppsLoaded;
     private bool _weatherLoaded;
     private bool _isAnimating;
+    private bool _isAppPanelResizing;
+    private double _appResizeWidth;
+    private double _appResizeHeight;
     private bool _isPinnedToAllDesktops;
     private int _desktopPinAttempts;
     private int _desktopPinTimerTicks;
+    private double _smoothedAudioLevel;
+    private double _audioWavePhase;
+    private readonly List<System.Windows.Shapes.Rectangle> _audioWaveBars = [];
     private readonly DispatcherTimer _topmostTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
     private enum ClipboardKind { Text, Image, Files }
@@ -98,6 +111,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InitializeAudioWaveBars();
         _activePanel = MediaPanel;
         UpdateActiveNavigation();
         FileList.ItemsSource = _files;
@@ -126,6 +140,7 @@ public partial class MainWindow : Window
         _notificationService.NotificationReceived += OnNotificationReceived;
         _collapseTimer.Tick += CollapseTimer_Tick;
         _ambientTimer.Tick += AmbientTimer_Tick;
+        _audioVisualTimer.Tick += AudioVisualTimer_Tick;
         _settingsSaveTimer.Tick += SettingsSaveTimer_Tick;
         _mediaProgressTimer.Tick += (_, _) => ApplyMediaProgress();
         _mediaProgressTimer.Start();
@@ -207,6 +222,13 @@ public partial class MainWindow : Window
         _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.1, 1);
         _configuration.PanelWidth = Math.Clamp(_configuration.PanelWidth, 540, 760);
         _configuration.PanelHeight = Math.Clamp(_configuration.PanelHeight, 330, 500);
+        _configuration.AppPanelWidth = Math.Clamp(
+            _configuration.AppPanelWidth == 0 ? DefaultAppPanelWidth : _configuration.AppPanelWidth,
+            MinimumAppPanelWidth, 1280);
+        _configuration.AppPanelHeight = Math.Clamp(
+            _configuration.AppPanelHeight == 0 ? DefaultAppPanelHeight : _configuration.AppPanelHeight,
+            MinimumAppPanelHeight, 800);
+        AppResizeSizeText.Text = $"{_configuration.AppPanelWidth} × {_configuration.AppPanelHeight}";
         if (!Enum.IsDefined(_configuration.SurfaceStyle))
             _configuration.SurfaceStyle = IslandSurfaceStyle.Solid;
         if (!Enum.IsDefined(_configuration.GradientDirection))
@@ -284,6 +306,7 @@ public partial class MainWindow : Window
         }
         ApplyTheme();
         ApplyLogoStyle();
+        ApplyMediaAtmosphere();
         _windowService.ResizeAndPosition(CollapsedWidth, CollapsedHeight);
         UpdateLiquidBorder(IslandState.Collapsed);
         _settingsLoaded = true;
@@ -313,10 +336,12 @@ public partial class MainWindow : Window
         try
         {
             await _mediaService.InitializeAsync();
+            _audioVisualTimer.Start();
         }
         catch
         {
             ApplyMediaSnapshot(MediaSnapshot.Empty);
+            _audioVisualTimer.Start();
         }
     }
 
@@ -349,7 +374,7 @@ public partial class MainWindow : Window
         // A hosted native window can take focus while the pointer is still inside
         // the island. Only an actual click elsewhere should dismiss the panel.
         await Task.Delay(90);
-        if (!IsLoaded || IsActive || _isDragging || _isFileDragInProgress || _isLogoEditorOpen || _isModalDialogOpen)
+        if (!IsLoaded || IsActive || _isDragging || _isAppPanelResizing || _isFileDragInProgress || _isLogoEditorOpen || _isModalDialogOpen)
             return;
         var pointer = Mouse.GetPosition(this);
         if (pointer.X >= 0 && pointer.Y >= 0 && pointer.X < ActualWidth && pointer.Y < ActualHeight)
@@ -478,7 +503,7 @@ public partial class MainWindow : Window
         var current = source;
         while (current is not null)
         {
-            if (current is Button or Slider or ComboBox or TextBox or ListViewItem or ListBoxItem or ScrollBar)
+            if (current is Button or Slider or ComboBox or TextBox or ListViewItem or ListBoxItem or ScrollBar or Thumb)
             {
                 return true;
             }
@@ -491,7 +516,7 @@ public partial class MainWindow : Window
 
     private void CollapseTimer_Tick(object? sender, EventArgs e)
     {
-        if (_isDragging || _isFileDragInProgress || _isLogoEditorOpen || IsMouseOver || _interactiveAppPanel.IsAttached || _liveAppPreview.IsAttached ||
+        if (_isDragging || _isAppPanelResizing || _isFileDragInProgress || _isLogoEditorOpen || IsMouseOver || _interactiveAppPanel.IsAttached || _liveAppPreview.IsAttached ||
             EdgeComboBox.IsDropDownOpen || AlignmentComboBox.IsDropDownOpen)
         {
             _collapseTimer.Stop();
@@ -524,7 +549,51 @@ public partial class MainWindow : Window
     }
 
     private (double Width, double Height) GetExpandedSize() =>
-        (_configuration.PanelWidth, _configuration.PanelHeight);
+        _activePanel == AppsPanel
+            ? (_configuration.AppPanelWidth, _configuration.AppPanelHeight)
+            : (_configuration.PanelWidth, _configuration.PanelHeight);
+
+    private void AppResizeThumb_DragStarted(object sender, DragStartedEventArgs e)
+    {
+        if (_activePanel != AppsPanel) return;
+        _isAppPanelResizing = true;
+        _collapseTimer.Stop();
+        _resizeAnimationVersion++;
+        var scale = (ScaleTransform)IslandSurface.RenderTransform;
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        scale.ScaleX = 1;
+        scale.ScaleY = 1;
+        _isAnimating = false;
+        _appResizeWidth = Math.Max(MinimumAppPanelWidth, ActualWidth);
+        _appResizeHeight = Math.Max(MinimumAppPanelHeight, ActualHeight);
+        AppResizeSizeText.Text = $"{Math.Round(_appResizeWidth)} × {Math.Round(_appResizeHeight)}";
+    }
+
+    private void AppResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
+    {
+        if (!_isAppPanelResizing) return;
+        var workArea = SystemParameters.WorkArea;
+        var maxWidth = Math.Max(MinimumAppPanelWidth, Math.Min(1280, workArea.Width - 16));
+        var maxHeight = Math.Max(MinimumAppPanelHeight, Math.Min(800, workArea.Height - 16));
+        _appResizeWidth = Math.Clamp(_appResizeWidth + e.HorizontalChange, MinimumAppPanelWidth, maxWidth);
+        _appResizeHeight = Math.Clamp(_appResizeHeight + e.VerticalChange, MinimumAppPanelHeight, maxHeight);
+        _configuration.AppPanelWidth = (int)Math.Round(_appResizeWidth);
+        _configuration.AppPanelHeight = (int)Math.Round(_appResizeHeight);
+        AppResizeSizeText.Text = $"{_configuration.AppPanelWidth} × {_configuration.AppPanelHeight}";
+        _windowService.ResizeAndPosition(_appResizeWidth, _appResizeHeight);
+        UpdateInteractivePanel();
+        e.Handled = true;
+    }
+
+    private async void AppResizeThumb_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        if (!_isAppPanelResizing) return;
+        _isAppPanelResizing = false;
+        AppResizeSizeText.Text = $"{_configuration.AppPanelWidth} × {_configuration.AppPanelHeight}";
+        await SaveConfigurationAsync();
+        UpdateInteractivePanel();
+    }
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
@@ -537,6 +606,7 @@ public partial class MainWindow : Window
             : new Thickness(thickness);
         LiquidBorder.CornerRadius = GetIslandCorners(state);
         IslandSurface.CornerRadius = GetIslandCorners(state);
+        MediaColorWash.CornerRadius = GetIslandCorners(state);
         if (accentBorder != _accentBorderActive || (accentBorder && accentChanged))
         {
             _accentBorderActive = accentBorder;
@@ -980,16 +1050,6 @@ public partial class MainWindow : Window
         ClipboardNavButton.Tag = _activePanel == ClipboardPanel ? "Active" : null;
         AppsNavButton.Tag = _activePanel == AppsPanel ? "Active" : null;
         SettingsNavButton.Tag = _activePanel == SettingsPanel ? "Active" : null;
-        ActivePanelTitle.Text = _activePanel switch
-        {
-            UIElement panel when panel == WeatherPanel => "Weather",
-            UIElement panel when panel == HardwarePanel => "System pulse",
-            UIElement panel when panel == FilesPanel => "File shelf",
-            UIElement panel when panel == ClipboardPanel => "Clipboard",
-            UIElement panel when panel == AppsPanel => "App preview",
-            UIElement panel when panel == SettingsPanel => "Settings",
-            _ => "Now playing"
-        };
     }
 
     private void PanelViewport_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -1036,6 +1096,7 @@ public partial class MainWindow : Window
                 ? "Current location" : weather.Location;
             WeatherTemperatureText.Text = $"{weather.TemperatureC}°";
             WeatherConditionText.Text = weather.Condition;
+            ApplyWeatherIcon(weather.Condition);
             WeatherFeelsText.Text = $"{weather.FeelsLikeC}°";
             WeatherHumidityText.Text = $"{weather.HumidityPercent}%";
             WeatherWindText.Text = $"{weather.WindKph} km/h";
@@ -1050,6 +1111,25 @@ public partial class MainWindow : Window
         {
             WeatherRefreshButton.IsEnabled = true;
         }
+    }
+
+    private void ApplyWeatherIcon(string? condition)
+    {
+        var value = condition?.ToLowerInvariant() ?? string.Empty;
+        var storm = value.Contains("thunder") || value.Contains("storm");
+        var snow = value.Contains("snow") || value.Contains("sleet") || value.Contains("blizzard");
+        var rain = value.Contains("rain") || value.Contains("drizzle") || value.Contains("shower") || storm;
+        var fog = value.Contains("fog") || value.Contains("mist") || value.Contains("haze");
+        var cloud = value.Contains("overcast") || value.Contains("cloud") || rain || snow || fog;
+        var clear = value.Contains("clear") || value.Contains("sun");
+
+        WeatherSun.Visibility = fog || (cloud && !rain) ? Visibility.Collapsed : Visibility.Visible;
+        WeatherSunRays.Visibility = WeatherSun.Visibility;
+        WeatherCloud.Visibility = clear && !cloud ? Visibility.Collapsed : Visibility.Visible;
+        WeatherRain.Visibility = rain ? Visibility.Visible : Visibility.Collapsed;
+        WeatherSnow.Visibility = snow ? Visibility.Visible : Visibility.Collapsed;
+        WeatherThunder.Visibility = storm ? Visibility.Visible : Visibility.Collapsed;
+        WeatherFog.Visibility = fog ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ApplyHardwareSnapshot(HardwareSnapshot snapshot)
@@ -1161,9 +1241,12 @@ public partial class MainWindow : Window
         if (thumbnailChanged)
         {
             _currentArtwork = CreateImage(snapshot.Thumbnail);
+            _currentArtworkColor = _currentArtwork is null ? null : ExtractArtworkColor(_currentArtwork);
             Artwork.Source = _currentArtwork;
+            MediaBackdropArtwork.Source = _currentArtwork;
         }
         ArtworkFallbackIcon.Visibility = _currentArtwork is null ? Visibility.Visible : Visibility.Collapsed;
+        ApplyMediaAtmosphere();
         ApplyLogoStyle();
         if (newTrack && _islandManager.State == IslandState.Collapsed && !_isDragging)
         {
@@ -1189,6 +1272,120 @@ public partial class MainWindow : Window
         image.Freeze();
         return image;
     }
+
+    private void InitializeAudioWaveBars()
+    {
+        for (var index = 0; index < 28; index++)
+        {
+            var bar = new System.Windows.Shapes.Rectangle
+            {
+                Width = 3,
+                Height = 6,
+                RadiusX = 1.5,
+                RadiusY = 1.5,
+                Opacity = 0.72,
+                VerticalAlignment = VerticalAlignment.Bottom
+            };
+            Canvas.SetBottom(bar, 0);
+            AudioWaveCanvas.Children.Add(bar);
+            _audioWaveBars.Add(bar);
+        }
+    }
+
+    private void ApplyMediaAtmosphere()
+    {
+        var hasArtwork = _currentMediaSnapshot.HasSession && _currentArtwork is not null;
+        MediaBackdropArtwork.Opacity = hasArtwork && _configuration.UseAlbumArtBackdrop ? 0.34 : 0;
+
+        if (_currentArtworkColor is not { } artworkColor || !hasArtwork)
+        {
+            MediaColorWash.Opacity = 0;
+            return;
+        }
+
+        var transparent = Color.FromArgb(0, artworkColor.R, artworkColor.G, artworkColor.B);
+        MediaColorWash.Background = new RadialGradientBrush
+        {
+            Center = new Point(0.32, 0.2),
+            GradientOrigin = new Point(0.28, 0.14),
+            RadiusX = 0.82,
+            RadiusY = 0.88,
+            GradientStops =
+            {
+                new GradientStop(Color.FromArgb(150, artworkColor.R, artworkColor.G, artworkColor.B), 0),
+                new GradientStop(Color.FromArgb(55, artworkColor.R, artworkColor.G, artworkColor.B), 0.48),
+                new GradientStop(transparent, 1)
+            }
+        };
+        MediaColorWash.Opacity = _configuration.UseMediaArtworkColors ? 0.34 : 0;
+        var waveColor = BlendColor(artworkColor, Colors.White, 0.2);
+        foreach (var bar in _audioWaveBars) bar.Fill = new SolidColorBrush(waveColor);
+    }
+
+    private void AudioVisualTimer_Tick(object? sender, EventArgs e)
+    {
+        var enabled = _configuration.UseAudioReactiveEffects &&
+                      _currentMediaSnapshot.HasSession && _currentMediaSnapshot.IsPlaying;
+        var peak = enabled ? _audioLevelService.GetPeakLevel() : 0;
+        _smoothedAudioLevel = (_smoothedAudioLevel * 0.68) + (peak * 0.32);
+        _audioWavePhase += 0.34 + (_smoothedAudioLevel * 0.42);
+
+        var width = Math.Max(1, AudioWaveCanvas.ActualWidth);
+        var spacing = width / _audioWaveBars.Count;
+        for (var index = 0; index < _audioWaveBars.Count; index++)
+        {
+            var shape = 0.28 + (0.72 * Math.Abs(Math.Sin(_audioWavePhase + index * 0.61)));
+            var height = 4 + (_smoothedAudioLevel * 54 * shape);
+            var bar = _audioWaveBars[index];
+            bar.Height = height;
+            Canvas.SetLeft(bar, (index * spacing) + Math.Max(0, (spacing - bar.Width) / 2));
+        }
+
+        AudioWaveCanvas.Opacity = enabled ? Math.Clamp(0.18 + _smoothedAudioLevel * 0.72, 0, 0.78) : 0;
+        if (_configuration.UseMediaArtworkColors && _currentArtworkColor is not null &&
+            _currentMediaSnapshot.HasSession)
+            MediaColorWash.Opacity = enabled
+                ? Math.Clamp(0.28 + _smoothedAudioLevel * 0.18, 0, 0.48)
+                : 0.34;
+        else
+            MediaColorWash.Opacity = 0;
+    }
+
+    private static Color ExtractArtworkColor(BitmapSource source)
+    {
+        var converted = new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+        var stride = converted.PixelWidth * 4;
+        var pixels = new byte[stride * converted.PixelHeight];
+        converted.CopyPixels(pixels, stride, 0);
+        var stepX = Math.Max(1, converted.PixelWidth / 48);
+        var stepY = Math.Max(1, converted.PixelHeight / 48);
+        double totalWeight = 0, red = 0, green = 0, blue = 0;
+        for (var y = 0; y < converted.PixelHeight; y += stepY)
+        for (var x = 0; x < converted.PixelWidth; x += stepX)
+        {
+            var offset = y * stride + x * 4;
+            if (pixels[offset + 3] < 128) continue;
+            var b = pixels[offset] / 255d;
+            var g = pixels[offset + 1] / 255d;
+            var r = pixels[offset + 2] / 255d;
+            var maximum = Math.Max(r, Math.Max(g, b));
+            var minimum = Math.Min(r, Math.Min(g, b));
+            var saturation = maximum <= 0 ? 0 : (maximum - minimum) / maximum;
+            var luminance = (r * 0.2126) + (g * 0.7152) + (b * 0.0722);
+            if (luminance < 0.045 || luminance > 0.93) continue;
+            var weight = 0.35 + (saturation * 2.4) + (1 - Math.Abs(luminance - 0.52));
+            red += r * weight; green += g * weight; blue += b * weight; totalWeight += weight;
+        }
+        return totalWeight <= 0
+            ? Color.FromRgb(110, 214, 169)
+            : Color.FromRgb((byte)(255 * red / totalWeight), (byte)(255 * green / totalWeight),
+                (byte)(255 * blue / totalWeight));
+    }
+
+    private static Color BlendColor(Color first, Color second, double amount) => Color.FromRgb(
+        (byte)Math.Round(first.R + (second.R - first.R) * amount),
+        (byte)Math.Round(first.G + (second.G - first.G) * amount),
+        (byte)Math.Round(first.B + (second.B - first.B) * amount));
 
     private async void PreviousButton_Click(object sender, RoutedEventArgs e) => await _mediaService.PreviousAsync();
     private async void PlayPauseButton_Click(object sender, RoutedEventArgs e) => await _mediaService.TogglePlayPauseAsync();
@@ -2397,6 +2594,8 @@ public partial class MainWindow : Window
         VerticalOffset = _configuration.VerticalOffset,
         PanelWidth = _configuration.PanelWidth,
         PanelHeight = _configuration.PanelHeight,
+        AppPanelWidth = _configuration.AppPanelWidth,
+        AppPanelHeight = _configuration.AppPanelHeight,
         Theme = (int)_configuration.Theme,
         SurfaceStyle = (int)_configuration.SurfaceStyle,
         AccentColor = _configuration.AccentColor,
@@ -2411,7 +2610,10 @@ public partial class MainWindow : Window
         NotificationsSupported = _notificationService.IsSupported,
         NotificationsEnabled = _notificationService.IsListening,
         NotificationStatus = NotificationPermissionStatus.Text,
-        HasCustomMiniLogo = _customMiniLogo is not null
+        HasCustomMiniLogo = _customMiniLogo is not null,
+        UseAlbumArtBackdrop = _configuration.UseAlbumArtBackdrop,
+        UseMediaArtworkColors = _configuration.UseMediaArtworkColors,
+        UseAudioReactiveEffects = _configuration.UseAudioReactiveEffects
     };
 
     private async Task ApplyCompanionSettingsAsync(IslandSettingsSnapshot settings)
@@ -2440,6 +2642,11 @@ public partial class MainWindow : Window
             _configuration.VerticalOffset = Math.Clamp(settings.VerticalOffset, -500, 500);
             _configuration.PanelWidth = settings.PanelWidth == 0 ? DefaultPanelWidth : Math.Clamp(settings.PanelWidth, 540, 760);
             _configuration.PanelHeight = settings.PanelHeight == 0 ? DefaultPanelHeight : Math.Clamp(settings.PanelHeight, 330, 500);
+            _configuration.AppPanelWidth = settings.AppPanelWidth == 0
+                ? DefaultAppPanelWidth : Math.Clamp(settings.AppPanelWidth, MinimumAppPanelWidth, 1280);
+            _configuration.AppPanelHeight = settings.AppPanelHeight == 0
+                ? DefaultAppPanelHeight : Math.Clamp(settings.AppPanelHeight, MinimumAppPanelHeight, 800);
+            AppResizeSizeText.Text = $"{_configuration.AppPanelWidth} × {_configuration.AppPanelHeight}";
             _configuration.Theme = (IslandTheme)settings.Theme;
             _configuration.SurfaceStyle = (IslandSurfaceStyle)settings.SurfaceStyle;
             _configuration.BackgroundColor = settings.BackgroundColor;
@@ -2449,6 +2656,9 @@ public partial class MainWindow : Window
             _configuration.LogoStyle = (IslandLogoStyle)settings.LogoStyle;
             _configuration.TempVaultRoot = Path.GetFullPath(settings.TempVaultRoot);
             _configuration.TempVaultAutoCopy = settings.TempVaultAutoCopy;
+            _configuration.UseAlbumArtBackdrop = settings.UseAlbumArtBackdrop;
+            _configuration.UseMediaArtworkColors = settings.UseMediaArtworkColors;
+            _configuration.UseAudioReactiveEffects = settings.UseAudioReactiveEffects;
 
             OpacitySlider.Value = _configuration.SurfaceOpacity * 100;
             EdgeComboBox.SelectedIndex = settings.Edge;
@@ -2468,6 +2678,7 @@ public partial class MainWindow : Window
                 ? Visibility.Visible : Visibility.Collapsed;
             ApplyTheme();
             TryApplyAccent(settings.AccentColor);
+            ApplyMediaAtmosphere();
             ApplyLogoStyle();
             ApplyWindowPlacement();
             if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
@@ -2487,6 +2698,7 @@ public partial class MainWindow : Window
     {
         _topmostTimer.Stop();
         _ambientTimer.Stop();
+        _audioVisualTimer.Stop();
         _powerTimer.Stop();
         _hardwareTimer.Stop();
         _collapseTimer.Stop();
@@ -2495,6 +2707,7 @@ public partial class MainWindow : Window
         _liveAppPreview.Detach();
 
         _mediaService.Dispose();
+        _audioLevelService.Dispose();
         _weatherService.Dispose();
         _notificationService.Dispose();
         _ = _settingsBridge.DisposeAsync();
