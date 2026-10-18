@@ -22,8 +22,10 @@ namespace DynamicIsland;
 
 public partial class MainWindow : Window
 {
-    private const double CollapsedWidth = 112;
-    private const double CollapsedHeight = 30;
+    private const double CollapsedWidth = 170;
+    private const double CollapsedHeight = 8;
+    private const double FocusCollapsedWidth = 112;
+    private const double FocusCollapsedHeight = 26;
     private const double PreviewWidth = 500;
     private const double PreviewHeight = 58;
     private const double NotificationWidth = 430;
@@ -52,6 +54,7 @@ public partial class MainWindow : Window
     private readonly VirtualDesktopService _virtualDesktopService = new();
     private readonly SystemNotificationService _notificationService = new();
     private readonly AudioLevelService _audioLevelService = new();
+    private readonly QuickControlService _quickControlService = new();
     private readonly ObservableCollection<DockedFileItem> _files = [];
     private readonly ObservableCollection<AppLauncherItem> _applications = [];
     private readonly ObservableCollection<RunningApplicationInfo> _runningApplications = [];
@@ -64,6 +67,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _hardwareTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly DispatcherTimer _ambientTimer = new() { Interval = TimeSpan.FromSeconds(4) };
     private readonly DispatcherTimer _audioVisualTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private readonly DispatcherTimer _focusTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly ClipboardService _clipboardService = new();
 
     private AppConfiguration _configuration = new();
@@ -104,6 +108,10 @@ public partial class MainWindow : Window
     private double _smoothedAudioLevel;
     private double _audioWavePhase;
     private readonly List<System.Windows.Shapes.Rectangle> _audioWaveBars = [];
+    private TimeSpan _focusDuration = TimeSpan.FromMinutes(25);
+    private TimeSpan _focusRemaining = TimeSpan.FromMinutes(25);
+    private bool _focusRunning;
+    private bool _updatingVolume;
     private readonly DispatcherTimer _topmostTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
     private enum ClipboardKind { Text, Image, Files }
@@ -115,6 +123,7 @@ public partial class MainWindow : Window
         _activePanel = MediaPanel;
         UpdateActiveNavigation();
         FileList.ItemsSource = _files;
+        _files.CollectionChanged += (_, _) => UpdateActivityStack();
         AppList.ItemsSource = _applications;
         RunningAppsComboBox.ItemsSource = _runningApplications;
         InstalledAppsComboBox.ItemsSource = _installedApplications;
@@ -141,6 +150,7 @@ public partial class MainWindow : Window
         _collapseTimer.Tick += CollapseTimer_Tick;
         _ambientTimer.Tick += AmbientTimer_Tick;
         _audioVisualTimer.Tick += AudioVisualTimer_Tick;
+        _focusTimer.Tick += FocusTimer_Tick;
         _settingsSaveTimer.Tick += SettingsSaveTimer_Tick;
         _mediaProgressTimer.Tick += (_, _) => ApplyMediaProgress();
         _mediaProgressTimer.Start();
@@ -308,6 +318,7 @@ public partial class MainWindow : Window
         ApplyLogoStyle();
         ApplyMediaAtmosphere();
         _windowService.ResizeAndPosition(CollapsedWidth, CollapsedHeight);
+        ApplyCollapsedAppearance(IslandState.Collapsed);
         UpdateLiquidBorder(IslandState.Collapsed);
         _settingsLoaded = true;
         await SaveConfigurationAsync();
@@ -529,6 +540,7 @@ public partial class MainWindow : Window
 
     private void OnIslandStateChanged(object? sender, IslandState state)
     {
+        if (state != IslandState.Collapsed) ApplyCollapsedAppearance(state);
         UpdateLiquidBorder(state);
         UpdateAtmosphere(state);
         _hardwareTimer.IsEnabled = state is IslandState.Expanded or IslandState.Interaction &&
@@ -538,7 +550,7 @@ public partial class MainWindow : Window
             IslandState.Preview => (PreviewWidth, PreviewHeight),
             IslandState.Notification => (NotificationWidth, NotificationHeight),
             IslandState.Expanded or IslandState.Interaction => GetExpandedSize(),
-            _ => (CollapsedWidth, CollapsedHeight)
+            _ => GetCollapsedSize()
         };
 
         _isAnimating = true;
@@ -552,6 +564,28 @@ public partial class MainWindow : Window
         _activePanel == AppsPanel
             ? (_configuration.AppPanelWidth, _configuration.AppPanelHeight)
             : (_configuration.PanelWidth, _configuration.PanelHeight);
+
+    private (double Width, double Height) GetCollapsedSize() => _focusRunning
+        ? (FocusCollapsedWidth, FocusCollapsedHeight)
+        : (CollapsedWidth, CollapsedHeight);
+
+    private void ApplyCollapsedAppearance(IslandState state)
+    {
+        var collapsed = state == IslandState.Collapsed;
+        IslandSurface.Padding = collapsed ? new Thickness(0) : new Thickness(6, 4, 6, 4);
+        if (collapsed)
+        {
+            IslandSurface.Background = Brushes.Transparent;
+            AtmosphereLayer.Opacity = 0;
+            MediaColorWash.Opacity = 0;
+        }
+        else
+        {
+            ApplySurfaceOpacity(_configuration.SurfaceOpacity);
+        }
+        FocusTimerMini.Visibility = collapsed && _focusRunning ? Visibility.Visible : Visibility.Collapsed;
+        MinimizedHandle.Visibility = collapsed && !_focusRunning ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     private void AppResizeThumb_DragStarted(object sender, DragStartedEventArgs e)
     {
@@ -597,8 +631,8 @@ public partial class MainWindow : Window
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
-        var showBorder = state is IslandState.Collapsed or IslandState.Preview;
-        var accentBorder = state == IslandState.Collapsed && _isPluggedIn;
+        var showBorder = state == IslandState.Preview;
+        var accentBorder = false;
         LiquidBorder.Visibility = showBorder ? Visibility.Visible : Visibility.Collapsed;
         var thickness = accentBorder ? 2 : 1.5;
         LiquidBorder.BorderThickness = _configuration.Edge == IslandEdge.Top && _configuration.VerticalOffset <= 0
@@ -636,6 +670,10 @@ public partial class MainWindow : Window
             }
             : null);
         if (!accentBorder) LiquidBorder.Opacity = 1;
+        if (state == IslandState.Collapsed)
+            MinimizedHandle.Background = _isPluggedIn
+                ? Application.Current.Resources["AccentBrush"] as Brush ?? Brushes.White
+                : new SolidColorBrush(Color.FromArgb(128, 110, 116, 128));
     }
 
     private void UpdateAtmosphere(IslandState state)
@@ -810,6 +848,8 @@ public partial class MainWindow : Window
         IslandSurface.VerticalAlignment = VerticalAlignment.Stretch;
         _windowService.RemoveNativeBorder();
         _isAnimating = false;
+        if (_islandManager.State == IslandState.Collapsed)
+            ApplyCollapsedAppearance(IslandState.Collapsed);
         if (_islandManager.State == IslandState.Collapsed && !IsMouseOver)
             _suppressHoverUntilPointerLeaves = false;
         UpdateInteractivePanel();
@@ -881,6 +921,9 @@ public partial class MainWindow : Window
     }
 
     private void MediaNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(MediaPanel);
+    private void ActivityNavButton_Click(object sender, RoutedEventArgs e) { UpdateActivityStack(); ShowPanel(ActivityPanel); }
+    private void ControlsNavButton_Click(object sender, RoutedEventArgs e) { RefreshQuickControls(); ShowPanel(ControlsPanel); }
+    private void FocusNavButton_Click(object sender, RoutedEventArgs e) { UpdateFocusUi(); ShowPanel(FocusPanel); }
     private void FilesNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(FilesPanel);
     private void SettingsNavButton_Click(object sender, RoutedEventArgs e) => ShowPanel(SettingsPanel);
     private async void WeatherNavButton_Click(object sender, RoutedEventArgs e)
@@ -973,8 +1016,8 @@ public partial class MainWindow : Window
             }
         }
         var version = ++_panelAnimationVersion;
-        _hardwareTimer.IsEnabled = panel == HardwarePanel;
-        foreach (var other in new UIElement[] { MediaPanel, WeatherPanel, HardwarePanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
+        _hardwareTimer.IsEnabled = panel == HardwarePanel || panel == ControlsPanel;
+        foreach (var other in new UIElement[] { MediaPanel, WeatherPanel, HardwarePanel, ActivityPanel, ControlsPanel, FocusPanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
         {
             if (other == panel || other == outgoing) continue;
             other.BeginAnimation(OpacityProperty, null);
@@ -1046,6 +1089,9 @@ public partial class MainWindow : Window
         MediaNavButton.Tag = _activePanel == MediaPanel ? "Active" : null;
         WeatherNavButton.Tag = _activePanel == WeatherPanel ? "Active" : null;
         HardwareNavButton.Tag = _activePanel == HardwarePanel ? "Active" : null;
+        ActivityNavButton.Tag = _activePanel == ActivityPanel ? "Active" : null;
+        ControlsNavButton.Tag = _activePanel == ControlsPanel ? "Active" : null;
+        FocusNavButton.Tag = _activePanel == FocusPanel ? "Active" : null;
         FilesNavButton.Tag = _activePanel == FilesPanel ? "Active" : null;
         ClipboardNavButton.Tag = _activePanel == ClipboardPanel ? "Active" : null;
         AppsNavButton.Tag = _activePanel == AppsPanel ? "Active" : null;
@@ -1067,7 +1113,7 @@ public partial class MainWindow : Window
             if (canScroll) return;
         }
 
-        UIElement[] panels = [MediaPanel, WeatherPanel, HardwarePanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel];
+        UIElement[] panels = [MediaPanel, WeatherPanel, HardwarePanel, ActivityPanel, ControlsPanel, FocusPanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel];
         var current = Array.IndexOf(panels, _activePanel);
         if (current < 0) current = 0;
         var next = Math.Clamp(current + (e.Delta < 0 ? 1 : -1), 0, panels.Length - 1);
@@ -1145,8 +1191,136 @@ public partial class MainWindow : Window
         BatteryProgress.Value = snapshot.BatteryPercent ?? 0;
         BatteryValueText.Text = snapshot.BatteryPercent is int percent ? $"{percent}%" : "Desktop";
         BatteryDetailText.Text = snapshot.IsPluggedIn ? "Connected to power" : "On battery";
+        NetworkValueText.Text = $"↓ {snapshot.DownloadMbps:0.0} Mbps";
+        NetworkDetailText.Text = $"↑ {snapshot.UploadMbps:0.0} Mbps";
         HardwareUpdatedText.Text = $"LIVE · {DateTime.Now:h:mm:ss tt}";
+        ControlsSystemLoadText.Text = $"CPU {snapshot.CpuPercent:0}% · RAM {snapshot.MemoryPercent:0}%";
     }
+
+    private void UpdateActivityStack()
+    {
+        ActivityMusicTitle.Text = _currentMediaSnapshot.HasSession ? _currentMediaSnapshot.Title : "Music";
+        ActivityMusicDetail.Text = _currentMediaSnapshot.HasSession
+            ? $"{(_currentMediaSnapshot.IsPlaying ? "Playing" : "Paused")} · {_currentMediaSnapshot.Artist}"
+            : "Nothing playing";
+        ActivityFocusDetail.Text = _focusRunning
+            ? $"{FormatFocusTime(_focusRemaining)} remaining"
+            : $"Ready · {_focusDuration.TotalMinutes:0} minutes";
+        ActivityFilesDetail.Text = _files.Count == 0
+            ? "No active transfers · shelf is empty"
+            : $"{_files.Count} persistent {(_files.Count == 1 ? "file" : "files")} · no active transfers";
+    }
+
+    private void RefreshQuickControls()
+    {
+        _updatingVolume = true;
+        try
+        {
+            VolumeSlider.Value = _quickControlService.GetOutputVolume();
+            VolumeValueText.Text = $"{VolumeSlider.Value:0}%";
+        }
+        finally { _updatingVolume = false; }
+        var muted = _quickControlService.GetMicrophoneMuted();
+        MicControlText.Text = muted ? "Mic muted" : "Mic";
+        MicControlButton.Tag = muted ? "Active" : null;
+        ApplyHardwareSnapshot(_hardwareMonitor.Capture());
+    }
+
+    private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (VolumeValueText is null) return;
+        VolumeValueText.Text = $"{e.NewValue:0}%";
+        if (!_updatingVolume) _quickControlService.SetOutputVolume(e.NewValue);
+    }
+
+    private void MicControlButton_Click(object sender, RoutedEventArgs e)
+    {
+        var muted = _quickControlService.ToggleMicrophoneMute();
+        MicControlText.Text = muted ? "Mic muted" : "Mic";
+        MicControlButton.Tag = muted ? "Active" : null;
+    }
+
+    private void AudioSettingsButton_Click(object sender, RoutedEventArgs e) =>
+        QuickControlService.OpenWindowsSurface("ms-settings:sound");
+    private void NetworkSettingsButton_Click(object sender, RoutedEventArgs e) =>
+        QuickControlService.OpenWindowsSurface("ms-settings:network-wifi");
+    private void DisplaySettingsButton_Click(object sender, RoutedEventArgs e) =>
+        QuickControlService.OpenWindowsSurface("ms-settings:display");
+    private void BluetoothSettingsButton_Click(object sender, RoutedEventArgs e) =>
+        QuickControlService.OpenWindowsSurface("ms-settings:bluetooth");
+    private void FocusAssistSettingsButton_Click(object sender, RoutedEventArgs e) =>
+        QuickControlService.OpenWindowsSurface("ms-settings:quiethours");
+    private void ScreenCaptureButton_Click(object sender, RoutedEventArgs e) =>
+        QuickControlService.OpenWindowsSurface("ms-screenclip:");
+
+    private void ActivityMusicButton_Click(object sender, RoutedEventArgs e) => ShowPanel(MediaPanel);
+    private void ActivityFocusButton_Click(object sender, RoutedEventArgs e) => ShowPanel(FocusPanel);
+
+    private void FocusPresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string minutesText } || !double.TryParse(minutesText, out var minutes)) return;
+        _focusTimer.Stop();
+        _focusRunning = false;
+        _focusDuration = TimeSpan.FromMinutes(minutes);
+        _focusRemaining = _focusDuration;
+        UpdateFocusUi();
+    }
+
+    private void FocusStartButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_focusRemaining <= TimeSpan.Zero) _focusRemaining = _focusDuration;
+        _focusRunning = !_focusRunning;
+        if (_focusRunning) _focusTimer.Start(); else _focusTimer.Stop();
+        UpdateFocusUi();
+    }
+
+    private void FocusResetButton_Click(object sender, RoutedEventArgs e)
+    {
+        _focusTimer.Stop();
+        _focusRunning = false;
+        _focusRemaining = _focusDuration;
+        UpdateFocusUi();
+    }
+
+    private void FocusTimer_Tick(object? sender, EventArgs e)
+    {
+        if (!_focusRunning) return;
+        _focusRemaining -= TimeSpan.FromSeconds(1);
+        if (_focusRemaining <= TimeSpan.Zero)
+        {
+            _focusRemaining = TimeSpan.Zero;
+            _focusRunning = false;
+            _focusTimer.Stop();
+            ShowNotification(new NotificationPreview("Focus timer", "Session complete", "Take a breath or start another session."));
+        }
+        UpdateFocusUi();
+    }
+
+    private void UpdateFocusUi()
+    {
+        var value = FormatFocusTime(_focusRemaining);
+        FocusTimerText.Text = value;
+        FocusMiniText.Text = value;
+        FocusTimerStateText.Text = _focusRunning ? "Focus session in progress" : "Ready to focus";
+        FocusStartButton.Content = _focusRunning ? "Pause" : "Start";
+        var elapsed = Math.Max(0, (_focusDuration - _focusRemaining).TotalSeconds);
+        var percent = _focusDuration.TotalSeconds <= 0 ? 0 : elapsed / _focusDuration.TotalSeconds * 100;
+        FocusProgress.Value = percent;
+        ActivityFocusProgress.Value = percent;
+        UpdateActivityStack();
+        FocusTimerMini.Visibility = _islandManager.State == IslandState.Collapsed && _focusRunning
+            ? Visibility.Visible : Visibility.Collapsed;
+        MinimizedHandle.Visibility = _islandManager.State == IslandState.Collapsed && !_focusRunning
+            ? Visibility.Visible : Visibility.Collapsed;
+        if (_islandManager.State == IslandState.Collapsed)
+        {
+            var (width, height) = GetCollapsedSize();
+            _windowService.ResizeAndPosition(width, height);
+        }
+    }
+
+    private static string FormatFocusTime(TimeSpan value) =>
+        $"{Math.Max(0, (int)value.TotalMinutes):00}:{Math.Max(0, value.Seconds):00}";
 
     private void OnMediaChanged(object? sender, MediaSnapshot snapshot) =>
         Dispatcher.InvokeAsync(() => ApplyMediaSnapshot(snapshot));
@@ -1248,6 +1422,7 @@ public partial class MainWindow : Window
         ArtworkFallbackIcon.Visibility = _currentArtwork is null ? Visibility.Visible : Visibility.Collapsed;
         ApplyMediaAtmosphere();
         ApplyLogoStyle();
+        UpdateActivityStack();
         if (newTrack && _islandManager.State == IslandState.Collapsed && !_isDragging)
         {
             _islandManager.TransitionTo(IslandState.Preview);
@@ -1342,7 +1517,7 @@ public partial class MainWindow : Window
         }
 
         AudioWaveCanvas.Opacity = enabled ? Math.Clamp(0.18 + _smoothedAudioLevel * 0.72, 0, 0.78) : 0;
-        if (_configuration.UseMediaArtworkColors && _currentArtworkColor is not null &&
+        if (_islandManager.State != IslandState.Collapsed && _configuration.UseMediaArtworkColors && _currentArtworkColor is not null &&
             _currentMediaSnapshot.HasSession)
             MediaColorWash.Opacity = enabled
                 ? Math.Clamp(0.28 + _smoothedAudioLevel * 0.18, 0, 0.48)
@@ -1416,6 +1591,7 @@ public partial class MainWindow : Window
             SeekSlider.Value = elapsedSeconds;
             CurrentTimeText.Text = FormatMediaTime(TimeSpan.FromSeconds(elapsedSeconds));
             DurationText.Text = FormatMediaTime(hasTimeline ? duration : TimeSpan.Zero);
+            ActivityMusicProgress.Value = durationSeconds <= 0 ? 0 : elapsedSeconds / durationSeconds * 100;
         }
         finally
         {
@@ -1511,8 +1687,13 @@ public partial class MainWindow : Window
         var changed = false;
         var added = 0;
         var tempVaultErrors = 0;
-        foreach (var path in paths.Where(File.Exists))
+        var sources = paths.Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        ActivityFilesProgress.Visibility = sources.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ActivityFilesProgress.Value = 0;
+        for (var sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
         {
+            var path = sources[sourceIndex];
+            ActivityFilesDetail.Text = $"Saving {sourceIndex + 1} of {sources.Count} · {Path.GetFileName(path)}";
             var sourcePath = Path.GetFullPath(path);
             if (_files.Any(item => string.Equals(
                     string.IsNullOrWhiteSpace(item.OriginalPath) ? item.FullPath : item.OriginalPath,
@@ -1546,6 +1727,7 @@ public partial class MainWindow : Window
 
             changed = true;
             added++;
+            ActivityFilesProgress.Value = (sourceIndex + 1d) / sources.Count * 100;
         }
 
         if (changed)
@@ -1555,6 +1737,9 @@ public partial class MainWindow : Window
                 ? $"Stored {added} in the dock, but {tempVaultErrors} could not be copied to TempVault."
                 : $"Stored {added} file{(added == 1 ? string.Empty : "s")} in the island's private shelf";
         }
+
+        ActivityFilesProgress.Visibility = Visibility.Collapsed;
+        UpdateActivityStack();
 
         return added;
     }
@@ -2137,6 +2322,12 @@ public partial class MainWindow : Window
 
     private void ApplySurfaceOpacity(double opacity)
     {
+        if (_islandManager.State == IslandState.Collapsed)
+        {
+            IslandSurface.Background = Brushes.Transparent;
+            OpacityValueText.Text = $"{opacity:P0}";
+            return;
+        }
         var alpha = (byte)Math.Round(255 * opacity);
         if (_configuration.SurfaceStyle == IslandSurfaceStyle.Gradient &&
             TryParseSurfaceColor(_configuration.GradientStartColor, out var startColor) &&
@@ -2699,6 +2890,7 @@ public partial class MainWindow : Window
         _topmostTimer.Stop();
         _ambientTimer.Stop();
         _audioVisualTimer.Stop();
+        _focusTimer.Stop();
         _powerTimer.Stop();
         _hardwareTimer.Stop();
         _collapseTimer.Stop();

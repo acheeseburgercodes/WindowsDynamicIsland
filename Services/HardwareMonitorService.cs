@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Net.NetworkInformation;
 using DynamicIsland.Models;
 
 namespace DynamicIsland.Services;
@@ -10,6 +11,9 @@ public sealed class HardwareMonitorService
     private ulong _previousKernel;
     private ulong _previousUser;
     private bool _hasCpuSample;
+    private long _previousBytesReceived;
+    private long _previousBytesSent;
+    private DateTime _previousNetworkSample;
 
     public HardwareSnapshot Capture()
     {
@@ -17,8 +21,37 @@ public sealed class HardwareMonitorService
         var memory = ReadMemory();
         var storage = ReadStorage();
         var power = ReadPower();
+        var network = ReadNetworkSpeed();
         return new HardwareSnapshot(cpu, memory.Percent, memory.UsedGb, memory.TotalGb,
-            storage.Percent, storage.UsedGb, storage.TotalGb, power.Percent, power.IsPluggedIn);
+            storage.Percent, storage.UsedGb, storage.TotalGb, power.Percent, power.IsPluggedIn,
+            network.DownloadMbps, network.UploadMbps);
+    }
+
+    private (double DownloadMbps, double UploadMbps) ReadNetworkSpeed()
+    {
+        try
+        {
+            long received = 0, sent = 0;
+            foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces().Where(item =>
+                         item.OperationalStatus == OperationalStatus.Up &&
+                         item.NetworkInterfaceType is not (NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel)))
+            {
+                var statistics = adapter.GetIPv4Statistics();
+                received += statistics.BytesReceived;
+                sent += statistics.BytesSent;
+            }
+            var now = DateTime.UtcNow;
+            var seconds = (now - _previousNetworkSample).TotalSeconds;
+            var result = seconds <= 0 || _previousNetworkSample == default
+                ? (0d, 0d)
+                : (Math.Max(0, (received - _previousBytesReceived) * 8 / seconds / 1_000_000),
+                   Math.Max(0, (sent - _previousBytesSent) * 8 / seconds / 1_000_000));
+            _previousBytesReceived = received;
+            _previousBytesSent = sent;
+            _previousNetworkSample = now;
+            return result;
+        }
+        catch { return (0, 0); }
     }
 
     private double ReadCpuPercent()
