@@ -182,7 +182,7 @@
                     </StackPanel>
                 </Grid>
 
-                <Grid Grid.Row="1">
+                <Grid Grid.Row="1" PreviewMouseWheel="PanelViewport_PreviewMouseWheel">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="112" />
                         <ColumnDefinition Width="*" />
