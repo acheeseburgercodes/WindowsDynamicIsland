@@ -1123,34 +1123,6 @@ public partial class MainWindow : Window
         SettingsNavButton.Tag = _activePanel == SettingsPanel ? "Active" : null;
     }
 
-    private void PanelViewport_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-    {
-        if (_islandManager.State is not (IslandState.Expanded or IslandState.Interaction) ||
-            e.OriginalSource is not DependencyObject source)
-            return;
-
-        var scroller = FindAncestor<ScrollViewer>(source);
-        if (scroller is not null && scroller.ScrollableHeight > 0)
-        {
-            var canScroll = e.Delta < 0
-                ? scroller.VerticalOffset < scroller.ScrollableHeight
-                : scroller.VerticalOffset > 0;
-            if (canScroll) return;
-        }
-
-        UIElement[] panels = [MediaPanel, WeatherPanel, HardwarePanel, ActivityPanel, ControlsPanel, FocusPanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel];
-        var current = Array.IndexOf(panels, _activePanel);
-        if (current < 0) current = 0;
-        var next = Math.Clamp(current + (e.Delta < 0 ? 1 : -1), 0, panels.Length - 1);
-        if (next == current) return;
-
-        e.Handled = true;
-        ShowPanel(panels[next]);
-        if (panels[next] == WeatherPanel && !_weatherLoaded) _ = RefreshWeatherAsync();
-        if (panels[next] == ClipboardPanel) _ = PasteClipboardContentAsync(false);
-        if (panels[next] == AppsPanel) RefreshRunningApplications();
-    }
-
     private async void WeatherRefreshButton_Click(object sender, RoutedEventArgs e) =>
         await RefreshWeatherAsync();
 
@@ -1495,7 +1467,7 @@ public partial class MainWindow : Window
     private void ApplyMediaAtmosphere()
     {
         var hasArtwork = _currentMediaSnapshot.HasSession && _currentArtwork is not null;
-        MediaBackdropArtwork.Opacity = hasArtwork && _configuration.UseAlbumArtBackdrop ? 0.34 : 0;
+        MediaBackdropArtwork.Opacity = hasArtwork && _configuration.UseAlbumArtBackdrop ? 0.25 : 0;
 
         if (_currentArtworkPalette.Count == 0 || !hasArtwork)
         {
@@ -1504,9 +1476,9 @@ public partial class MainWindow : Window
         }
 
         var palette = _currentArtworkPalette;
-        var first = palette[0];
-        var second = palette.Count > 1 ? palette[1] : BlendColor(first, Colors.Black, 0.34);
-        var third = palette.Count > 2 ? palette[2] : BlendColor(first, Colors.White, 0.24);
+        var first = Mix(palette[0], Colors.Black, 0.58);
+        var second = Mix(palette.Count > 1 ? palette[1] : palette[0], Colors.Black, 0.66);
+        var third = Mix(palette.Count > 2 ? palette[2] : palette[0], Colors.Black, 0.52);
         MediaColorWash.Background = new LinearGradientBrush
         {
             StartPoint = new Point(0.04, 0.08),
