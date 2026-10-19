@@ -182,7 +182,7 @@
                     </StackPanel>
                 </Grid>
 
-                <Grid Grid.Row="1" PreviewMouseWheel="PanelViewport_PreviewMouseWheel">
+                <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="112" />
                         <ColumnDefinition Width="*" />
@@ -650,10 +650,9 @@
                         </Grid>
                     </Grid>
 
-                    <ScrollViewer x:Name="WeatherPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
-                        <StackPanel Margin="4,7,12,12">
-                            <Grid Margin="0,0,0,12">
+                    <Grid x:Name="WeatherPanel" Visibility="Collapsed">
+                        <StackPanel Margin="4,5,8,8">
+                            <Grid Margin="0,0,0,7">
                                 <StackPanel>
                                     <TextBlock Text="Weather" FontSize="20" FontWeight="SemiBold"
                                                Foreground="{DynamicResource PrimaryTextBrush}" />
@@ -665,23 +664,23 @@
                                         Click="WeatherRefreshButton_Click" Content="Refresh" />
                             </Grid>
 
-                            <Border Padding="18" CornerRadius="20" Background="{DynamicResource PanelSurfaceBrush}"
+                            <Border Padding="14" CornerRadius="18" Background="{DynamicResource PanelSurfaceBrush}"
                                     BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                     <StackPanel>
                                         <TextBlock x:Name="WeatherLocationText" Text="Weather unavailable" FontSize="11"
                                                    Foreground="{DynamicResource AccentBrush}" />
-                                        <TextBlock x:Name="WeatherTemperatureText" Text="--°" Margin="0,7,0,0"
-                                                   FontSize="46" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                        <TextBlock x:Name="WeatherTemperatureText" Text="--°" Margin="0,3,0,0"
+                                                   FontSize="38" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
                                         <TextBlock x:Name="WeatherConditionText" Text="Choose refresh to load current conditions"
                                                    FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" />
                                     </StackPanel>
-                                    <Grid Grid.Column="1" Width="104" Height="94" VerticalAlignment="Center" Margin="20,0,4,0">
-                                        <Ellipse Width="82" Height="82" Fill="#28FDBA4A" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Grid Grid.Column="1" Width="88" Height="76" VerticalAlignment="Center" Margin="16,0,2,0">
+                                        <Ellipse Width="70" Height="70" Fill="#28FDBA4A" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <Ellipse.Effect><BlurEffect Radius="18" /></Ellipse.Effect>
                                         </Ellipse>
-                                        <Viewbox Width="94" Height="88" Stretch="Uniform">
+                                        <Viewbox Width="78" Height="72" Stretch="Uniform">
                                             <Canvas Width="96" Height="92">
                                                 <Ellipse x:Name="WeatherSun" Canvas.Left="13" Canvas.Top="5" Width="38" Height="38" Fill="#FFFFC857">
                                                     <Ellipse.Effect><DropShadowEffect Color="#FFFFB52E" BlurRadius="14" ShadowDepth="0" Opacity="0.72" /></Ellipse.Effect>
@@ -713,19 +712,19 @@
                                 </Grid>
                             </Border>
 
-                            <UniformGrid Columns="3" Margin="0,10,0,0">
-                                <Border Margin="0,0,6,0" Padding="12" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}">
+                            <UniformGrid Columns="3" Margin="0,7,0,0">
+                                <Border Margin="0,0,5,0" Padding="9" CornerRadius="12" Background="{DynamicResource PanelSurfaceBrush}">
                                     <StackPanel><StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineIcon}" Data="{StaticResource IconThermometer}" Width="12" Height="12" Stroke="{DynamicResource AccentBrush}" /><TextBlock Text="FEELS LIKE" Margin="5,0,0,0" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" /></StackPanel><TextBlock x:Name="WeatherFeelsText" Text="--°" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
                                 </Border>
-                                <Border Margin="3,0" Padding="12" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}">
+                                <Border Margin="2,0" Padding="9" CornerRadius="12" Background="{DynamicResource PanelSurfaceBrush}">
                                     <StackPanel><StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineIcon}" Data="{StaticResource IconDroplet}" Width="12" Height="12" Stroke="{DynamicResource AccentBrush}" /><TextBlock Text="HUMIDITY" Margin="5,0,0,0" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" /></StackPanel><TextBlock x:Name="WeatherHumidityText" Text="--%" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
                                 </Border>
-                                <Border Margin="6,0,0,0" Padding="12" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}">
+                                <Border Margin="5,0,0,0" Padding="9" CornerRadius="12" Background="{DynamicResource PanelSurfaceBrush}">
                                     <StackPanel><StackPanel Orientation="Horizontal"><Path Style="{StaticResource LineIcon}" Data="{StaticResource IconWind}" Width="12" Height="12" Stroke="{DynamicResource AccentBrush}" /><TextBlock Text="WIND" Margin="5,0,0,0" FontSize="8" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" /></StackPanel><TextBlock x:Name="WeatherWindText" Text="--" Margin="0,5,0,0" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /></StackPanel>
                                 </Border>
                             </UniformGrid>
 
-                            <Border Margin="0,10,0,0" Padding="14" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}">
+                            <Border Margin="0,7,0,0" Padding="10" CornerRadius="12" Background="{DynamicResource PanelSurfaceBrush}">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="Location" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
@@ -734,16 +733,15 @@
                                              ToolTip="Leave blank to use approximate IP location" Text="" />
                                 </Grid>
                             </Border>
-                            <TextBlock x:Name="WeatherStatusText" Margin="2,9,2,0" FontSize="10" TextWrapping="Wrap"
+                            <TextBlock x:Name="WeatherStatusText" Margin="2,5,2,0" FontSize="9" TextTrimming="CharacterEllipsis"
                                        Foreground="{DynamicResource SecondaryTextBrush}"
                                        Text="Weather loads only when you open this dashboard. Leave location blank for approximate IP location." />
                         </StackPanel>
-                    </ScrollViewer>
+                    </Grid>
 
-                    <ScrollViewer x:Name="HardwarePanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
-                        <StackPanel Margin="4,7,12,12">
-                            <Grid Margin="0,0,0,12">
+                    <Grid x:Name="HardwarePanel" Visibility="Collapsed">
+                        <StackPanel Margin="4,5,8,8">
+                            <Grid Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="System pulse" FontSize="20" FontWeight="SemiBold"
                                                Foreground="{DynamicResource PrimaryTextBrush}" />
@@ -753,97 +751,97 @@
                                 <TextBlock x:Name="HardwareUpdatedText" HorizontalAlignment="Right" VerticalAlignment="Center"
                                            FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" />
                             </Grid>
-                            <UniformGrid Columns="2">
-                                <Border Margin="0,0,5,10" Padding="15" CornerRadius="17" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                                    <StackPanel><TextBlock Text="CPU" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="CpuValueText" Text="--%" Margin="0,8,0,8" FontSize="27" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><ProgressBar x:Name="CpuProgress" Style="{StaticResource MetricProgressBar}" Maximum="100" /></StackPanel>
+                            <UniformGrid Columns="3" Rows="2">
+                                <Border Margin="0,0,5,6" Padding="11" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                    <StackPanel><TextBlock Text="CPU" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="CpuValueText" Text="--%" Margin="0,5,0,6" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><ProgressBar x:Name="CpuProgress" Style="{StaticResource MetricProgressBar}" Maximum="100" /></StackPanel>
                                 </Border>
-                                <Border Margin="5,0,0,10" Padding="15" CornerRadius="17" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                                    <StackPanel><TextBlock Text="MEMORY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="MemoryValueText" Text="--%" Margin="0,8,0,8" FontSize="27" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><ProgressBar x:Name="MemoryProgress" Style="{StaticResource MetricProgressBar}" Maximum="100" /><TextBlock x:Name="MemoryDetailText" Margin="0,7,0,0" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
+                                <Border Margin="3,0,3,6" Padding="11" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                    <StackPanel><TextBlock Text="MEMORY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="MemoryValueText" Text="--%" Margin="0,5,0,6" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><ProgressBar x:Name="MemoryProgress" Style="{StaticResource MetricProgressBar}" Maximum="100" /><TextBlock x:Name="MemoryDetailText" Margin="0,4,0,0" FontSize="8" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
                                 </Border>
-                                <Border Margin="0,0,5,0" Padding="15" CornerRadius="17" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                                    <StackPanel><TextBlock Text="PRIMARY STORAGE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="StorageValueText" Text="--%" Margin="0,8,0,8" FontSize="27" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><ProgressBar x:Name="StorageProgress" Style="{StaticResource MetricProgressBar}" Maximum="100" /><TextBlock x:Name="StorageDetailText" Margin="0,7,0,0" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
+                                <Border Margin="5,0,0,6" Padding="11" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                    <StackPanel><TextBlock Text="STORAGE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="StorageValueText" Text="--%" Margin="0,5,0,6" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><ProgressBar x:Name="StorageProgress" Style="{StaticResource MetricProgressBar}" Maximum="100" /><TextBlock x:Name="StorageDetailText" Margin="0,4,0,0" FontSize="8" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
                                 </Border>
-                                <Border Margin="5,0,0,0" Padding="15" CornerRadius="17" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                                    <StackPanel><TextBlock Text="POWER" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="BatteryValueText" Text="--" Margin="0,8,0,8" FontSize="27" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><ProgressBar x:Name="BatteryProgress" Style="{StaticResource MetricProgressBar}" Maximum="100" /><TextBlock x:Name="BatteryDetailText" Margin="0,7,0,0" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
+                                <Border Margin="0,3,5,0" Padding="11" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                    <StackPanel><TextBlock Text="POWER" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="BatteryValueText" Text="--" Margin="0,5,0,6" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><ProgressBar x:Name="BatteryProgress" Style="{StaticResource MetricProgressBar}" Maximum="100" /><TextBlock x:Name="BatteryDetailText" Margin="0,4,0,0" FontSize="8" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
                                 </Border>
-                                <Border Margin="0,10,5,0" Padding="15" CornerRadius="17" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                                    <StackPanel><TextBlock Text="NETWORK" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="NetworkValueText" Text="↓ -- Mbps" Margin="0,8,0,4" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><TextBlock x:Name="NetworkDetailText" Text="↑ -- Mbps" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
+                                <Border Margin="3,3,3,0" Padding="11" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                    <StackPanel><TextBlock Text="NETWORK" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock x:Name="NetworkValueText" Text="↓ -- Mbps" Margin="0,6,0,4" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><TextBlock x:Name="NetworkDetailText" Text="↑ -- Mbps" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
                                 </Border>
-                                <Border Margin="5,10,0,0" Padding="15" CornerRadius="17" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                                    <StackPanel><TextBlock Text="GPU &amp; TEMPERATURE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock Text="Device sensors" Margin="0,8,0,4" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><TextBlock Text="Shown when exposed by Windows" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
+                                <Border Margin="5,3,0,0" Padding="11" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                    <StackPanel><TextBlock Text="GPU / TEMP" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /><TextBlock Text="Sensors" Margin="0,6,0,4" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" /><TextBlock Text="When exposed by Windows" FontSize="8" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SecondaryTextBrush}" /></StackPanel>
                                 </Border>
                             </UniformGrid>
                         </StackPanel>
-                    </ScrollViewer>
+                    </Grid>
 
-                    <ScrollViewer x:Name="ActivityPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="4,7,12,12">
+                    <Grid x:Name="ActivityPanel" Visibility="Collapsed">
+                        <StackPanel Margin="4,5,8,8">
                             <TextBlock Text="Activity stack" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
-                            <TextBlock Text="Music, focus sessions, and background work in one place." Margin="0,1,0,14"
+                            <TextBlock Text="Music, focus sessions, and background work in one place." Margin="0,1,0,9"
                                        FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
-                            <Border Padding="14" Margin="0,0,0,9" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                            <Border Padding="11" Margin="0,0,0,7" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="36"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <Path Data="{StaticResource NavIconMusic}" Width="19" Height="19" Stretch="Uniform" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.7"/>
                                     <StackPanel Grid.Column="1"><TextBlock x:Name="ActivityMusicTitle" Text="Music" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock x:Name="ActivityMusicDetail" Text="Nothing playing" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"/><ProgressBar x:Name="ActivityMusicProgress" Margin="0,7,16,0" Height="3" Style="{StaticResource MetricProgressBar}" Maximum="100"/></StackPanel>
                                     <Button Grid.Column="2" Style="{StaticResource ChromeFreeIconButton}" Width="30" Height="30" ToolTip="Open media" Click="ActivityMusicButton_Click"><TextBlock Text="›" FontSize="22"/></Button>
                                 </Grid>
                             </Border>
-                            <Border Padding="14" Margin="0,0,0,9" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                            <Border Padding="11" Margin="0,0,0,7" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="36"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <Path Data="{StaticResource NavIconFocus}" Width="19" Height="19" Stretch="Uniform" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.7"/>
                                     <StackPanel Grid.Column="1"><TextBlock Text="Focus session" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock x:Name="ActivityFocusDetail" Text="Ready · 25 minutes" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"/><ProgressBar x:Name="ActivityFocusProgress" Margin="0,7,16,0" Height="3" Style="{StaticResource MetricProgressBar}" Maximum="100"/></StackPanel>
                                     <Button Grid.Column="2" Style="{StaticResource ChromeFreeIconButton}" Width="30" Height="30" ToolTip="Open focus timer" Click="ActivityFocusButton_Click"><TextBlock Text="›" FontSize="22"/></Button>
                                 </Grid>
                             </Border>
-                            <Border Padding="14" CornerRadius="15" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                            <Border Padding="11" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
                                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="36"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <Path Data="{StaticResource NavIconFiles}" Width="19" Height="19" Stretch="Uniform" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.7"/>
                                     <StackPanel Grid.Column="1"><TextBlock Text="File shelf" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock x:Name="ActivityFilesDetail" Text="No active transfers" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"/><ProgressBar x:Name="ActivityFilesProgress" Visibility="Collapsed" Margin="0,7,0,0" Height="3" Style="{StaticResource MetricProgressBar}" Maximum="100"/></StackPanel>
                                 </Grid>
                             </Border>
                         </StackPanel>
-                    </ScrollViewer>
+                    </Grid>
 
-                    <ScrollViewer x:Name="ControlsPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="4,7,12,12">
-                            <Grid Margin="0,0,0,14"><StackPanel><TextBlock Text="Control Center" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Text="Fast Windows controls without leaving the notch." FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/></StackPanel><Path Data="{StaticResource NavIconControls}" Width="18" Height="18" HorizontalAlignment="Right" Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="1.6"/></Grid>
+                    <Grid x:Name="ControlsPanel" Visibility="Collapsed">
+                        <StackPanel Margin="4,5,8,8">
+                            <Grid Margin="0,0,0,9"><StackPanel><TextBlock Text="Control Center" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock Text="Fast Windows controls without leaving the notch." FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/></StackPanel><Path Data="{StaticResource NavIconControls}" Width="18" Height="18" HorizontalAlignment="Right" Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="1.6"/></Grid>
                             <UniformGrid Columns="3" Rows="2">
-                                <Button Style="{StaticResource IslandButton}" Margin="0,0,6,6" Height="66" Click="AudioSettingsButton_Click"><StackPanel><Path Data="{StaticResource IconVolume}" Style="{StaticResource LineIcon}" Width="19" Height="19" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Audio" Margin="0,6,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
-                                <Button x:Name="MicControlButton" Style="{StaticResource IslandButton}" Margin="3,0,3,6" Height="66" Click="MicControlButton_Click"><StackPanel><Path Data="{StaticResource IconMic}" Style="{StaticResource LineIcon}" Width="19" Height="19" Stroke="{DynamicResource AccentBrush}"/><TextBlock x:Name="MicControlText" Text="Mic" Margin="0,6,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
-                                <Button Style="{StaticResource IslandButton}" Margin="6,0,0,6" Height="66" Click="NetworkSettingsButton_Click"><StackPanel><Path Data="{StaticResource IconNetwork}" Style="{StaticResource LineIcon}" Width="19" Height="19" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Network" Margin="0,6,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
-                                <Button Style="{StaticResource IslandButton}" Margin="0,3,6,0" Height="66" Click="DisplaySettingsButton_Click"><StackPanel><Path Data="{StaticResource IconDisplay}" Style="{StaticResource LineIcon}" Width="19" Height="19" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Display" Margin="0,6,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
-                                <Button Style="{StaticResource IslandButton}" Margin="3,3,3,0" Height="66" Click="BluetoothSettingsButton_Click"><StackPanel><Path Data="{StaticResource IconBluetooth}" Style="{StaticResource LineIcon}" Width="19" Height="19" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Bluetooth" Margin="0,6,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
-                                <Button Style="{StaticResource IslandButton}" Margin="6,3,0,0" Height="66" Click="FocusAssistSettingsButton_Click"><StackPanel><Path Data="{StaticResource IconMoon}" Style="{StaticResource LineIcon}" Width="19" Height="19" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Focus" Margin="0,6,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
+                                <Button Style="{StaticResource IslandButton}" Margin="0,0,5,5" Height="56" Click="AudioSettingsButton_Click"><StackPanel><Path Data="{StaticResource IconVolume}" Style="{StaticResource LineIcon}" Width="18" Height="18" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Audio" Margin="0,4,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
+                                <Button x:Name="MicControlButton" Style="{StaticResource IslandButton}" Margin="3,0,3,5" Height="56" Click="MicControlButton_Click"><StackPanel><Path Data="{StaticResource IconMic}" Style="{StaticResource LineIcon}" Width="18" Height="18" Stroke="{DynamicResource AccentBrush}"/><TextBlock x:Name="MicControlText" Text="Mic" Margin="0,4,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
+                                <Button Style="{StaticResource IslandButton}" Margin="5,0,0,5" Height="56" Click="NetworkSettingsButton_Click"><StackPanel><Path Data="{StaticResource IconNetwork}" Style="{StaticResource LineIcon}" Width="18" Height="18" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Network" Margin="0,4,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
+                                <Button Style="{StaticResource IslandButton}" Margin="0,3,5,0" Height="56" Click="DisplaySettingsButton_Click"><StackPanel><Path Data="{StaticResource IconDisplay}" Style="{StaticResource LineIcon}" Width="18" Height="18" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Display" Margin="0,4,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
+                                <Button Style="{StaticResource IslandButton}" Margin="3,3,3,0" Height="56" Click="BluetoothSettingsButton_Click"><StackPanel><Path Data="{StaticResource IconBluetooth}" Style="{StaticResource LineIcon}" Width="18" Height="18" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Bluetooth" Margin="0,4,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
+                                <Button Style="{StaticResource IslandButton}" Margin="5,3,0,0" Height="56" Click="FocusAssistSettingsButton_Click"><StackPanel><Path Data="{StaticResource IconMoon}" Style="{StaticResource LineIcon}" Width="18" Height="18" Stroke="{DynamicResource AccentBrush}"/><TextBlock Text="Focus" Margin="0,4,0,0" HorizontalAlignment="Center"/></StackPanel></Button>
                             </UniformGrid>
-                            <Border Margin="0,12,0,0" Padding="14" CornerRadius="14" Background="{DynamicResource PanelSurfaceBrush}">
+                            <Border Margin="0,8,0,0" Padding="11" CornerRadius="13" Background="{DynamicResource PanelSurfaceBrush}">
                                 <StackPanel><Grid><TextBlock Text="Output volume" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock x:Name="VolumeValueText" Text="--%" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}"/></Grid><Slider x:Name="VolumeSlider" Style="{StaticResource IslandSlider}" Minimum="0" Maximum="100" Margin="0,8,0,0" ValueChanged="VolumeSlider_ValueChanged"/></StackPanel>
                             </Border>
-                            <Grid Margin="0,14,0,0"><TextBlock Text="SYSTEM LOAD" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="ControlsSystemLoadText" Text="CPU --% · RAM --%" HorizontalAlignment="Right" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/></Grid>
-                            <Button Style="{StaticResource IslandButton}" Margin="0,12,0,0" Padding="12,8" HorizontalAlignment="Left" Click="ScreenCaptureButton_Click"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource IconCamera}" Style="{StaticResource LineButtonIcon}"/><TextBlock Text="Screen capture" Margin="7,0,0,0"/></StackPanel></Button>
+                            <Grid Margin="0,8,0,0"><TextBlock Text="SYSTEM LOAD" FontSize="9" Foreground="{DynamicResource SecondaryTextBrush}"/><TextBlock x:Name="ControlsSystemLoadText" Text="CPU --% · RAM --%" HorizontalAlignment="Right" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/></Grid>
+                            <Button Style="{StaticResource IslandButton}" Margin="0,8,0,0" Padding="10,6" HorizontalAlignment="Left" Click="ScreenCaptureButton_Click"><StackPanel Orientation="Horizontal"><Path Data="{StaticResource IconCamera}" Style="{StaticResource LineButtonIcon}"/><TextBlock Text="Screen capture" Margin="7,0,0,0"/></StackPanel></Button>
                         </StackPanel>
-                    </ScrollViewer>
+                    </Grid>
 
-                    <ScrollViewer x:Name="FocusPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="4,7,12,12">
+                    <Grid x:Name="FocusPanel" Visibility="Collapsed">
+                        <StackPanel Margin="4,5,8,8">
                             <TextBlock Text="Focus timer" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
                             <TextBlock Text="A quiet timer that stays available from the top edge." FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                            <Border Margin="0,14,0,12" Padding="20" CornerRadius="22" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                                <StackPanel><TextBlock x:Name="FocusTimerText" Text="25:00" FontSize="52" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock x:Name="FocusTimerStateText" Text="Ready to focus" HorizontalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/><ProgressBar x:Name="FocusProgress" Height="5" Margin="14,16,14,0" Style="{StaticResource MetricProgressBar}" Maximum="100"/></StackPanel>
+                            <Border Margin="0,10,0,9" Padding="15" CornerRadius="20" Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                <StackPanel><TextBlock x:Name="FocusTimerText" Text="25:00" FontSize="44" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{DynamicResource PrimaryTextBrush}"/><TextBlock x:Name="FocusTimerStateText" Text="Ready to focus" HorizontalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}"/><ProgressBar x:Name="FocusProgress" Height="5" Margin="14,11,14,0" Style="{StaticResource MetricProgressBar}" Maximum="100"/></StackPanel>
                             </Border>
                             <UniformGrid Columns="3"><Button Style="{StaticResource IslandButton}" Tag="25" Margin="0,0,5,0" Padding="10,8" Click="FocusPresetButton_Click" Content="25 min"/><Button Style="{StaticResource IslandButton}" Tag="5" Margin="3,0" Padding="10,8" Click="FocusPresetButton_Click" Content="5 min"/><Button Style="{StaticResource IslandButton}" Tag="15" Margin="5,0,0,0" Padding="10,8" Click="FocusPresetButton_Click" Content="15 min"/></UniformGrid>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0"><Button x:Name="FocusStartButton" Style="{StaticResource AppRunnerPrimaryButton}" Margin="0,0,8,0" Click="FocusStartButton_Click" Content="Start"/><Button Style="{StaticResource IslandButton}" Click="FocusResetButton_Click" Content="Reset"/></StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,9,0,0"><Button x:Name="FocusStartButton" Style="{StaticResource AppRunnerPrimaryButton}" Margin="0,0,8,0" Click="FocusStartButton_Click" Content="Start"/><Button Style="{StaticResource IslandButton}" Click="FocusResetButton_Click" Content="Reset"/></StackPanel>
                         </StackPanel>
-                    </ScrollViewer>
+                    </Grid>
 
-                    <ScrollViewer x:Name="SettingsPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="4,4,12,8">
+                    <Grid x:Name="SettingsPanel" Visibility="Collapsed">
+                        <StackPanel Margin="4,4,8,8">
                             <TextBlock Text="Settings" FontSize="20" FontWeight="SemiBold"
                                        Foreground="{StaticResource PrimaryTextBrush}" />
                             <TextBlock x:Name="SettingsSaveStatusText" Text="Changes are saved automatically."
-                                       FontSize="11" Margin="0,0,0,14" TextWrapping="Wrap"
+                                       FontSize="11" Margin="0,0,0,9" TextWrapping="Wrap"
                                        Foreground="{StaticResource SecondaryTextBrush}" />
 
-                            <Border Padding="14" Margin="0,0,0,10" Background="{DynamicResource PanelSurfaceBrush}"
+                            <Border Padding="11" Margin="0,0,0,7" Background="{DynamicResource PanelSurfaceBrush}"
                                     BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="14">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -860,7 +858,7 @@
                                 </Grid>
                             </Border>
 
-                            <Border Padding="14" Margin="0,0,0,10" Background="{DynamicResource PanelSurfaceBrush}"
+                            <Border Padding="11" Margin="0,0,0,7" Background="{DynamicResource PanelSurfaceBrush}"
                                     BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="14">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -889,7 +887,7 @@
                             <!-- Legacy controls remain instantiated for existing bindings and
                                  configuration migration; their live editing now lives in the companion. -->
                             <StackPanel x:Name="LegacyAppearanceControls" Visibility="Collapsed">
-                            <Border Padding="14" Background="{StaticResource PanelSurfaceBrush}" CornerRadius="14" Margin="0,0,0,10">
+                            <Border Padding="11" Background="{StaticResource PanelSurfaceBrush}" CornerRadius="14" Margin="0,0,0,0">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="260" /></Grid.ColumnDefinitions>
                                     <StackPanel>
@@ -1102,7 +1100,7 @@
                             </Border>
                             </StackPanel>
                         </StackPanel>
-                    </ScrollViewer>
+                    </Grid>
                     </Grid>
                 </Grid>
             </Grid>
