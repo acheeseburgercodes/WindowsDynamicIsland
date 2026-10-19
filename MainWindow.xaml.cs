@@ -22,7 +22,7 @@ namespace DynamicIsland;
 
 public partial class MainWindow : Window
 {
-    private const double CollapsedWidth = 250;
+    private const double CollapsedWidth = 300;
     private const double CollapsedHeight = 8;
     private const double ClassicCollapsedWidth = 112;
     private const double ClassicCollapsedHeight = 30;
@@ -393,7 +393,8 @@ public partial class MainWindow : Window
     {
         _collapseTimer.Stop();
         if (_suppressHoverUntilPointerLeaves) return;
-        if (_islandManager.State == IslandState.Collapsed)
+        if (_islandManager.State == IslandState.Collapsed &&
+            ResolveContentMode(_configuration.HoverContent, forCompact: false) != IslandContentMode.None)
         {
             _islandManager.TransitionTo(IslandState.Preview);
         }
@@ -441,6 +442,7 @@ public partial class MainWindow : Window
         e.Effects = DragDropEffects.Copy;
         if (_islandManager.State == IslandState.Collapsed)
         {
+            _previewContentOverride = IslandContentMode.Activity;
             _islandManager.TransitionTo(IslandState.Preview);
         }
 
@@ -594,8 +596,7 @@ public partial class MainWindow : Window
                                    (_activePanel == HardwarePanel || _activePanel == ControlsPanel);
         var (width, height) = state switch
         {
-            IslandState.Preview => _resolvedPreviewContent == IslandContentMode.Webcam
-                ? (PreviewWidth, 230) : (PreviewWidth, PreviewHeight),
+            IslandState.Preview => GetPreviewSize(),
             IslandState.Notification => (NotificationWidth, _activeNotificationCompact ? 62 : NotificationHeight),
             IslandState.Expanded or IslandState.Interaction => GetExpandedSize(),
             _ => GetCollapsedSize()
@@ -612,6 +613,15 @@ public partial class MainWindow : Window
         _activePanel == AppsPanel
             ? (_configuration.AppPanelWidth, _configuration.AppPanelHeight)
             : (_configuration.PanelWidth, _configuration.PanelHeight);
+
+    private (double Width, double Height) GetPreviewSize() => _resolvedPreviewContent switch
+    {
+        IslandContentMode.Webcam => (PreviewWidth, 230),
+        IslandContentMode.Media => (PreviewWidth, PreviewHeight),
+        IslandContentMode.System or IslandContentMode.Controls => (320, 52),
+        IslandContentMode.Weather => (300, 52),
+        _ => (270, 50)
+    };
 
     private (double Width, double Height) GetCollapsedSize()
     {
@@ -657,7 +667,6 @@ public partial class MainWindow : Window
         CompactStatusContent.Visibility = showStatus ? Visibility.Visible : Visibility.Collapsed;
         MinimizedHandle.Visibility = collapsed && !showStatus && !classicNotch ? Visibility.Visible : Visibility.Collapsed;
         ClassicNotchContent.Visibility = classicNotch ? Visibility.Visible : Visibility.Collapsed;
-        if (showStatus) UpdateCompactStatus();
     }
 
     private IslandContentMode ResolveContentMode(IslandContentMode configured, bool forCompact)
@@ -665,12 +674,18 @@ public partial class MainWindow : Window
         if (configured != IslandContentMode.Smart) return configured;
         if (_focusRunning) return IslandContentMode.Focus;
         if (_currentMediaSnapshot.HasSession) return IslandContentMode.Media;
+        if (forCompact)
+            return ActivityFilesProgress.Visibility == Visibility.Visible
+                ? IslandContentMode.Activity
+                : IslandContentMode.None;
         return IslandContentMode.Activity;
     }
 
     private void UpdateCompactStatus()
     {
         var mode = ResolveContentMode(_configuration.CompactContent, forCompact: true);
+        if (_islandManager.State == IslandState.Collapsed)
+            ApplyCollapsedAppearance(IslandState.Collapsed);
         var resource = "NavIconActivity";
         var text = "Ready · no active tasks";
         switch (mode)
@@ -705,8 +720,24 @@ public partial class MainWindow : Window
                 resource = "IconCamera";
                 text = "Webcam · hover to preview";
                 break;
+            case IslandContentMode.Activity:
+                text = ActivityFilesProgress.Visibility == Visibility.Visible
+                    ? $"Files · {ActivityFilesDetail.Text}"
+                    : _focusRunning && _currentMediaSnapshot.HasSession
+                        ? "Music + focus active"
+                        : _focusRunning ? $"Focus · {FormatFocusTime(_focusRemaining)}"
+                        : _currentMediaSnapshot.HasSession ? $"Media · {_currentMediaSnapshot.Title}"
+                        : _files.Count > 0 ? $"File shelf · {_files.Count} saved"
+                        : "No active tasks";
+                break;
             case IslandContentMode.None:
                 CompactStatusContent.Visibility = Visibility.Collapsed;
+                if (_islandManager.State == IslandState.Collapsed)
+                {
+                    var (idleWidth, idleHeight) = GetCollapsedSize();
+                    _windowService.ResizeAndPosition(idleWidth, idleHeight);
+                    UpdateLiquidBorder(IslandState.Collapsed);
+                }
                 return;
         }
 
@@ -720,16 +751,17 @@ public partial class MainWindow : Window
             var (width, height) = GetCollapsedSize();
             if (Math.Abs(Width - width) > 0.5 || Math.Abs(Height - height) > 0.5)
                 _windowService.ResizeAndPosition(width, height);
+            UpdateLiquidBorder(IslandState.Collapsed);
         }
     }
 
     private void ConfigurePreviewContent(IslandContentMode mode)
     {
-        PreviewVisualColumn.Width = new GridLength(42);
+        PreviewVisualColumn.Width = new GridLength(36);
         PreviewTextColumn.Width = new GridLength(1, GridUnitType.Star);
-        PreviewControlsColumn.Width = new GridLength(96);
-        PreviewLogoContainer.Width = 36;
-        PreviewLogoContainer.Height = 36;
+        PreviewControlsColumn.Width = mode == IslandContentMode.Media ? new GridLength(96) : new GridLength(0);
+        PreviewLogoContainer.Width = 30;
+        PreviewLogoContainer.Height = 30;
         PreviewLogoContainer.Padding = new Thickness(3);
         PreviewLogoContainer.Margin = new Thickness(0);
         PreviewLogoContainer.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -812,10 +844,10 @@ public partial class MainWindow : Window
         }
         PreviewTitle.Text = "Webcam unavailable";
         PreviewArtist.Text = _webcamPreviewService.LastError ?? "Check Windows camera access";
-        PreviewVisualColumn.Width = new GridLength(42);
+        PreviewVisualColumn.Width = new GridLength(36);
         PreviewTextColumn.Width = new GridLength(1, GridUnitType.Star);
-        PreviewLogoContainer.Width = 36;
-        PreviewLogoContainer.Height = 36;
+        PreviewLogoContainer.Width = 30;
+        PreviewLogoContainer.Height = 30;
         PreviewLogoGlyph.Data = (Geometry)Application.Current.Resources["IconCamera"];
         PreviewLogoGlyph.Visibility = Visibility.Visible;
     }
@@ -898,7 +930,7 @@ public partial class MainWindow : Window
         var classicNotch = state == IslandState.Collapsed &&
                            ResolveContentMode(_configuration.CompactContent, forCompact: true) == IslandContentMode.None &&
                            _configuration.MinimizedAppearance == MinimizedAppearance.ClassicNotch;
-        var showBorder = state == IslandState.Preview || classicNotch;
+        var showBorder = (state == IslandState.Preview && _resolvedPreviewContent == IslandContentMode.Media) || classicNotch;
         var accentBorder = classicNotch && _isPluggedIn;
         LiquidBorder.Visibility = showBorder ? Visibility.Visible : Visibility.Collapsed;
         var thickness = accentBorder ? 2 : 1.5;
@@ -940,7 +972,7 @@ public partial class MainWindow : Window
         if (state == IslandState.Collapsed && !classicNotch)
             MinimizedHandle.Background = _isPluggedIn
                 ? CreateMutedAccentBrush()
-                : new SolidColorBrush(Color.FromArgb(56, 16, 20, 24));
+                : new SolidColorBrush(Color.FromArgb(112, 81, 90, 102));
     }
 
     private void UpdateAtmosphere(IslandState state)
@@ -1634,12 +1666,14 @@ public partial class MainWindow : Window
         ActivityFocusDetail.Text = _focusRunning
             ? $"{FormatFocusTime(_focusRemaining)} remaining"
             : $"Ready · {_focusDuration.TotalMinutes:0} minutes";
-        ActivityFilesDetail.Text = _files.Count == 0
-            ? "No active transfers · shelf is empty"
-            : $"{_files.Count} persistent {(_files.Count == 1 ? "file" : "files")} · no active transfers";
+        if (ActivityFilesProgress.Visibility != Visibility.Visible)
+            ActivityFilesDetail.Text = _files.Count == 0
+                ? "No active transfers · shelf is empty"
+                : $"{_files.Count} persistent {(_files.Count == 1 ? "file" : "files")} · no active transfers";
         ExpandedActivityHint.Text = _focusRunning
             ? $"Focus · {FormatFocusTime(_focusRemaining)}"
             : _currentMediaSnapshot.IsPlaying ? $"Playing · {_currentMediaSnapshot.Title}" : string.Empty;
+        if (_islandManager.State == IslandState.Collapsed) UpdateCompactStatus();
     }
 
     private void RefreshQuickControls()
@@ -2178,10 +2212,12 @@ public partial class MainWindow : Window
         var sources = paths.Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         ActivityFilesProgress.Visibility = sources.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         ActivityFilesProgress.Value = 0;
+        if (sources.Count > 0 && _islandManager.State == IslandState.Collapsed) UpdateCompactStatus();
         for (var sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
         {
             var path = sources[sourceIndex];
             ActivityFilesDetail.Text = $"Saving {sourceIndex + 1} of {sources.Count} · {Path.GetFileName(path)}";
+            if (_islandManager.State == IslandState.Collapsed) UpdateCompactStatus();
             var sourcePath = Path.GetFullPath(path);
             if (_files.Any(item => string.Equals(
                     string.IsNullOrWhiteSpace(item.OriginalPath) ? item.FullPath : item.OriginalPath,

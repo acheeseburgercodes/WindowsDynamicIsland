@@ -21,11 +21,11 @@ const endpoint = 'http://127.0.0.1:38691/api/settings';
 const headers = {'X-DynamicIsland-Settings': '1', 'Content-Type': 'application/json'};
 const defaultAccent = '#B68CFF';
 const sectionMeta: Record<Section, {glyph: string; summary: string}> = {
-  Position: {glyph: '⌖', summary: 'Placement and workspace dimensions'},
-  Notch: {glyph: '▰', summary: 'Compact, hover and expanded content'},
-  Appearance: {glyph: '◐', summary: 'Color, material and identity'},
-  Alerts: {glyph: '◌', summary: 'Per-app and per-person notification rules'},
-  Storage: {glyph: '▣', summary: 'Persistent files and TempVault'},
+  Position: {glyph: '\uE707', summary: 'Placement and workspace dimensions'},
+  Notch: {glyph: '\uF0E2', summary: 'Compact, hover and expanded content'},
+  Appearance: {glyph: '\uE790', summary: 'Color, material and identity'},
+  Alerts: {glyph: '\uEA8F', summary: 'Per-app and per-person notification rules'},
+  Storage: {glyph: '\uE8B7', summary: 'Persistent files and TempVault'},
 };
 
 const darkUi = {shell: '#090A0E', sidebar: 'rgba(6, 7, 10, 0.94)', border: '#252731',
@@ -359,11 +359,11 @@ function App() {
           <Text style={[s.lead, {color: ui.secondary}]}>Choose exactly what the island shows at each stage.</Text>
           <View style={themedCard}><Text style={themedTitle}>Minimized notch</Text>
             <Text style={themedHint}>Smart prioritizes an active focus timer, then media, then the activity summary.</Text>
-            <ChoiceGrid options={['Smart', 'Nothing', 'Music', 'Focus', 'Weather', 'System', 'Activity', 'Controls', 'Webcam']}
+            <ChoiceGrid options={['Smart', 'Idle style', 'Music', 'Focus', 'Weather', 'System', 'Activity', 'Controls', 'Webcam']}
               value={settings.compactContent} accent={accent} onChange={v => change('compactContent', v)}/></View>
           <View style={themedCard}><Text style={themedTitle}>Hover phase</Text>
             <Text style={themedHint}>Webcam opens a live camera card only while the hover preview is visible.</Text>
-            <ChoiceGrid options={['Smart', 'Nothing', 'Music', 'Focus', 'Weather', 'System', 'Activity', 'Controls', 'Webcam']}
+            <ChoiceGrid options={['Smart', 'Off', 'Music', 'Focus', 'Weather', 'System', 'Activity', 'Controls', 'Webcam']}
               value={settings.hoverContent} accent={accent} onChange={v => change('hoverContent', v)}/></View>
           <View style={themedCard}><Text style={themedTitle}>Panel opened on click</Text>
             <Text style={themedHint}>Remember keeps your last panel. Any other choice becomes the opening dashboard.</Text>
@@ -502,7 +502,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', cursor: 'pointer'},
   navGlyph: {width: 34, height: 34, borderRadius: 10, backgroundColor: '#161820',
     alignItems: 'center', justifyContent: 'center', marginRight: 10},
-  navGlyphText: {color: '#899097', fontSize: 17, fontWeight: '700'},
+  navGlyphText: {color: '#899097', fontFamily: 'Segoe Fluent Icons', fontSize: 17, fontWeight: '400'},
   navCopy: {flex: 1},
   navText: {color: '#BAC0C4', fontSize: 13, fontWeight: '700'},
   navHint: {color: '#646B72', fontSize: 8.5, marginTop: 2},
@@ -527,7 +527,7 @@ const s = StyleSheet.create({
   sectionHero: {height: 76, flexDirection: 'row', alignItems: 'center', backgroundColor: '#12141A',
     borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, marginBottom: 15},
   heroGlyph: {width: 43, height: 43, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 13},
-  heroGlyphText: {fontSize: 23, fontWeight: '700'},
+  heroGlyphText: {fontFamily: 'Segoe Fluent Icons', fontSize: 22, fontWeight: '400'},
   heroTitle: {color: '#F1F3F4', fontSize: 14, fontWeight: '700'},
   heroText: {color: '#818990', fontSize: 10, marginTop: 3},
   heroPips: {flexDirection: 'row', gap: 5, alignItems: 'center'},
