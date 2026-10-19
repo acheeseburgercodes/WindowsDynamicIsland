@@ -57,6 +57,7 @@ public partial class MainWindow : Window
     private readonly SystemNotificationService _notificationService = new();
     private readonly AudioLevelService _audioLevelService = new();
     private readonly QuickControlService _quickControlService = new();
+    private readonly WebcamPreviewService _webcamPreviewService = new();
     private readonly ObservableCollection<DockedFileItem> _files = [];
     private readonly ObservableCollection<AppLauncherItem> _applications = [];
     private readonly ObservableCollection<RunningApplicationInfo> _runningApplications = [];
@@ -91,8 +92,12 @@ public partial class MainWindow : Window
     private List<string> _clipboardFiles = [];
     private ClipboardKind _clipboardKind = ClipboardKind.Text;
     private bool _accentBorderActive;
+    private bool _activeNotificationCompact;
     private bool _isPluggedIn;
     private MediaSnapshot _currentMediaSnapshot = MediaSnapshot.Empty;
+    private HardwareSnapshot? _currentHardwareSnapshot;
+    private IslandContentMode _resolvedPreviewContent = IslandContentMode.Activity;
+    private IslandContentMode? _previewContentOverride;
     private Point _fileDragStart;
     private int _resizeAnimationVersion;
     private int _panelAnimationVersion;
@@ -152,6 +157,7 @@ public partial class MainWindow : Window
         _islandManager.StateChanged += OnIslandStateChanged;
         _mediaService.MediaChanged += OnMediaChanged;
         _notificationService.NotificationReceived += OnNotificationReceived;
+        _webcamPreviewService.FrameReady += OnWebcamFrameReady;
         _collapseTimer.Tick += CollapseTimer_Tick;
         _ambientTimer.Tick += AmbientTimer_Tick;
         _audioVisualTimer.Tick += AudioVisualTimer_Tick;
@@ -160,7 +166,12 @@ public partial class MainWindow : Window
         _mediaProgressTimer.Tick += (_, _) => ApplyMediaProgress();
         _mediaProgressTimer.Start();
         _powerTimer.Tick += (_, _) => RefreshPowerBorder();
-        _hardwareTimer.Tick += (_, _) => ApplyHardwareSnapshot(_hardwareMonitor.Capture());
+        _hardwareTimer.Tick += async (_, _) =>
+        {
+            ApplyHardwareSnapshot(_hardwareMonitor.Capture());
+            if (_activePanel == ControlsPanel) await RefreshConnectivityAsync();
+            if (_islandManager.State == IslandState.Collapsed) UpdateCompactStatus();
+        };
         _topmostTimer.Tick += (_, _) =>
         {
             if (!IsVisible || WindowState == WindowState.Minimized) return;
@@ -233,6 +244,13 @@ public partial class MainWindow : Window
             _configuration.BackgroundColor = _configuration.Theme == IslandTheme.Light
                 ? "#FFF6F6F8" : "#FF111113";
         }
+        if (_configuration.ConfigurationVersion < 11)
+        {
+            _configuration.ConfigurationVersion = 11;
+            if (_configuration.Theme == IslandTheme.Light &&
+                string.Equals(_configuration.BackgroundColor, "#FF111113", StringComparison.OrdinalIgnoreCase))
+                _configuration.BackgroundColor = "#FFE9EEF3";
+        }
 
         _configuration.SurfaceOpacity = Math.Clamp(_configuration.SurfaceOpacity, 0.1, 1);
         _configuration.PanelWidth = Math.Clamp(_configuration.PanelWidth, 540, 760);
@@ -248,6 +266,15 @@ public partial class MainWindow : Window
             _configuration.SurfaceStyle = IslandSurfaceStyle.Solid;
         if (!Enum.IsDefined(_configuration.GradientDirection))
             _configuration.GradientDirection = IslandGradientDirection.Diagonal;
+        if (!Enum.IsDefined(_configuration.CompactContent))
+            _configuration.CompactContent = IslandContentMode.Smart;
+        if (!Enum.IsDefined(_configuration.HoverContent))
+            _configuration.HoverContent = IslandContentMode.Smart;
+        if (!Enum.IsDefined(_configuration.ExpandedPanel))
+            _configuration.ExpandedPanel = ExpandedPanelMode.RememberLast;
+        if (!Enum.IsDefined(_configuration.NotificationBehavior))
+            _configuration.NotificationBehavior = NotificationBehavior.Standard;
+        _configuration.NotificationRules ??= [];
         if (!TryParseSurfaceColor(_configuration.GradientStartColor, out _))
             _configuration.GradientStartColor = "#FF334654";
         if (!TryParseSurfaceColor(_configuration.GradientEndColor, out _))
@@ -325,6 +352,7 @@ public partial class MainWindow : Window
         var (collapsedWidth, collapsedHeight) = GetCollapsedSize();
         _windowService.ResizeAndPosition(collapsedWidth, collapsedHeight);
         ApplyCollapsedAppearance(IslandState.Collapsed);
+        UpdateCompactStatus();
         UpdateLiquidBorder(IslandState.Collapsed);
         _settingsLoaded = true;
         await SaveConfigurationAsync();
@@ -335,8 +363,7 @@ public partial class MainWindow : Window
                 settings => Dispatcher.InvokeAsync(() => ApplyCompanionSettingsAsync(settings)).Task.Unwrap(),
                 () => Dispatcher.InvokeAsync(ChooseMiniLogo).Task,
                 () => Dispatcher.InvokeAsync(ClearMiniLogo).Task,
-                () => Dispatcher.InvokeAsync(EnableNotificationsAsync).Task.Unwrap(),
-                () => Dispatcher.InvokeAsync(TestNotificationAsync).Task.Unwrap());
+                () => Dispatcher.InvokeAsync(EnableNotificationsAsync).Task.Unwrap());
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
@@ -488,7 +515,10 @@ public partial class MainWindow : Window
         _pendingExpandClick = false;
         ReleaseMouseCapture();
         if (_islandManager.State is IslandState.Collapsed or IslandState.Preview or IslandState.Notification)
+        {
+            ApplyConfiguredExpandedPanel();
             _islandManager.TransitionTo(IslandState.Expanded);
+        }
         e.Handled = true;
     }
 
@@ -546,15 +576,27 @@ public partial class MainWindow : Window
 
     private void OnIslandStateChanged(object? sender, IslandState state)
     {
+        if (state == IslandState.Preview)
+        {
+            _resolvedPreviewContent = _previewContentOverride ??
+                ResolveContentMode(_configuration.HoverContent, forCompact: false);
+            _previewContentOverride = null;
+            ConfigurePreviewContent(_resolvedPreviewContent);
+        }
+        else if (_webcamPreviewService.IsRunning)
+        {
+            _ = _webcamPreviewService.StopAsync();
+        }
         if (state != IslandState.Collapsed) ApplyCollapsedAppearance(state);
         UpdateLiquidBorder(state);
         UpdateAtmosphere(state);
         _hardwareTimer.IsEnabled = state is IslandState.Expanded or IslandState.Interaction &&
-                                   _activePanel == HardwarePanel;
+                                   (_activePanel == HardwarePanel || _activePanel == ControlsPanel);
         var (width, height) = state switch
         {
-            IslandState.Preview => (PreviewWidth, PreviewHeight),
-            IslandState.Notification => (NotificationWidth, NotificationHeight),
+            IslandState.Preview => _resolvedPreviewContent == IslandContentMode.Webcam
+                ? (PreviewWidth, 230) : (PreviewWidth, PreviewHeight),
+            IslandState.Notification => (NotificationWidth, _activeNotificationCompact ? 62 : NotificationHeight),
             IslandState.Expanded or IslandState.Interaction => GetExpandedSize(),
             _ => GetCollapsedSize()
         };
@@ -573,7 +615,19 @@ public partial class MainWindow : Window
 
     private (double Width, double Height) GetCollapsedSize()
     {
-        if (_focusRunning) return (FocusCollapsedWidth, FocusCollapsedHeight);
+        var content = ResolveContentMode(_configuration.CompactContent, forCompact: true);
+        if (content != IslandContentMode.None)
+        {
+            var width = content switch
+            {
+                IslandContentMode.Media => 220,
+                IslandContentMode.Focus => 126,
+                IslandContentMode.Weather => 158,
+                IslandContentMode.System => 178,
+                _ => 172
+            };
+            return (width, 28);
+        }
         return _configuration.MinimizedAppearance == MinimizedAppearance.ClassicNotch
             ? (ClassicCollapsedWidth, ClassicCollapsedHeight)
             : (CollapsedWidth, CollapsedHeight);
@@ -582,7 +636,9 @@ public partial class MainWindow : Window
     private void ApplyCollapsedAppearance(IslandState state)
     {
         var collapsed = state == IslandState.Collapsed;
-        var classicNotch = collapsed && !_focusRunning &&
+        var compactMode = ResolveContentMode(_configuration.CompactContent, forCompact: true);
+        var showStatus = collapsed && compactMode != IslandContentMode.None;
+        var classicNotch = collapsed && !showStatus &&
                            _configuration.MinimizedAppearance == MinimizedAppearance.ClassicNotch;
         IslandSurface.Padding = collapsed
             ? classicNotch ? new Thickness(6, 4, 6, 4) : new Thickness(0)
@@ -597,9 +653,202 @@ public partial class MainWindow : Window
         {
             ApplySurfaceOpacity(_configuration.SurfaceOpacity);
         }
-        FocusTimerMini.Visibility = collapsed && _focusRunning ? Visibility.Visible : Visibility.Collapsed;
-        MinimizedHandle.Visibility = collapsed && !_focusRunning && !classicNotch ? Visibility.Visible : Visibility.Collapsed;
+        FocusTimerMini.Visibility = Visibility.Collapsed;
+        CompactStatusContent.Visibility = showStatus ? Visibility.Visible : Visibility.Collapsed;
+        MinimizedHandle.Visibility = collapsed && !showStatus && !classicNotch ? Visibility.Visible : Visibility.Collapsed;
         ClassicNotchContent.Visibility = classicNotch ? Visibility.Visible : Visibility.Collapsed;
+        if (showStatus) UpdateCompactStatus();
+    }
+
+    private IslandContentMode ResolveContentMode(IslandContentMode configured, bool forCompact)
+    {
+        if (configured != IslandContentMode.Smart) return configured;
+        if (_focusRunning) return IslandContentMode.Focus;
+        if (_currentMediaSnapshot.HasSession) return IslandContentMode.Media;
+        return IslandContentMode.Activity;
+    }
+
+    private void UpdateCompactStatus()
+    {
+        var mode = ResolveContentMode(_configuration.CompactContent, forCompact: true);
+        var resource = "NavIconActivity";
+        var text = "Ready · no active tasks";
+        switch (mode)
+        {
+            case IslandContentMode.Media:
+                resource = "NavIconMusic";
+                text = _currentMediaSnapshot.HasSession
+                    ? $"{(_currentMediaSnapshot.IsPlaying ? "Playing" : "Paused")} · {_currentMediaSnapshot.Title}"
+                    : "No media playing";
+                break;
+            case IslandContentMode.Focus:
+                resource = "NavIconFocus";
+                text = _focusRunning ? $"Focus · {FormatFocusTime(_focusRemaining)}" : "Focus timer ready";
+                break;
+            case IslandContentMode.Weather:
+                resource = "NavIconWeather";
+                text = _weatherLoaded
+                    ? $"{WeatherTemperatureText.Text} · {WeatherConditionText.Text}"
+                    : "Weather · open to refresh";
+                break;
+            case IslandContentMode.System:
+                resource = "NavIconHardware";
+                var snapshot = _currentHardwareSnapshot ?? _hardwareMonitor.Capture();
+                _currentHardwareSnapshot = snapshot;
+                text = $"CPU {snapshot.CpuPercent:0}% · RAM {snapshot.MemoryPercent:0}%";
+                break;
+            case IslandContentMode.Controls:
+                resource = "NavIconControls";
+                text = "Windows controls";
+                break;
+            case IslandContentMode.Webcam:
+                resource = "IconCamera";
+                text = "Webcam · hover to preview";
+                break;
+            case IslandContentMode.None:
+                CompactStatusContent.Visibility = Visibility.Collapsed;
+                return;
+        }
+
+        CompactStatusIcon.Data = (Geometry)Application.Current.Resources[resource];
+        CompactStatusText.Text = text;
+        ExpandedActivityHint.Text = _focusRunning
+            ? $"Focus · {FormatFocusTime(_focusRemaining)}"
+            : _currentMediaSnapshot.IsPlaying ? $"Playing · {_currentMediaSnapshot.Title}" : string.Empty;
+        if (_islandManager.State == IslandState.Collapsed)
+        {
+            var (width, height) = GetCollapsedSize();
+            if (Math.Abs(Width - width) > 0.5 || Math.Abs(Height - height) > 0.5)
+                _windowService.ResizeAndPosition(width, height);
+        }
+    }
+
+    private void ConfigurePreviewContent(IslandContentMode mode)
+    {
+        PreviewVisualColumn.Width = new GridLength(42);
+        PreviewTextColumn.Width = new GridLength(1, GridUnitType.Star);
+        PreviewControlsColumn.Width = new GridLength(96);
+        PreviewLogoContainer.Width = 36;
+        PreviewLogoContainer.Height = 36;
+        PreviewLogoContainer.Padding = new Thickness(3);
+        PreviewLogoContainer.Margin = new Thickness(0);
+        PreviewLogoContainer.HorizontalAlignment = HorizontalAlignment.Stretch;
+        PreviewArtwork.Stretch = Stretch.Uniform;
+        PreviewMediaControls.Visibility = mode == IslandContentMode.Media ? Visibility.Visible : Visibility.Collapsed;
+        PreviewArtwork.Visibility = Visibility.Collapsed;
+        PreviewLogoGlyph.Visibility = Visibility.Visible;
+        PreviewFallbackIcon.Visibility = Visibility.Collapsed;
+
+        var resource = "NavIconActivity";
+        var title = "Activity stack";
+        var detail = _focusRunning || _currentMediaSnapshot.IsPlaying
+            ? "Active work is available" : "No active tasks";
+        switch (mode)
+        {
+            case IslandContentMode.Media:
+                resource = "NavIconMusic";
+                title = _currentMediaSnapshot.HasSession ? _currentMediaSnapshot.Title : "Nothing playing";
+                detail = _currentMediaSnapshot.HasSession ? _currentMediaSnapshot.Artist : "Start music in a supported app";
+                PreviewArtwork.Source = _currentArtwork;
+                PreviewArtwork.Visibility = _currentArtwork is null ? Visibility.Collapsed : Visibility.Visible;
+                PreviewLogoGlyph.Visibility = _currentArtwork is null ? Visibility.Visible : Visibility.Collapsed;
+                break;
+            case IslandContentMode.Focus:
+                resource = "NavIconFocus";
+                title = _focusRunning ? FormatFocusTime(_focusRemaining) : "Focus timer";
+                detail = _focusRunning ? "Focus session in progress" : "Ready to start";
+                break;
+            case IslandContentMode.Weather:
+                resource = "NavIconWeather";
+                title = _weatherLoaded ? WeatherTemperatureText.Text : "Weather";
+                detail = _weatherLoaded ? WeatherConditionText.Text : "Open Weather to refresh";
+                if (!_weatherLoaded) _ = RefreshWeatherAsync();
+                break;
+            case IslandContentMode.System:
+                resource = "NavIconHardware";
+                var snapshot = _currentHardwareSnapshot ?? _hardwareMonitor.Capture();
+                _currentHardwareSnapshot = snapshot;
+                title = $"CPU {snapshot.CpuPercent:0}% · RAM {snapshot.MemoryPercent:0}%";
+                detail = snapshot.IsPluggedIn ? "Connected to power" : "Live system load";
+                break;
+            case IslandContentMode.Controls:
+                resource = "NavIconControls";
+                title = "Quick controls";
+                detail = "Network, microphone, Bluetooth and focus";
+                _ = RefreshConnectivityAsync();
+                break;
+            case IslandContentMode.Webcam:
+                PreviewVisualColumn.Width = new GridLength(1, GridUnitType.Star);
+                PreviewTextColumn.Width = new GridLength(0);
+                PreviewControlsColumn.Width = new GridLength(0);
+                PreviewLogoContainer.Width = double.NaN;
+                PreviewLogoContainer.Height = double.NaN;
+                PreviewLogoContainer.Padding = new Thickness(0);
+                PreviewLogoContainer.Margin = new Thickness(2);
+                PreviewArtwork.Stretch = Stretch.UniformToFill;
+                PreviewArtwork.Source = null;
+                PreviewArtwork.Visibility = Visibility.Visible;
+                PreviewLogoGlyph.Visibility = Visibility.Collapsed;
+                _ = StartWebcamPreviewAsync();
+                return;
+            case IslandContentMode.None:
+                title = "Dynamic Island";
+                detail = "Click to open";
+                break;
+        }
+
+        PreviewLogoGlyph.Data = (Geometry)Application.Current.Resources[resource];
+        PreviewTitle.Text = title;
+        PreviewArtist.Text = detail;
+    }
+
+    private async Task StartWebcamPreviewAsync()
+    {
+        if (await _webcamPreviewService.StartAsync())
+        {
+            if (_islandManager.State != IslandState.Preview || _resolvedPreviewContent != IslandContentMode.Webcam)
+                await _webcamPreviewService.StopAsync();
+            return;
+        }
+        PreviewTitle.Text = "Webcam unavailable";
+        PreviewArtist.Text = _webcamPreviewService.LastError ?? "Check Windows camera access";
+        PreviewVisualColumn.Width = new GridLength(42);
+        PreviewTextColumn.Width = new GridLength(1, GridUnitType.Star);
+        PreviewLogoContainer.Width = 36;
+        PreviewLogoContainer.Height = 36;
+        PreviewLogoGlyph.Data = (Geometry)Application.Current.Resources["IconCamera"];
+        PreviewLogoGlyph.Visibility = Visibility.Visible;
+    }
+
+    private void OnWebcamFrameReady(object? sender, byte[] bytes) => Dispatcher.InvokeAsync(() =>
+    {
+        if (_islandManager.State == IslandState.Preview && _resolvedPreviewContent == IslandContentMode.Webcam)
+            PreviewArtwork.Source = CreateImage(bytes);
+    });
+
+    private void ApplyConfiguredExpandedPanel()
+    {
+        UIElement? panel = _configuration.ExpandedPanel switch
+        {
+            ExpandedPanelMode.Media => MediaPanel,
+            ExpandedPanelMode.Weather => WeatherPanel,
+            ExpandedPanelMode.System => HardwarePanel,
+            ExpandedPanelMode.Activity => ActivityPanel,
+            ExpandedPanelMode.Controls => ControlsPanel,
+            ExpandedPanelMode.Focus => FocusPanel,
+            ExpandedPanelMode.Files => FilesPanel,
+            ExpandedPanelMode.Clipboard => ClipboardPanel,
+            ExpandedPanelMode.Apps => AppsPanel,
+            _ => null
+        };
+        if (panel is null) return;
+        if (panel == ActivityPanel) UpdateActivityStack();
+        if (panel == ControlsPanel) RefreshQuickControls();
+        if (panel == HardwarePanel) ApplyHardwareSnapshot(_hardwareMonitor.Capture());
+        if (panel == WeatherPanel && !_weatherLoaded) _ = RefreshWeatherAsync();
+        if (panel == ClipboardPanel) _ = PasteClipboardContentAsync(false);
+        ShowPanel(panel);
+        if (panel == AppsPanel) ScheduleAppsPanelRefresh();
     }
 
     private void AppResizeThumb_DragStarted(object sender, DragStartedEventArgs e)
@@ -646,7 +895,8 @@ public partial class MainWindow : Window
 
     private void UpdateLiquidBorder(IslandState state, bool accentChanged = false)
     {
-        var classicNotch = state == IslandState.Collapsed && !_focusRunning &&
+        var classicNotch = state == IslandState.Collapsed &&
+                           ResolveContentMode(_configuration.CompactContent, forCompact: true) == IslandContentMode.None &&
                            _configuration.MinimizedAppearance == MinimizedAppearance.ClassicNotch;
         var showBorder = state == IslandState.Preview || classicNotch;
         var accentBorder = classicNotch && _isPluggedIn;
@@ -715,12 +965,13 @@ public partial class MainWindow : Window
     {
         var accent = Application.Current.Resources["AccentBrush"] is SolidColorBrush accentBrush
             ? accentBrush.Color : Color.FromRgb(110, 214, 169);
-        var top = Mix(surface, accent, 0.16);
-        var middle = Mix(surface, Colors.Black, 0.42);
-        var bottom = Mix(surface, Colors.Black, 0.76);
-        AtmosphereTopStop.Color = Color.FromArgb(54, top.R, top.G, top.B);
-        AtmosphereMiddleStop.Color = Color.FromArgb(126, middle.R, middle.G, middle.B);
-        AtmosphereBottomStop.Color = Color.FromArgb(226, bottom.R, bottom.G, bottom.B);
+        var light = _configuration.Theme == IslandTheme.Light;
+        var top = Mix(surface, accent, light ? 0.09 : 0.16);
+        var middle = Mix(surface, light ? Colors.White : Colors.Black, light ? 0.12 : 0.42);
+        var bottom = Mix(surface, light ? accent : Colors.Black, light ? 0.04 : 0.76);
+        AtmosphereTopStop.Color = Color.FromArgb((byte)(light ? 28 : 54), top.R, top.G, top.B);
+        AtmosphereMiddleStop.Color = Color.FromArgb((byte)(light ? 48 : 126), middle.R, middle.G, middle.B);
+        AtmosphereBottomStop.Color = Color.FromArgb((byte)(light ? 72 : 226), bottom.R, bottom.G, bottom.B);
     }
 
     private void RefreshPowerBorder()
@@ -1322,6 +1573,7 @@ public partial class MainWindow : Window
             WeatherWindText.Text = $"{weather.WindKph} km/h";
             WeatherStatusText.Text = $"Updated {DateTime.Now:h:mm tt} · weather data from wttr.in";
             _weatherLoaded = true;
+            UpdateCompactStatus();
         }
         catch (Exception exception) when (exception is System.Net.Http.HttpRequestException or TaskCanceledException or InvalidOperationException or System.Text.Json.JsonException)
         {
@@ -1354,6 +1606,7 @@ public partial class MainWindow : Window
 
     private void ApplyHardwareSnapshot(HardwareSnapshot snapshot)
     {
+        _currentHardwareSnapshot = snapshot;
         CpuProgress.Value = snapshot.CpuPercent;
         CpuValueText.Text = $"{snapshot.CpuPercent:0}%";
         MemoryProgress.Value = snapshot.MemoryPercent;
@@ -1369,6 +1622,7 @@ public partial class MainWindow : Window
         NetworkDetailText.Text = $"↑ {snapshot.UploadMbps:0.0} Mbps";
         HardwareUpdatedText.Text = $"LIVE · {DateTime.Now:h:mm:ss tt}";
         ControlsSystemLoadText.Text = $"CPU {snapshot.CpuPercent:0}% · RAM {snapshot.MemoryPercent:0}%";
+        if (_islandManager.State == IslandState.Collapsed) UpdateCompactStatus();
     }
 
     private void UpdateActivityStack()
@@ -1383,6 +1637,9 @@ public partial class MainWindow : Window
         ActivityFilesDetail.Text = _files.Count == 0
             ? "No active transfers · shelf is empty"
             : $"{_files.Count} persistent {(_files.Count == 1 ? "file" : "files")} · no active transfers";
+        ExpandedActivityHint.Text = _focusRunning
+            ? $"Focus · {FormatFocusTime(_focusRemaining)}"
+            : _currentMediaSnapshot.IsPlaying ? $"Playing · {_currentMediaSnapshot.Title}" : string.Empty;
     }
 
     private void RefreshQuickControls()
@@ -1398,6 +1655,16 @@ public partial class MainWindow : Window
         MicControlText.Text = muted ? "Mic muted" : "Mic";
         MicControlButton.Tag = muted ? "Active" : null;
         ApplyHardwareSnapshot(_hardwareMonitor.Capture());
+        _ = RefreshConnectivityAsync();
+    }
+
+    private async Task RefreshConnectivityAsync()
+    {
+        var connectivity = await _quickControlService.GetConnectivityAsync();
+        NetworkControlText.Text = connectivity.NetworkName;
+        BluetoothControlText.Text = $"Bluetooth {connectivity.BluetoothState}";
+        ConnectivityStatusText.Text = $"Network · {connectivity.NetworkName}   •   Bluetooth · {connectivity.BluetoothState}";
+        AudioControlText.Text = $"Audio {VolumeSlider.Value:0}%";
     }
 
     private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -1418,15 +1685,15 @@ public partial class MainWindow : Window
         QuickControlService.OpenWindowsSurface("ms-settings:sound");
     private void NetworkSettingsButton_Click(object sender, RoutedEventArgs e) =>
         QuickControlService.OpenWindowsSurface("ms-settings:network-wifi");
-    private void DisplaySettingsButton_Click(object sender, RoutedEventArgs e) =>
-        QuickControlService.OpenWindowsSurface("ms-settings:display");
+    private void WebcamControlButton_Click(object sender, RoutedEventArgs e)
+    {
+        _previewContentOverride = IslandContentMode.Webcam;
+        _islandManager.TransitionTo(IslandState.Preview);
+    }
     private void BluetoothSettingsButton_Click(object sender, RoutedEventArgs e) =>
         QuickControlService.OpenWindowsSurface("ms-settings:bluetooth");
     private void FocusAssistSettingsButton_Click(object sender, RoutedEventArgs e) =>
         QuickControlService.OpenWindowsSurface("ms-settings:quiethours");
-    private void ScreenCaptureButton_Click(object sender, RoutedEventArgs e) =>
-        QuickControlService.OpenWindowsSurface("ms-screenclip:");
-
     private void ActivityMusicButton_Click(object sender, RoutedEventArgs e) => ShowPanel(MediaPanel);
     private void ActivityFocusButton_Click(object sender, RoutedEventArgs e) => ShowPanel(FocusPanel);
 
@@ -1482,15 +1749,13 @@ public partial class MainWindow : Window
         FocusProgress.Value = percent;
         ActivityFocusProgress.Value = percent;
         UpdateActivityStack();
-        FocusTimerMini.Visibility = _islandManager.State == IslandState.Collapsed && _focusRunning
-            ? Visibility.Visible : Visibility.Collapsed;
-        MinimizedHandle.Visibility = _islandManager.State == IslandState.Collapsed && !_focusRunning
-            ? Visibility.Visible : Visibility.Collapsed;
         if (_islandManager.State == IslandState.Collapsed)
         {
             var (width, height) = GetCollapsedSize();
             _windowService.ResizeAndPosition(width, height);
+            ApplyCollapsedAppearance(IslandState.Collapsed);
         }
+        UpdateCompactStatus();
     }
 
     private static string FormatFocusTime(TimeSpan value) =>
@@ -1504,6 +1769,25 @@ public partial class MainWindow : Window
 
     private void ShowNotification(NotificationPreview notification)
     {
+        var rule = _configuration.NotificationRules.FirstOrDefault(item =>
+            !string.IsNullOrWhiteSpace(item.Match) &&
+            (notification.AppName.Contains(item.Match, StringComparison.OrdinalIgnoreCase) ||
+             notification.Title.Contains(item.Match, StringComparison.OrdinalIgnoreCase)));
+        var behavior = rule?.Behavior ?? _configuration.NotificationBehavior;
+        if (behavior == NotificationBehavior.Silent) return;
+        _activeNotificationCompact = behavior == NotificationBehavior.Compact;
+
+        if (rule is not null && TryParseSurfaceColor(rule.AccentColor, out var ruleColor))
+        {
+            var brush = new SolidColorBrush(ruleColor);
+            NotificationAppText.Foreground = brush;
+            NotificationFallbackIcon.Fill = brush;
+        }
+        else
+        {
+            NotificationAppText.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+            NotificationFallbackIcon.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "AccentBrush");
+        }
         var appIcon = CreateImage(notification.AppIcon);
         NotificationAppIcon.Source = appIcon;
         NotificationAppIcon.Visibility = appIcon is null ? Visibility.Collapsed : Visibility.Visible;
@@ -1512,7 +1796,7 @@ public partial class MainWindow : Window
             ? "WINDOWS ALERT" : notification.AppName.ToUpperInvariant();
         NotificationTitleText.Text = notification.Title;
         NotificationBodyText.Text = notification.Body;
-        NotificationBodyText.Visibility = string.IsNullOrWhiteSpace(notification.Body)
+        NotificationBodyText.Visibility = _activeNotificationCompact || string.IsNullOrWhiteSpace(notification.Body)
             ? Visibility.Collapsed : Visibility.Visible;
         ExpandedNotificationHint.Text = notification.AppName;
         ExpandedNotificationHint.Visibility = _islandManager.State is IslandState.Expanded or IslandState.Interaction
@@ -1546,18 +1830,6 @@ public partial class MainWindow : Window
 
     private async void EnableNotificationsButton_Click(object sender, RoutedEventArgs e) =>
         await EnableNotificationsAsync();
-
-    private async Task TestNotificationAsync()
-    {
-        _suppressHoverUntilPointerLeaves = true;
-        _islandManager.TransitionTo(IslandState.Collapsed);
-        await Task.Delay(250);
-        ShowNotification(new NotificationPreview("Dynamic Island", "Notch animation is ready",
-            "New alerts will drop down here."));
-    }
-
-    private async void TestNotificationButton_Click(object sender, RoutedEventArgs e) =>
-        await TestNotificationAsync();
 
     private void ApplyMediaSnapshot(MediaSnapshot snapshot)
     {
@@ -1597,7 +1869,10 @@ public partial class MainWindow : Window
         ApplyMediaAtmosphere();
         ApplyLogoStyle();
         UpdateActivityStack();
-        if (newTrack && _islandManager.State == IslandState.Collapsed && !_isDragging)
+        UpdateCompactStatus();
+        var hoverMode = ResolveContentMode(_configuration.HoverContent, forCompact: false);
+        if (newTrack && hoverMode == IslandContentMode.Media &&
+            _islandManager.State == IslandState.Collapsed && !_isDragging)
         {
             _islandManager.TransitionTo(IslandState.Preview);
             _ambientTimer.Stop();
@@ -2662,7 +2937,18 @@ public partial class MainWindow : Window
             return;
         }
 
-        _configuration.Theme = (IslandTheme)ThemeComboBox.SelectedIndex;
+        var nextTheme = (IslandTheme)ThemeComboBox.SelectedIndex;
+        if (nextTheme != _configuration.Theme)
+        {
+            if (nextTheme == IslandTheme.Light &&
+                string.Equals(_configuration.BackgroundColor, "#FF111113", StringComparison.OrdinalIgnoreCase))
+                _configuration.BackgroundColor = "#FFE9EEF3";
+            else if (nextTheme == IslandTheme.Dark &&
+                     string.Equals(_configuration.BackgroundColor, "#FFE9EEF3", StringComparison.OrdinalIgnoreCase))
+                _configuration.BackgroundColor = "#FF111113";
+            BackgroundColorTextBox.Text = _configuration.BackgroundColor;
+        }
+        _configuration.Theme = nextTheme;
         ApplyTheme();
         QueueSettingsSave();
     }
@@ -2671,16 +2957,17 @@ public partial class MainWindow : Window
     {
         if (_configuration.Theme == IslandTheme.Light)
         {
-            SetThemeBrush("PrimaryTextBrush", Color.FromRgb(24, 24, 27));
-            SetThemeBrush("SecondaryTextBrush", Color.FromRgb(95, 95, 103));
-            SetThemeBrush("ControlSurfaceBrush", Color.FromArgb(204, 226, 226, 231));
-            SetThemeBrush("PanelSurfaceBrush", Color.FromArgb(220, 240, 240, 243));
-            SetThemeBrush("InputSurfaceBrush", Color.FromArgb(235, 255, 255, 255));
-            SetThemeBrush("SubtleSurfaceBrush", Color.FromArgb(230, 225, 225, 230));
-            SetThemeBrush("DropSurfaceBrush", Color.FromArgb(180, 231, 231, 235));
-            SetThemeBrush("DividerBrush", Color.FromArgb(190, 142, 142, 147));
-            SetThemeBrush("HostSurfaceBrush", Color.FromRgb(247, 247, 249));
-            SetThemeBrush("PrimaryActionBrush", Color.FromRgb(24, 24, 27));
+            SetThemeBrush("PrimaryTextBrush", Color.FromRgb(22, 31, 41));
+            SetThemeBrush("SecondaryTextBrush", Color.FromRgb(83, 96, 110));
+            SetThemeBrush("ControlSurfaceBrush", Color.FromArgb(242, 225, 233, 241));
+            SetThemeBrush("PanelSurfaceBrush", Color.FromArgb(238, 246, 249, 252));
+            SetThemeBrush("InputSurfaceBrush", Color.FromArgb(248, 234, 240, 246));
+            SetThemeBrush("SubtleSurfaceBrush", Color.FromArgb(242, 218, 227, 236));
+            SetThemeBrush("DropSurfaceBrush", Color.FromArgb(214, 223, 232, 241));
+            SetThemeBrush("DividerBrush", Color.FromArgb(150, 158, 174, 190));
+            SetThemeBrush("HostSurfaceBrush", Color.FromRgb(238, 243, 248));
+            SetThemeBrush("SidebarSurfaceBrush", Color.FromArgb(232, 226, 233, 240));
+            SetThemeBrush("PrimaryActionBrush", Color.FromRgb(25, 35, 46));
             SetThemeBrush("PrimaryActionTextBrush", Colors.White);
         }
         else
@@ -2694,6 +2981,7 @@ public partial class MainWindow : Window
             SetThemeBrush("DropSurfaceBrush", Color.FromArgb(64, 47, 47, 53));
             SetThemeBrush("DividerBrush", Color.FromArgb(102, 91, 91, 99));
             SetThemeBrush("HostSurfaceBrush", Color.FromRgb(9, 9, 11));
+            SetThemeBrush("SidebarSurfaceBrush", Color.FromArgb(217, 11, 12, 16));
             SetThemeBrush("PrimaryActionBrush", Color.FromRgb(244, 244, 245));
             SetThemeBrush("PrimaryActionTextBrush", Color.FromRgb(17, 17, 19));
         }
@@ -3024,7 +3312,17 @@ public partial class MainWindow : Window
         UseAlbumArtBackdrop = _configuration.UseAlbumArtBackdrop,
         UseMediaArtworkColors = _configuration.UseMediaArtworkColors,
         UseAudioReactiveEffects = _configuration.UseAudioReactiveEffects,
-        MinimizedAppearance = (int)_configuration.MinimizedAppearance
+        MinimizedAppearance = (int)_configuration.MinimizedAppearance,
+        CompactContent = (int)_configuration.CompactContent,
+        HoverContent = (int)_configuration.HoverContent,
+        ExpandedPanel = (int)_configuration.ExpandedPanel,
+        NotificationBehavior = (int)_configuration.NotificationBehavior,
+        NotificationRules = _configuration.NotificationRules.Select(rule => new NotificationRule
+        {
+            Match = rule.Match,
+            Behavior = rule.Behavior,
+            AccentColor = rule.AccentColor
+        }).ToList()
     };
 
     private async Task ApplyCompanionSettingsAsync(IslandSettingsSnapshot settings)
@@ -3036,6 +3334,10 @@ public partial class MainWindow : Window
             !Enum.IsDefined(typeof(IslandGradientDirection), settings.GradientDirection) ||
             !Enum.IsDefined(typeof(IslandLogoStyle), settings.LogoStyle) ||
             !Enum.IsDefined(typeof(MinimizedAppearance), settings.MinimizedAppearance) ||
+            !Enum.IsDefined(typeof(IslandContentMode), settings.CompactContent) ||
+            !Enum.IsDefined(typeof(IslandContentMode), settings.HoverContent) ||
+            !Enum.IsDefined(typeof(ExpandedPanelMode), settings.ExpandedPanel) ||
+            !Enum.IsDefined(typeof(NotificationBehavior), settings.NotificationBehavior) ||
             !TryParseSurfaceColor(settings.AccentColor, out _) ||
             !TryParseSurfaceColor(settings.BackgroundColor, out _) ||
             !TryParseSurfaceColor(settings.GradientStartColor, out _) ||
@@ -3072,6 +3374,18 @@ public partial class MainWindow : Window
             _configuration.UseMediaArtworkColors = settings.UseMediaArtworkColors;
             _configuration.UseAudioReactiveEffects = settings.UseAudioReactiveEffects;
             _configuration.MinimizedAppearance = (MinimizedAppearance)settings.MinimizedAppearance;
+            _configuration.CompactContent = (IslandContentMode)settings.CompactContent;
+            _configuration.HoverContent = (IslandContentMode)settings.HoverContent;
+            _configuration.ExpandedPanel = (ExpandedPanelMode)settings.ExpandedPanel;
+            _configuration.NotificationBehavior = (NotificationBehavior)settings.NotificationBehavior;
+            _configuration.NotificationRules = (settings.NotificationRules ?? [])
+                .Where(rule => !string.IsNullOrWhiteSpace(rule.Match) && Enum.IsDefined(rule.Behavior))
+                .Select(rule => new NotificationRule
+                {
+                    Match = rule.Match.Trim(),
+                    Behavior = rule.Behavior,
+                    AccentColor = TryParseSurfaceColor(rule.AccentColor, out _) ? rule.AccentColor : string.Empty
+                }).Take(30).ToList();
 
             OpacitySlider.Value = _configuration.SurfaceOpacity * 100;
             EdgeComboBox.SelectedIndex = settings.Edge;
@@ -3095,6 +3409,7 @@ public partial class MainWindow : Window
             ApplyLogoStyle();
             ApplyWindowPlacement();
             ApplyCollapsedAppearance(_islandManager.State);
+            UpdateCompactStatus();
             UpdateLiquidBorder(_islandManager.State);
             if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
             {
@@ -3131,6 +3446,7 @@ public partial class MainWindow : Window
         _audioLevelService.Dispose();
         _weatherService.Dispose();
         _notificationService.Dispose();
+        _ = _webcamPreviewService.DisposeAsync();
         _ = _settingsBridge.DisposeAsync();
     }
 }

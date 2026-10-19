@@ -8,31 +8,50 @@ type Settings = {
   gradientEndColor: string; gradientDirection: number; logoStyle: number;
   useAlbumArtBackdrop: boolean; useMediaArtworkColors: boolean; useAudioReactiveEffects: boolean;
   minimizedAppearance: number;
+  compactContent: number; hoverContent: number; expandedPanel: number;
   tempVaultRoot: string; tempVaultAutoCopy: boolean; tempVaultConnected: boolean;
   panelWidth: number; panelHeight: number; appPanelWidth: number; appPanelHeight: number;
   notificationsSupported: boolean;
   notificationsEnabled: boolean; notificationStatus: string; hasCustomMiniLogo: boolean;
+  notificationBehavior: number;
+  notificationRules: {match: string; behavior: number; accentColor: string}[];
 };
-type Section = 'Position' | 'Appearance' | 'Storage';
+type Section = 'Position' | 'Notch' | 'Appearance' | 'Alerts' | 'Storage';
 const endpoint = 'http://127.0.0.1:38691/api/settings';
 const headers = {'X-DynamicIsland-Settings': '1', 'Content-Type': 'application/json'};
 const defaultAccent = '#B68CFF';
 const sectionMeta: Record<Section, {glyph: string; summary: string}> = {
   Position: {glyph: '⌖', summary: 'Placement and workspace dimensions'},
+  Notch: {glyph: '▰', summary: 'Compact, hover and expanded content'},
   Appearance: {glyph: '◐', summary: 'Color, material and identity'},
+  Alerts: {glyph: '◌', summary: 'Per-app and per-person notification rules'},
   Storage: {glyph: '▣', summary: 'Persistent files and TempVault'},
 };
 
+const darkUi = {shell: '#090A0E', sidebar: 'rgba(6, 7, 10, 0.94)', border: '#252731',
+  card: 'rgba(20, 21, 27, 0.96)', cardBorder: '#2B2E38', control: '#0B0A0D',
+  input: '#0B0A0D', primary: '#F1F4F2', secondary: '#909B9E', muted: '#70777F',
+  nav: '#BAC0C4', track: '#39333F', step: '#27232D', thumbBorder: '#0B0B0E'};
+const lightUi = {shell: '#E8EEF4', sidebar: 'rgba(241, 245, 249, 0.98)', border: '#C7D2DE',
+  card: 'rgba(250, 252, 254, 0.98)', cardBorder: '#C5D0DC', control: '#E2EAF2',
+  input: '#EDF2F7', primary: '#17212B', secondary: '#536170', muted: '#718091',
+  nav: '#344251', track: '#CBD6E1', step: '#DCE5EE', thumbBorder: '#F7FAFC'};
+const ThemeContext = React.createContext(darkUi);
+
 class ScreenBoundary extends React.Component<{section: Section; children: React.ReactNode}, {failed: boolean}> {
+  static contextType = ThemeContext;
+  context: React.ContextType<typeof ThemeContext> = darkUi;
   state = {failed: false};
   static getDerivedStateFromError() { return {failed: true}; }
   componentDidUpdate(previous: Readonly<{section: Section}>) {
     if (previous.section !== this.props.section && this.state.failed) this.setState({failed: false});
   }
   render() {
+    const ui = this.context;
     return this.state.failed
-      ? <View style={s.card}><Text style={s.cardTitle}>This screen could not render</Text>
-          <Text style={s.hint}>Your saved settings are safe. Switch sections or restart Control Center.</Text></View>
+      ? <View style={[s.card, {backgroundColor: ui.card, borderColor: ui.cardBorder}]}>
+          <Text style={[s.cardTitle, {color: ui.primary}]}>This screen could not render</Text>
+          <Text style={[s.hint, {color: ui.secondary}]}>Your saved settings are safe. Switch sections or restart Control Center.</Text></View>
       : this.props.children;
   }
 }
@@ -50,17 +69,33 @@ function tint(hex: string, opacity: number) {
 }
 
 function Segments({options, value, onChange, accent}: {options: string[]; value: number; onChange: (v: number) => void; accent: string}) {
-  return <View style={s.segments}>{options.map((option, i) =>
+  const ui = React.useContext(ThemeContext);
+  return <View style={[s.segments, {backgroundColor: ui.control, borderColor: ui.cardBorder}]}>{options.map((option, i) =>
     <Pressable key={option} accessibilityRole="button" accessibilityState={{selected: value === i}}
       onPress={() => onChange(i)} style={[s.segment, value === i && {backgroundColor: tint(accent, 0.2)}]}>
-      <Text style={[s.segmentText, value === i && {color: accent}]}>{option}</Text>
+      <Text style={[s.segmentText, {color: ui.secondary}, value === i && {color: accent}]}>{option}</Text>
+    </Pressable>)}</View>;
+}
+
+function ChoiceGrid({options, value, onChange, accent}: {
+  options: string[]; value: number; onChange: (v: number) => void; accent: string;
+}) {
+  const ui = React.useContext(ThemeContext);
+  return <View style={s.choiceGrid}>{options.map((option, index) =>
+    <Pressable key={option} onPress={() => onChange(index)} accessibilityRole="button"
+      accessibilityState={{selected: value === index}}
+      style={[s.choice, {backgroundColor: ui.control, borderColor: ui.cardBorder},
+        value === index && {backgroundColor: tint(accent, 0.16), borderColor: accent}]}>
+      <Text style={[s.choiceText, {color: value === index ? accent : ui.primary}]}>{option}</Text>
     </Pressable>)}</View>;
 }
 
 function Field({label, value, onChange}: {label: string; value: string; onChange: (v: string) => void}) {
-  return <View style={s.field}><Text style={s.label}>{label}</Text>
+  const ui = React.useContext(ThemeContext);
+  return <View style={s.field}><Text style={[s.label, {color: ui.primary}]}>{label}</Text>
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange}
-      autoCapitalize="none" autoCorrect={false} selectionColor="#65D7B5" style={s.input}/>
+      autoCapitalize="none" autoCorrect={false} selectionColor="#65D7B5"
+      style={[s.input, {backgroundColor: ui.input, borderColor: ui.cardBorder, color: ui.primary}]}/>
   </View>;
 }
 
@@ -74,13 +109,15 @@ function argbColor(value: string) {
 function ColorField({label, value, accent, onChange}: {
   label: string; value: string; accent: string; onChange: (v: string) => void;
 }) {
+  const ui = React.useContext(ThemeContext);
   const selected = accentColor(value);
   return <View style={s.colorField}>
-    <View style={s.between}><Text style={s.label}>{label}</Text>
+    <View style={s.between}><Text style={[s.label, {color: ui.primary}]}>{label}</Text>
       <View style={[s.colorPreview, {backgroundColor: selected, shadowColor: selected}]} /></View>
     <View style={s.colorRow}>
       <TextInput accessibilityLabel={label} value={value} onChangeText={onChange}
-        autoCapitalize="characters" autoCorrect={false} selectionColor={accent} style={[s.input, s.colorInput]}/>
+        autoCapitalize="characters" autoCorrect={false} selectionColor={accent}
+        style={[s.input, s.colorInput, {backgroundColor: ui.input, borderColor: ui.cardBorder, color: ui.primary}]}/>
       <View style={s.palette}>{colorPresets.map(color =>
         <Pressable key={color} accessibilityRole="button" accessibilityLabel={`${label} ${color}`}
           accessibilityState={{selected: selected.toUpperCase() === color}}
@@ -94,9 +131,10 @@ function ColorField({label, value, accent, onChange}: {
 function ToggleRow({label, hint, value, accent, onChange}: {
   label: string; hint: string; value: boolean; accent: string; onChange: (v: boolean) => void;
 }) {
-  return <View style={s.toggleRow}><View style={s.toggleCopy}>
-    <Text style={s.toggleLabel}>{label}</Text><Text style={s.toggleHint}>{hint}</Text>
-  </View><Switch value={value} trackColor={{false: '#3A3D42', true: accent}}
+  const ui = React.useContext(ThemeContext);
+  return <View style={[s.toggleRow, {borderTopColor: ui.cardBorder}]}><View style={s.toggleCopy}>
+    <Text style={[s.toggleLabel, {color: ui.primary}]}>{label}</Text><Text style={[s.toggleHint, {color: ui.secondary}]}>{hint}</Text>
+  </View><Switch value={value} trackColor={{false: ui.track, true: accent}}
       thumbColor="#F7F8F8" onValueChange={onChange}/></View>;
 }
 
@@ -104,6 +142,7 @@ function RangeSlider({label, value, min, max, step, buttonStep, unit, accent, on
   label: string; value: number; min: number; max: number; step: number;
   buttonStep: number; unit: string; accent: string; onChange: (value: number) => void;
 }) {
+  const ui = React.useContext(ThemeContext);
   const [trackWidth, setTrackWidth] = useState(1);
   const percentage = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
   const clamp = (next: number) => Math.max(min, Math.min(max, min + Math.round((next - min) / step) * step));
@@ -112,13 +151,13 @@ function RangeSlider({label, value, min, max, step, buttonStep, unit, accent, on
     onChange(clamp(min + (Math.max(0, Math.min(trackWidth, locationX)) / trackWidth) * (max - min)));
   };
   return <View style={s.rangeGroup}>
-    <View style={s.between}><Text style={s.label}>{label}</Text>
+    <View style={s.between}><Text style={[s.label, {color: ui.primary}]}>{label}</Text>
       <Text style={[s.rangeValue, {color: accent}]}>{unit === '%' ? Math.round(value * 100) : value}{unit}</Text>
     </View>
     <View style={s.rangeRow}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label}`}
-        onPress={() => onChange(clamp(value - buttonStep))} style={s.step}>
-        <Text style={s.stepText}>−</Text></Pressable>
+        onPress={() => onChange(clamp(value - buttonStep))} style={[s.step, {backgroundColor: ui.step}]}>
+        <Text style={[s.stepText, {color: ui.primary}]}>−</Text></Pressable>
       <View style={s.sliderHitArea}
         onLayout={event => setTrackWidth(Math.max(1, event.nativeEvent.layout.width))}
         onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true}
@@ -130,14 +169,14 @@ function RangeSlider({label, value, min, max, step, buttonStep, unit, accent, on
           max: Math.round(max * accessibilityScale), now: Math.round(value * accessibilityScale)}}
         accessibilityActions={[{name: 'increment'}, {name: 'decrement'}]}
         onAccessibilityAction={event => onChange(clamp(value + (event.nativeEvent.actionName === 'increment' ? buttonStep : -buttonStep)))}>
-        <View pointerEvents="none" style={s.track}>
+        <View pointerEvents="none" style={[s.track, {backgroundColor: ui.track}]}>
           <View style={[s.fill, {width: `${percentage}%`, backgroundColor: accent}]} />
         </View>
-        <View pointerEvents="none" style={[s.thumb, {left: `${percentage}%`, backgroundColor: accent, shadowColor: accent}]} />
+        <View pointerEvents="none" style={[s.thumb, {left: `${percentage}%`, backgroundColor: accent, shadowColor: accent, borderColor: ui.thumbBorder}]} />
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label}`}
-        onPress={() => onChange(clamp(value + buttonStep))} style={s.step}>
-        <Text style={s.stepText}>+</Text></Pressable>
+        onPress={() => onChange(clamp(value + buttonStep))} style={[s.step, {backgroundColor: ui.step}]}>
+        <Text style={[s.stepText, {color: ui.primary}]}>+</Text></Pressable>
     </View>
   </View>;
 }
@@ -149,6 +188,10 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [hoveredSection, setHoveredSection] = useState<Section | null>(null);
   const accent = accentColor(settings?.accentColor);
+  const ui = settings?.theme === 1 ? lightUi : darkUi;
+  const themedCard = [s.card, {backgroundColor: ui.card, borderColor: ui.cardBorder}];
+  const themedTitle = [s.cardTitle, {color: ui.primary}];
+  const themedHint = [s.hint, {color: ui.secondary}];
   const load = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch(endpoint, {headers});
@@ -161,7 +204,12 @@ function App() {
         useAlbumArtBackdrop: incoming.useAlbumArtBackdrop ?? true,
         useMediaArtworkColors: incoming.useMediaArtworkColors ?? true,
         useAudioReactiveEffects: incoming.useAudioReactiveEffects ?? true,
-        minimizedAppearance: incoming.minimizedAppearance ?? 0});
+        minimizedAppearance: incoming.minimizedAppearance ?? 0,
+        compactContent: incoming.compactContent ?? 0,
+        hoverContent: incoming.hoverContent ?? 0,
+        expandedPanel: incoming.expandedPanel ?? 0,
+        notificationBehavior: incoming.notificationBehavior ?? 0,
+        notificationRules: incoming.notificationRules ?? []});
       setStatus('Connected · changes update the running island');
       return true;
     } catch {
@@ -202,70 +250,69 @@ function App() {
     try {
       const response = await fetch(`http://127.0.0.1:38691${path}`, {method: 'POST', headers});
       if (!response.ok) throw new Error(await response.text());
-      if (path !== '/api/notifications/test') {
-        const updated = await response.json() as Settings;
-        setSettings(previous => previous ? {...previous,
-          hasCustomMiniLogo: updated.hasCustomMiniLogo,
-          notificationsEnabled: updated.notificationsEnabled,
-          notificationStatus: updated.notificationStatus} : updated);
-      }
+      const updated = await response.json() as Settings;
+      setSettings(previous => previous ? {...previous,
+        hasCustomMiniLogo: updated.hasCustomMiniLogo,
+        notificationsEnabled: updated.notificationsEnabled,
+        notificationStatus: updated.notificationStatus} : updated);
       setStatus(path === '/api/logo/editor' ? 'Picture editor closed · settings updated' : 'Command completed');
     } catch (error) { setStatus(`Could not complete action: ${String(error)}`); }
   }
   const meta = sectionMeta[section];
-  return <View style={s.shell}>
+  return <ThemeContext.Provider value={ui}><View style={[s.shell, {backgroundColor: ui.shell}]}>
     <View pointerEvents="none" style={[s.ambientOrb, s.ambientOrbTop, {backgroundColor: tint(accent, 0.13)}]} />
     <View pointerEvents="none" style={[s.ambientOrb, s.ambientOrbBottom, {backgroundColor: tint(accent, 0.07)}]} />
-    <View style={s.sidebar}>
+    <View style={[s.sidebar, {backgroundColor: ui.sidebar, borderRightColor: ui.border}]}>
       <View style={s.brandRow}>
         <View style={[s.mark, {backgroundColor: accent, shadowColor: accent}]}><Text style={s.markText}>DI</Text></View>
-        <View><Text style={s.brand}>Island</Text><Text style={s.brandSub}>CONTROL CENTER</Text></View>
+        <View><Text style={[s.brand, {color: ui.primary}]}>Island</Text><Text style={[s.brandSub, {color: ui.muted}]}>CONTROL CENTER</Text></View>
       </View>
-      <View style={s.nav}>{(['Position', 'Appearance', 'Storage'] as Section[]).map(item =>
+      <View style={s.nav}>{(['Position', 'Notch', 'Appearance', 'Alerts', 'Storage'] as Section[]).map(item =>
         <Pressable key={item} onPress={() => setSection(item)}
           onHoverIn={() => setHoveredSection(item)} onHoverOut={() => setHoveredSection(null)}
           accessibilityRole="button" accessibilityState={{selected: section === item}}
           style={[s.navItem, hoveredSection === item && {backgroundColor: tint(accent, 0.11)},
             section === item && {backgroundColor: tint(accent, 0.19)}]}>
-          <View style={[s.navGlyph, section === item && {backgroundColor: tint(accent, 0.22)}]}>
-            <Text style={[s.navGlyphText, (section === item || hoveredSection === item) && {color: accent}]}>{sectionMeta[item].glyph}</Text>
+          <View style={[s.navGlyph, {backgroundColor: ui.control}, section === item && {backgroundColor: tint(accent, 0.22)}]}>
+            <Text style={[s.navGlyphText, {color: ui.muted}, (section === item || hoveredSection === item) && {color: accent}]}>{sectionMeta[item].glyph}</Text>
           </View>
-          <View style={s.navCopy}><Text style={[s.navText, (section === item || hoveredSection === item) && {color: accent}]}>{item}</Text>
-            <Text style={s.navHint}>{sectionMeta[item].summary}</Text></View>
+          <View style={s.navCopy}><Text style={[s.navText, {color: ui.nav}, (section === item || hoveredSection === item) && {color: accent}]}>{item}</Text>
+            <Text style={[s.navHint, {color: ui.muted}]}>{sectionMeta[item].summary}</Text></View>
         </Pressable>)}</View>
       <View style={s.sidebarStatus}><View style={[s.statusDot, {backgroundColor: settings ? accent : '#686970'}]} />
-        <Text style={s.sidebarStatusText}>{settings ? 'ISLAND CONNECTED' : 'CONNECTING'}</Text></View>
+        <Text style={[s.sidebarStatusText, {color: ui.muted}]}>{settings ? 'ISLAND CONNECTED' : 'CONNECTING'}</Text></View>
     </View>
     <View style={s.content}>
       <View style={s.topbar}><View><Text style={[s.eyebrow, {color: accent}]}>DYNAMIC ISLAND / CONFIGURATION</Text>
-        <Text style={s.title}>{section}</Text><Text style={s.titleSub}>{meta.summary}</Text></View>
+        <Text style={[s.title, {color: ui.primary}]}>{section}</Text><Text style={[s.titleSub, {color: ui.secondary}]}>{meta.summary}</Text></View>
         <Pressable onPress={save} disabled={!settings || saving}
           style={[s.save, {backgroundColor: accent, shadowColor: accent}, (!settings || saving) && s.disabled]}>
           <Text style={s.saveText}>{saving ? 'Saving…' : 'Save changes'}</Text>
         </Pressable></View>
-      <View style={s.connectionBar}><View style={[s.connectionDot, {backgroundColor: settings ? accent : '#7D7E86'}]} />
-        <Text style={s.status}>{status}</Text></View>
+      <View style={[s.connectionBar, {backgroundColor: ui.control, borderColor: ui.border}]}><View style={[s.connectionDot, {backgroundColor: settings ? accent : '#7D7E86'}]} />
+        <Text style={[s.status, {color: ui.secondary}]}>{status}</Text></View>
       {!settings ? <View style={s.empty}><ActivityIndicator color={accent}/>
         <Pressable onPress={load} style={s.reconnect}>
           <Text style={[s.link, {color: accent}]}>Reconnect</Text></Pressable></View>
       : <ScrollView style={s.scroll} contentContainerStyle={s.scrollInner}>
         <ScreenBoundary section={section}>
-        <View style={[s.sectionHero, {borderColor: tint(accent, 0.28)}]}>
+        <View style={[s.sectionHero, {backgroundColor: ui.card, borderColor: tint(accent, 0.28)}]}>
           <View style={[s.heroGlyph, {backgroundColor: tint(accent, 0.16)}]}><Text style={[s.heroGlyphText, {color: accent}]}>{meta.glyph}</Text></View>
-          <View style={s.flex}><Text style={s.heroTitle}>{section}</Text><Text style={s.heroText}>{meta.summary}</Text></View>
-          <View style={s.heroPips}><View style={[s.heroPip, {backgroundColor: accent}]} /><View style={s.heroPip} /><View style={s.heroPip} /></View>
+          <View style={s.flex}><Text style={[s.heroTitle, {color: ui.primary}]}>{section}</Text><Text style={[s.heroText, {color: ui.secondary}]}>{meta.summary}</Text></View>
+          <View style={s.heroPips}><View style={[s.heroPip, {backgroundColor: accent}]} />
+            <View style={[s.heroPip, {backgroundColor: ui.border}]} /><View style={[s.heroPip, {backgroundColor: ui.border}]} /></View>
         </View>
         {section === 'Position' && <>
-          <Text style={s.lead}>Keep the notch exactly where it belongs, then tune each workspace independently.</Text>
-          <View style={s.card}><Text style={s.cardTitle}>Screen edge</Text>
-            <Text style={s.hint}>Attach to the top, left, or right edge.</Text>
+          <Text style={[s.lead, {color: ui.secondary}]}>Keep the notch exactly where it belongs, then tune each workspace independently.</Text>
+          <View style={themedCard}><Text style={themedTitle}>Screen edge</Text>
+            <Text style={themedHint}>Attach to the top, left, or right edge.</Text>
             <Segments options={['Top', 'Left', 'Right']} value={settings.edge} accent={accent}
               onChange={v => change('edge', v)}/></View>
-          <View style={s.card}><Text style={s.cardTitle}>Alignment</Text>
+          <View style={themedCard}><Text style={themedTitle}>Alignment</Text>
             <Segments options={['Start', 'Center', 'End']} value={settings.alignment} accent={accent}
               onChange={v => change('alignment', v)}/></View>
-          <View style={s.card}><Text style={s.cardTitle}>Fine adjustment</Text>
-            <Text style={s.hint}>Drag a slider, or use the buttons for 10-pixel steps.</Text>
+          <View style={themedCard}><Text style={themedTitle}>Fine adjustment</Text>
+            <Text style={themedHint}>Drag a slider, or use the buttons for 10-pixel steps.</Text>
             <RangeSlider label="Horizontal" value={settings.horizontalOffset} min={-500} max={500}
               step={1} buttonStep={10} unit=" px" accent={accent}
               onChange={v => change('horizontalOffset', v)}/>
@@ -278,11 +325,11 @@ function App() {
             }} style={s.textButton}>
               <Text style={[s.link, {color: accent}]}>Reset to top center</Text></Pressable></View>
           <View style={s.cardGrid}>
-            <View style={[s.card, s.gridCard]}><View style={s.cardHeadingRow}>
+            <View style={[s.card, s.gridCard, {backgroundColor: ui.card, borderColor: ui.cardBorder}]}><View style={s.cardHeadingRow}>
               <View style={[s.cardIcon, {backgroundColor: tint(accent, 0.14)}]}><Text style={[s.cardIconText, {color: accent}]}>▭</Text></View>
-              <View><Text style={s.cardTitle}>Dashboard size</Text><Text style={s.cardKicker}>MEDIA · FILES · SETTINGS</Text></View>
+              <View><Text style={themedTitle}>Dashboard size</Text><Text style={[s.cardKicker, {color: ui.muted}]}>MEDIA · FILES · SETTINGS</Text></View>
             </View>
-              <Text style={s.hint}>The compact size shared by every regular panel.</Text>
+              <Text style={themedHint}>The compact size shared by every regular panel.</Text>
               <RangeSlider label="Width" value={settings.panelWidth} min={540} max={760}
                 step={1} buttonStep={10} unit=" px" accent={accent}
                 onChange={v => change('panelWidth', v)}/>
@@ -292,11 +339,11 @@ function App() {
               <Pressable onPress={() => {change('panelWidth', 650); change('panelHeight', 400);}}
                 style={s.textButton}><Text style={[s.link, {color: accent}]}>Reset dashboard</Text></Pressable>
             </View>
-            <View style={[s.card, s.gridCard, {borderColor: tint(accent, 0.32)}]}><View style={s.cardHeadingRow}>
+            <View style={[s.card, s.gridCard, {backgroundColor: ui.card, borderColor: tint(accent, 0.32)}]}><View style={s.cardHeadingRow}>
               <View style={[s.cardIcon, {backgroundColor: tint(accent, 0.18)}]}><Text style={[s.cardIconText, {color: accent}]}>□</Text></View>
-              <View><Text style={s.cardTitle}>Apps workspace</Text><Text style={[s.cardKicker, {color: accent}]}>RESIZABLE IN THE ISLAND</Text></View>
+              <View><Text style={themedTitle}>Apps workspace</Text><Text style={[s.cardKicker, {color: accent}]}>RESIZABLE IN THE ISLAND</Text></View>
             </View>
-              <Text style={s.hint}>Drag its lower-right grip, or set an exact size here.</Text>
+              <Text style={themedHint}>Drag its lower-right grip, or set an exact size here.</Text>
               <RangeSlider label="Width" value={settings.appPanelWidth} min={720} max={1280}
                 step={1} buttonStep={20} unit=" px" accent={accent}
                 onChange={v => change('appPanelWidth', v)}/>
@@ -308,16 +355,36 @@ function App() {
             </View>
           </View>
         </>}
+        {section === 'Notch' && <>
+          <Text style={[s.lead, {color: ui.secondary}]}>Choose exactly what the island shows at each stage.</Text>
+          <View style={themedCard}><Text style={themedTitle}>Minimized notch</Text>
+            <Text style={themedHint}>Smart prioritizes an active focus timer, then media, then the activity summary.</Text>
+            <ChoiceGrid options={['Smart', 'Nothing', 'Music', 'Focus', 'Weather', 'System', 'Activity', 'Controls', 'Webcam']}
+              value={settings.compactContent} accent={accent} onChange={v => change('compactContent', v)}/></View>
+          <View style={themedCard}><Text style={themedTitle}>Hover phase</Text>
+            <Text style={themedHint}>Webcam opens a live camera card only while the hover preview is visible.</Text>
+            <ChoiceGrid options={['Smart', 'Nothing', 'Music', 'Focus', 'Weather', 'System', 'Activity', 'Controls', 'Webcam']}
+              value={settings.hoverContent} accent={accent} onChange={v => change('hoverContent', v)}/></View>
+          <View style={themedCard}><Text style={themedTitle}>Panel opened on click</Text>
+            <Text style={themedHint}>Remember keeps your last panel. Any other choice becomes the opening dashboard.</Text>
+            <ChoiceGrid options={['Remember', 'Music', 'Weather', 'System', 'Activity', 'Controls', 'Focus', 'Files', 'Clipboard', 'Apps']}
+              value={settings.expandedPanel} accent={accent} onChange={v => change('expandedPanel', v)}/></View>
+        </>}
         {section === 'Appearance' && <>
-          <Text style={s.lead}>A quieter surface with your colors.</Text>
-          <View style={s.card}><Text style={s.cardTitle}>Minimized style</Text>
-            <Text style={s.hint}>Use the subtle top-edge line, or keep the earlier compact notch.</Text>
+          <Text style={[s.lead, {color: ui.secondary}]}>A quieter surface with your colors.</Text>
+          <View style={themedCard}><Text style={themedTitle}>Minimized style</Text>
+            <Text style={themedHint}>Use the subtle top-edge line, or keep the earlier compact notch.</Text>
             <Segments options={['Edge line', 'Classic notch']} value={settings.minimizedAppearance} accent={accent}
               onChange={v => change('minimizedAppearance', v)}/></View>
-          <View style={s.card}><Text style={s.cardTitle}>Theme</Text>
+          <View style={themedCard}><Text style={themedTitle}>Theme</Text>
             <Segments options={['Dark', 'Light']} value={settings.theme} accent={accent}
-              onChange={v => change('theme', v)}/></View>
-          <View style={s.card}><Text style={s.cardTitle}>Surface</Text>
+              onChange={v => {
+                setSettings(previous => previous ? {...previous, theme: v,
+                  backgroundColor: v === 1 && previous.backgroundColor.toUpperCase() === '#FF111113' ? '#FFE9EEF3'
+                    : v === 0 && previous.backgroundColor.toUpperCase() === '#FFE9EEF3' ? '#FF111113' : previous.backgroundColor} : previous);
+                setStatus('Unsaved changes · Save changes to apply');
+              }}/></View>
+          <View style={themedCard}><Text style={themedTitle}>Surface</Text>
             <Segments options={['Solid', 'Gradient']} value={settings.surfaceStyle} accent={accent}
               onChange={v => change('surfaceStyle', v)}/>
             <RangeSlider label="Opacity" value={settings.surfaceOpacity} min={0.1} max={1}
@@ -336,12 +403,12 @@ function App() {
                 value={settings.gradientDirection} accent={accent}
                 onChange={v => change('gradientDirection', v)}/></>}
           </View>
-          <View style={s.card}><Text style={s.cardTitle}>Accent and mini icon</Text>
+          <View style={themedCard}><Text style={themedTitle}>Accent and mini icon</Text>
             <ColorField label="Island accent" value={settings.accentColor} accent={accent}
               onChange={v => change('accentColor', v)}/>
             <Segments options={['Letter', 'Music', 'Dot', 'Album', 'Brand']}
               value={settings.logoStyle} accent={accent} onChange={v => change('logoStyle', v)}/>
-            <Text style={s.hint}>{settings.hasCustomMiniLogo
+            <Text style={themedHint}>{settings.hasCustomMiniLogo
               ? 'Custom picture saved' : 'No custom picture selected'}</Text>
             <View style={s.actionRow}>
               <Pressable accessibilityRole="button" onPress={() => command('/api/logo/editor', 'Opening picture editor…')}
@@ -349,11 +416,11 @@ function App() {
               <Pressable accessibilityRole="button" disabled={!settings.hasCustomMiniLogo}
                 onPress={() => command('/api/logo/clear', 'Removing custom picture…')}
                 style={[s.smallAction, !settings.hasCustomMiniLogo && s.disabled]}>
-                <Text style={s.link}>Remove</Text></Pressable>
+                <Text style={[s.link, {color: ui.primary}]}>Remove</Text></Pressable>
             </View>
           </View>
-          <View style={s.card}><Text style={s.cardTitle}>Media atmosphere</Text>
-            <Text style={s.hint}>Turn each music-driven effect on or off independently.</Text>
+          <View style={themedCard}><Text style={themedTitle}>Media atmosphere</Text>
+            <Text style={themedHint}>Turn each music-driven effect on or off independently.</Text>
             <ToggleRow label="Faded cover backdrop" hint="Blend album artwork behind the media controls."
               value={settings.useAlbumArtBackdrop} accent={accent}
               onChange={v => change('useAlbumArtBackdrop', v)}/>
@@ -364,38 +431,57 @@ function App() {
               value={settings.useAudioReactiveEffects} accent={accent}
               onChange={v => change('useAudioReactiveEffects', v)}/>
           </View>
-          <View style={s.card}><Text style={s.cardTitle}>Windows notifications</Text>
-            <Text style={s.hint}>{settings.notificationStatus || 'Check the island notification settings.'}</Text>
-            <View style={s.actionRow}>
-              <Pressable accessibilityRole="button" disabled={!settings.notificationsSupported}
-                onPress={() => command('/api/notifications/enable', 'Requesting Windows notification access…')}
-                style={[s.smallAction, !settings.notificationsSupported && s.disabled]}>
-                <Text style={s.link}>Enable alerts</Text></Pressable>
-              <Pressable accessibilityRole="button" onPress={() => command('/api/notifications/test', 'Testing notch animation…')}
-                style={s.smallAction}><Text style={s.link}>Test animation</Text></Pressable>
-            </View>
+        </>}
+        {section === 'Alerts' && <>
+          <Text style={[s.lead, {color: ui.secondary}]}>Decide how alerts behave globally, then override individual apps or people.</Text>
+          <View style={themedCard}><Text style={themedTitle}>Windows notification access</Text>
+            <Text style={themedHint}>{settings.notificationStatus || 'Check the island notification settings.'}</Text>
+            <Pressable accessibilityRole="button" disabled={!settings.notificationsSupported}
+              onPress={() => command('/api/notifications/enable', 'Requesting Windows notification access…')}
+              style={[s.smallAction, {borderColor: ui.cardBorder}, !settings.notificationsSupported && s.disabled]}>
+              <Text style={[s.link, {color: ui.primary}]}>Enable alerts</Text></Pressable></View>
+          <View style={themedCard}><Text style={themedTitle}>Default alert style</Text>
+            <Segments options={['Standard', 'Compact', 'Silent']} value={settings.notificationBehavior}
+              accent={accent} onChange={v => change('notificationBehavior', v)}/></View>
+          <View style={themedCard}><View style={s.between}><View><Text style={themedTitle}>App and person rules</Text>
+            <Text style={themedHint}>Match an app name or notification title, then choose its behavior and color.</Text></View>
+            <Pressable onPress={() => change('notificationRules', [...settings.notificationRules,
+              {match: '', behavior: 0, accentColor: settings.accentColor}])}
+              style={[s.smallAction, {borderColor: accent}]}><Text style={[s.link, {color: accent}]}>Add rule</Text></Pressable></View>
+            {settings.notificationRules.map((rule, index) => <View key={index} style={[s.rule, {borderColor: ui.cardBorder}]}>
+              <Field label="App or person" value={rule.match} onChange={value => change('notificationRules',
+                settings.notificationRules.map((item, i) => i === index ? {...item, match: value} : item))}/>
+              <Segments options={['Standard', 'Compact', 'Silent']} value={rule.behavior} accent={accent}
+                onChange={value => change('notificationRules', settings.notificationRules.map((item, i) =>
+                  i === index ? {...item, behavior: value} : item))}/>
+              <ColorField label="Alert accent" value={rule.accentColor || settings.accentColor} accent={accent}
+                onChange={value => change('notificationRules', settings.notificationRules.map((item, i) =>
+                  i === index ? {...item, accentColor: value} : item))}/>
+              <Pressable onPress={() => change('notificationRules', settings.notificationRules.filter((_, i) => i !== index))}
+                style={s.textButton}><Text style={[s.link, {color: '#D65E6D'}]}>Remove rule</Text></Pressable>
+            </View>)}
           </View>
         </>}
         {section === 'Storage' && <>
-          <Text style={s.lead}>Keep docked files safe. Send copies to TempVault.</Text>
-          <View style={s.card}>
-            <View style={s.between}><View><Text style={s.cardTitle}>TempVault</Text>
-              <Text style={s.hint}>{settings.tempVaultConnected
+          <Text style={[s.lead, {color: ui.secondary}]}>Keep docked files safe. Send copies to TempVault.</Text>
+          <View style={themedCard}>
+            <View style={s.between}><View><Text style={themedTitle}>TempVault</Text>
+              <Text style={themedHint}>{settings.tempVaultConnected
                 ? 'Connected · Inbox found' : 'Not connected · choose an existing storage root'}</Text>
               </View><View style={[s.dot, settings.tempVaultConnected && {backgroundColor: accent}]}/></View>
             <Field label="Storage root (contains Inbox)" value={settings.tempVaultRoot}
               onChange={v => change('tempVaultRoot', v)}/>
             <View style={s.between}><View style={s.flex}>
-              <Text style={s.label}>Copy new dock files automatically</Text>
-              <Text style={s.hint}>Dock copies stay until you remove them.</Text></View>
-              <Switch value={settings.tempVaultAutoCopy} trackColor={{false: '#3A3D42', true: accent}}
+              <Text style={[s.label, {color: ui.primary}]}>Copy new dock files automatically</Text>
+              <Text style={themedHint}>Dock copies stay until you remove them.</Text></View>
+              <Switch value={settings.tempVaultAutoCopy} trackColor={{false: ui.track, true: accent}}
                 onValueChange={v => change('tempVaultAutoCopy', v)}/></View>
-          </View><Text style={s.footnote}>Send individual files with the TempVault button in the island’s Files panel.</Text>
+          </View><Text style={[s.footnote, {color: ui.secondary}]}>Send individual files with the TempVault button in the island’s Files panel.</Text>
         </>}
         </ScreenBoundary>
       </ScrollView>}
     </View>
-  </View>;
+  </View></ThemeContext.Provider>;
 }
 
 const s = StyleSheet.create({
@@ -462,6 +548,10 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: '#322C39', padding: 3, marginTop: 7},
   segment: {flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 7, cursor: 'pointer'},
   segmentText: {color: '#9FAAAC', fontSize: 11, fontWeight: '600'},
+  choiceGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 9},
+  choice: {width: '31%', minWidth: 118, paddingHorizontal: 11, paddingVertical: 10,
+    borderWidth: 1, borderRadius: 9, cursor: 'pointer'},
+  choiceText: {fontSize: 11, fontWeight: '700', textAlign: 'center'},
   field: {marginTop: 12, marginBottom: 4},
   input: {backgroundColor: '#0B0A0D', borderColor: '#39313F', borderWidth: 1,
     borderRadius: 8, color: '#E8EFED', paddingHorizontal: 11, paddingVertical: 8, fontSize: 12},
@@ -498,6 +588,7 @@ const s = StyleSheet.create({
   actionRow: {flexDirection: 'row', gap: 10, marginTop: 8},
   smallAction: {paddingHorizontal: 13, paddingVertical: 9, borderWidth: 1,
     borderColor: '#544B5C', borderRadius: 8, alignSelf: 'flex-start', cursor: 'pointer'},
+  rule: {borderTopWidth: 1, paddingTop: 12, marginTop: 12},
   empty: {flex: 1, justifyContent: 'center', alignItems: 'center', gap: 15},
   reconnect: {paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1,
     borderColor: '#594975', borderRadius: 8, cursor: 'pointer'},

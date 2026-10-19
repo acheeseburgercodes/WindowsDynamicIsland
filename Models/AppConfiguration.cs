@@ -50,6 +50,16 @@ public sealed class AppConfiguration
 
     public MinimizedAppearance MinimizedAppearance { get; set; } = MinimizedAppearance.EdgeLine;
 
+    public IslandContentMode CompactContent { get; set; } = IslandContentMode.Smart;
+
+    public IslandContentMode HoverContent { get; set; } = IslandContentMode.Smart;
+
+    public ExpandedPanelMode ExpandedPanel { get; set; } = ExpandedPanelMode.RememberLast;
+
+    public NotificationBehavior NotificationBehavior { get; set; } = NotificationBehavior.Standard;
+
+    public List<NotificationRule> NotificationRules { get; set; } = [];
+
     public string? MiniLogoImagePath { get; set; }
 
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";
