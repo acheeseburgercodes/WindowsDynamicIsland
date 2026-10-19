@@ -362,16 +362,21 @@
                                            Foreground="{DynamicResource AccentBrush}" />
                             </StackPanel>
                         </Grid>
-                        <Border Grid.Row="1" Margin="0,0,0,9" AllowDrop="True"
-                                Background="{DynamicResource PanelSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
-                                CornerRadius="14" DragOver="FilesDropZone_DragOver" Drop="FilesDropZone_Drop">
+                        <Button Grid.Row="1" Margin="0,0,0,9" Padding="0" AllowDrop="True"
+                                Style="{StaticResource IslandButton}"
+                                Background="{DynamicResource PanelSurfaceBrush}"
+                                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
+                                ToolTip="Choose files or drop them here"
+                                AutomationProperties.Name="Add files to the shelf"
+                                Click="AddFilesButton_Click"
+                                DragOver="FilesDropZone_DragOver" Drop="FilesDropZone_Drop">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <Path Data="{StaticResource IconFiles}" Width="17" Height="17" Stretch="Uniform"
                                       Fill="{DynamicResource AccentBrush}" Margin="0,0,9,0" />
-                                <TextBlock Text="Drop files here to keep a copy" FontSize="11"
+                                <TextBlock Text="Drop files here or click to add" FontSize="11"
                                            Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" />
                             </StackPanel>
-                        </Border>
+                        </Button>
                         <Border Grid.Row="2" Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="14" Padding="6">
                             <ListView x:Name="FileList" Background="Transparent" BorderThickness="0"
                                       ItemContainerStyle="{StaticResource FileShelfItem}"
