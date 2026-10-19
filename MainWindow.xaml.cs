@@ -98,6 +98,7 @@ public partial class MainWindow : Window
     private int _panelAnimationVersion;
     private int _appsRefreshVersion;
     private long _lastPanelWheelSwitch;
+    private Button? _activeNavigationButton;
     private UIElement? _activePanel;
     private FrameworkElement? _visibleStateContent;
     private bool _installedAppsLoaded;
@@ -1037,7 +1038,7 @@ public partial class MainWindow : Window
             outgoing.Visibility = Visibility.Collapsed;
         }
         _activePanel = panel;
-        UpdateActiveNavigation();
+        UpdateActiveNavigation(navigationDirection);
         if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
         {
             var (width, height) = GetExpandedSize();
@@ -1211,7 +1212,7 @@ public partial class MainWindow : Window
         else if (target == AppsPanel) ScheduleAppsPanelRefresh();
     }
 
-    private void UpdateActiveNavigation()
+    private void UpdateActiveNavigation(int navigationDirection = 0)
     {
         MediaNavButton.Tag = _activePanel == MediaPanel ? "Active" : null;
         WeatherNavButton.Tag = _activePanel == WeatherPanel ? "Active" : null;
@@ -1223,6 +1224,80 @@ public partial class MainWindow : Window
         ClipboardNavButton.Tag = _activePanel == ClipboardPanel ? "Active" : null;
         AppsNavButton.Tag = _activePanel == AppsPanel ? "Active" : null;
         SettingsNavButton.Tag = _activePanel == SettingsPanel ? "Active" : null;
+
+        var nextButton = _activePanel switch
+        {
+            var active when active == WeatherPanel => WeatherNavButton,
+            var active when active == HardwarePanel => HardwareNavButton,
+            var active when active == ActivityPanel => ActivityNavButton,
+            var active when active == ControlsPanel => ControlsNavButton,
+            var active when active == FocusPanel => FocusNavButton,
+            var active when active == FilesPanel => FilesNavButton,
+            var active when active == ClipboardPanel => ClipboardNavButton,
+            var active when active == AppsPanel => AppsNavButton,
+            var active when active == SettingsPanel => SettingsNavButton,
+            _ => MediaNavButton
+        };
+        var previousButton = _activeNavigationButton;
+        _activeNavigationButton = nextButton;
+        if (!IsLoaded || previousButton == nextButton) return;
+
+        AnimateNavigationIcon(previousButton, becomingActive: false, navigationDirection);
+        AnimateNavigationIcon(nextButton, becomingActive: true, navigationDirection);
+    }
+
+    private static void AnimateNavigationIcon(Button? button, bool becomingActive, int navigationDirection)
+    {
+        if (button?.Content is not FrameworkElement icon) return;
+
+        var scale = new ScaleTransform(1, 1);
+        var motion = new TranslateTransform();
+        icon.RenderTransformOrigin = new Point(0.5, 0.5);
+        icon.RenderTransform = new TransformGroup
+        {
+            Children = new TransformCollection { scale, motion }
+        };
+
+        var settle = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var scaleFrames = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        var opacityFrames = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        if (becomingActive)
+        {
+            scaleFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame(0.74, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1.13,
+                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(105)), settle));
+            scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
+                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)), settle));
+            opacityFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame(0.42, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            opacityFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
+                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(165)), settle));
+        }
+        else
+        {
+            scaleFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(0.84,
+                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(75)), settle));
+            scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
+                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(175)), settle));
+            opacityFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            opacityFrames.KeyFrames.Add(new EasingDoubleKeyFrame(0.5,
+                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(75)), settle));
+            opacityFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
+                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(175)), settle));
+        }
+
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleFrames, HandoffBehavior.SnapshotAndReplace);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleFrames, HandoffBehavior.SnapshotAndReplace);
+        icon.BeginAnimation(OpacityProperty, opacityFrames, HandoffBehavior.SnapshotAndReplace);
+
+        if (navigationDirection == 0) return;
+        var offset = becomingActive ? 5 * navigationDirection : -3 * navigationDirection;
+        motion.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(offset, 0,
+            TimeSpan.FromMilliseconds(becomingActive ? 190 : 150))
+        {
+            EasingFunction = settle,
+            FillBehavior = FillBehavior.Stop
+        }, HandoffBehavior.SnapshotAndReplace);
     }
 
     private async void WeatherRefreshButton_Click(object sender, RoutedEventArgs e) =>
