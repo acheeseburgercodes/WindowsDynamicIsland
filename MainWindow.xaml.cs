@@ -1025,6 +1025,17 @@ public partial class MainWindow : Window
 
         var outgoing = _activePanel;
         var appsTransition = panel == AppsPanel || outgoing == AppsPanel;
+        if (appsTransition && outgoing is not null && outgoing != panel)
+        {
+            // Remove the old panel before changing the HWND size. ResizeWindow
+            // can synchronously ask DWM for a frame, so doing this afterwards
+            // still allows one cached frame of the previous panel to flash.
+            outgoing.BeginAnimation(OpacityProperty, null);
+            outgoing.Opacity = 1;
+            outgoing.IsHitTestVisible = false;
+            outgoing.RenderTransform = Transform.Identity;
+            outgoing.Visibility = Visibility.Collapsed;
+        }
         _activePanel = panel;
         UpdateActiveNavigation();
         if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
@@ -1035,9 +1046,10 @@ public partial class MainWindow : Window
                 _isAnimating = true;
                 _interactiveAppPanel.Suspend();
                 _liveAppPreview.Suspend();
-                AnimateIslandResize(width, height, _islandManager.State,
-                    prelayoutTarget: outgoing == AppsPanel && panel != AppsPanel,
-                    durationOverride: appsTransition ? TimeSpan.FromMilliseconds(165) : null);
+                if (appsTransition)
+                    ApplyPanelSizeImmediately(width, height, _islandManager.State);
+                else
+                    AnimateIslandResize(width, height, _islandManager.State);
             }
         }
         var version = ++_panelAnimationVersion;
@@ -1053,7 +1065,7 @@ public partial class MainWindow : Window
         if (outgoing is not null && outgoing != panel && outgoing.Visibility == Visibility.Visible)
         {
             outgoing.IsHitTestVisible = false;
-            var fadeOutDuration = TimeSpan.FromMilliseconds(appsTransition ? 85 : 115);
+            var fadeOutDuration = TimeSpan.FromMilliseconds(115);
             var fadeOut = new DoubleAnimation(0, fadeOutDuration)
             {
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
@@ -1061,7 +1073,7 @@ public partial class MainWindow : Window
             var outgoingMotion = new TranslateTransform();
             outgoing.RenderTransform = outgoingMotion;
             outgoingMotion.BeginAnimation(TranslateTransform.XProperty,
-                new DoubleAnimation(appsTransition ? -4 : -8, fadeOutDuration)
+                new DoubleAnimation(-8, fadeOutDuration)
                 {
                     EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
                 });
@@ -1109,6 +1121,24 @@ public partial class MainWindow : Window
                 UpdateInteractivePanel();
         };
         panel.BeginAnimation(OpacityProperty, fadeIn, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private void ApplyPanelSizeImmediately(double targetWidth, double targetHeight, IslandState state)
+    {
+        ++_resizeAnimationVersion;
+        var surfaceScale = (ScaleTransform)IslandSurface.RenderTransform;
+        surfaceScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        surfaceScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        surfaceScale.ScaleX = 1;
+        surfaceScale.ScaleY = 1;
+        IslandSurface.Width = double.NaN;
+        IslandSurface.Height = double.NaN;
+        IslandSurface.HorizontalAlignment = HorizontalAlignment.Stretch;
+        IslandSurface.VerticalAlignment = VerticalAlignment.Stretch;
+        IslandSurface.CornerRadius = GetIslandCorners(state);
+        _windowService.ResizeAndPosition(targetWidth, targetHeight);
+        _windowService.RemoveNativeBorder();
+        _isAnimating = false;
     }
 
     private async void ScheduleAppsPanelRefresh()
