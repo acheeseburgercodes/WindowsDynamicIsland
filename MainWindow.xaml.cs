@@ -1009,7 +1009,7 @@ public partial class MainWindow : Window
         _ = PasteClipboardContentAsync(false);
     }
 
-    private void ShowPanel(UIElement panel)
+    private void ShowPanel(UIElement panel, int navigationDirection = 0)
     {
         if (_activePanel == panel && panel.Visibility == Visibility.Visible)
         {
@@ -1065,18 +1065,23 @@ public partial class MainWindow : Window
         if (outgoing is not null && outgoing != panel && outgoing.Visibility == Visibility.Visible)
         {
             outgoing.IsHitTestVisible = false;
-            var fadeOutDuration = TimeSpan.FromMilliseconds(115);
+            var isWheelTransition = navigationDirection != 0;
+            var fadeOutDuration = TimeSpan.FromMilliseconds(isWheelTransition ? 145 : 115);
             var fadeOut = new DoubleAnimation(0, fadeOutDuration)
             {
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
             };
             var outgoingMotion = new TranslateTransform();
             outgoing.RenderTransform = outgoingMotion;
-            outgoingMotion.BeginAnimation(TranslateTransform.XProperty,
-                new DoubleAnimation(-8, fadeOutDuration)
-                {
-                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
-                });
+            var outgoingSlide = new DoubleAnimation(
+                isWheelTransition ? -18 * navigationDirection : -8,
+                fadeOutDuration)
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+            outgoingMotion.BeginAnimation(
+                isWheelTransition ? TranslateTransform.YProperty : TranslateTransform.XProperty,
+                outgoingSlide);
             fadeOut.Completed += (_, _) =>
             {
                 if (version != _panelAnimationVersion || outgoing == _activePanel) return;
@@ -1091,17 +1096,24 @@ public partial class MainWindow : Window
         panel.IsHitTestVisible = true;
         panel.Opacity = 0;
         var slide = new TranslateTransform();
+        var isDirectionalSlide = navigationDirection != 0;
         // Scaling the Apps tree continuously re-rasterizes its native viewport
         // and pickers. The outer surface already animates the size change.
-        var scale = new ScaleTransform(appsTransition ? 1 : 0.985, appsTransition ? 1 : 0.985);
+        var scale = new ScaleTransform(appsTransition || isDirectionalSlide ? 1 : 0.985,
+            appsTransition || isDirectionalSlide ? 1 : 0.985);
         panel.RenderTransformOrigin = new Point(0.5, 0.5);
         panel.RenderTransform = new TransformGroup { Children = new TransformCollection { scale, slide } };
-        var entrance = new Duration(TimeSpan.FromMilliseconds(appsTransition ? 135 : 245));
-        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(appsTransition ? 6 : 14, 0, entrance)
+        var entrance = new Duration(TimeSpan.FromMilliseconds(
+            isDirectionalSlide ? (appsTransition ? 165 : 190) : appsTransition ? 135 : 245));
+        var incomingOffset = isDirectionalSlide ? 22 * navigationDirection : appsTransition ? 6 : 14;
+        var incomingSlide = new DoubleAnimation(incomingOffset, 0, entrance)
         {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            EasingFunction = new QuarticEase { EasingMode = EasingMode.EaseOut },
             FillBehavior = FillBehavior.Stop
-        });
+        };
+        slide.BeginAnimation(
+            isDirectionalSlide ? TranslateTransform.YProperty : TranslateTransform.XProperty,
+            incomingSlide);
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, entrance)
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
@@ -1111,9 +1123,9 @@ public partial class MainWindow : Window
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         });
         var fadeIn = new DoubleAnimation(0, 1,
-            TimeSpan.FromMilliseconds(appsTransition ? 125 : 205))
+            TimeSpan.FromMilliseconds(isDirectionalSlide ? 165 : appsTransition ? 125 : 205))
         {
-            BeginTime = TimeSpan.FromMilliseconds(appsTransition ? 0 : 20)
+            BeginTime = TimeSpan.FromMilliseconds(isDirectionalSlide || appsTransition ? 0 : 20)
         };
         fadeIn.Completed += (_, _) =>
         {
@@ -1191,7 +1203,7 @@ public partial class MainWindow : Window
         if (target == ActivityPanel) UpdateActivityStack();
         if (target == ControlsPanel) RefreshQuickControls();
         if (target == FocusPanel) UpdateFocusUi();
-        ShowPanel(target);
+        ShowPanel(target, e.Delta < 0 ? 1 : -1);
 
         if (target == WeatherPanel && !_weatherLoaded) await RefreshWeatherAsync();
         else if (target == HardwarePanel) ApplyHardwareSnapshot(_hardwareMonitor.Capture());
