@@ -65,12 +65,12 @@
             <Border x:Name="MediaColorWash" CornerRadius="0,0,15,15" Opacity="0"
                     IsHitTestVisible="False" />
             <Grid x:Name="CollapsedContent" Cursor="Hand">
-                <Border x:Name="MinimizedHandle" Width="220" Height="2" CornerRadius="1"
+                <Border x:Name="MinimizedHandle" Width="280" Height="3" CornerRadius="1.5"
                         HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,1"
-                        Background="#38101418" />
+                        Background="#70515A66" />
                 <Border x:Name="CompactStatusContent" Visibility="Collapsed" MinWidth="112" MaxWidth="230" Height="26"
                         Padding="10,0" HorizontalAlignment="Center" VerticalAlignment="Top"
-                        Background="{DynamicResource ControlSurfaceBrush}" CornerRadius="0,0,13,13">
+                        Background="#D9111217" CornerRadius="0,0,13,13">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path x:Name="CompactStatusIcon" Data="{StaticResource NavIconActivity}" Width="12" Height="12"
                               Stretch="Uniform" Fill="Transparent" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8"
@@ -111,11 +111,11 @@
                     <ColumnDefinition x:Name="PreviewControlsColumn" Width="96" />
                     <ColumnDefinition Width="0" />
                 </Grid.ColumnDefinitions>
-                <Border x:Name="PreviewLogoContainer" Width="36" Height="36" Padding="3" VerticalAlignment="Center"
-                        Background="{StaticResource SubtleSurfaceBrush}" CornerRadius="10">
+                <Border x:Name="PreviewLogoContainer" Width="30" Height="30" Padding="3" VerticalAlignment="Center"
+                        Background="#20FFFFFF" CornerRadius="9">
                     <Grid>
                         <Image x:Name="PreviewArtwork" Stretch="Uniform" />
-                        <Path x:Name="PreviewLogoGlyph" Data="{StaticResource NavIconMusic}" Width="20" Height="20"
+                        <Path x:Name="PreviewLogoGlyph" Data="{StaticResource NavIconMusic}" Width="15" Height="15"
                               Fill="Transparent" Stroke="{StaticResource PrimaryTextBrush}" StrokeThickness="1.7"
                               StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" HorizontalAlignment="Center"
                               VerticalAlignment="Center" Visibility="Collapsed" />
