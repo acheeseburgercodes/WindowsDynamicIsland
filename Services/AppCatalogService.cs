@@ -14,7 +14,9 @@ public sealed class AppCatalogService
 
     public async Task<IReadOnlyList<InstalledApplicationInfo>> DiscoverAsync()
     {
-        var applications = await Task.Run(DiscoverStartMenuShortcuts);
+        // Keep package/process discovery off WPF's dispatcher so opening Apps
+        // never stalls its transition animation.
+        var applications = await Task.Run(DiscoverStartMenuShortcuts).ConfigureAwait(false);
         AddRunningExecutableApplications(applications);
         try
         {

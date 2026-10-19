@@ -96,6 +96,8 @@ public partial class MainWindow : Window
     private Point _fileDragStart;
     private int _resizeAnimationVersion;
     private int _panelAnimationVersion;
+    private int _appsRefreshVersion;
+    private long _lastPanelWheelSwitch;
     private UIElement? _activePanel;
     private FrameworkElement? _visibleStateContent;
     private bool _installedAppsLoaded;
@@ -780,7 +782,7 @@ public partial class MainWindow : Window
     }
 
     private void AnimateIslandResize(double targetWidth, double targetHeight, IslandState state,
-        bool prelayoutTarget = false)
+        bool prelayoutTarget = false, TimeSpan? durationOverride = null)
     {
         var version = ++_resizeAnimationVersion;
         var scale = (ScaleTransform)IslandSurface.RenderTransform;
@@ -805,7 +807,7 @@ public partial class MainWindow : Window
         IslandSurface.CornerRadius = GetIslandCorners(state);
 
         var easing = new QuarticEase { EasingMode = EasingMode.EaseOut };
-        var duration = new Duration(TimeSpan.FromMilliseconds(state switch
+        var duration = new Duration(durationOverride ?? TimeSpan.FromMilliseconds(state switch
         {
             IslandState.Expanded or IslandState.Interaction => 390,
             IslandState.Notification => 310,
@@ -995,14 +997,10 @@ public partial class MainWindow : Window
         if (!File.Exists(companion) && !hasPackagedCompanion)
             ControlCenterStatusText.Text = "The separate app is not installed yet. Use these settings here for now; Windows will not open the Store.";
     }
-    private async void AppsNavButton_Click(object sender, RoutedEventArgs e)
+    private void AppsNavButton_Click(object sender, RoutedEventArgs e)
     {
         ShowPanel(AppsPanel);
-        RefreshRunningApplications();
-        if (!_installedAppsLoaded)
-        {
-            await RefreshInstalledApplicationsAsync();
-        }
+        ScheduleAppsPanelRefresh();
     }
 
     private void ClipboardNavButton_Click(object sender, RoutedEventArgs e)
@@ -1026,6 +1024,7 @@ public partial class MainWindow : Window
         }
 
         var outgoing = _activePanel;
+        var appsTransition = panel == AppsPanel || outgoing == AppsPanel;
         _activePanel = panel;
         UpdateActiveNavigation();
         if (_islandManager.State is IslandState.Expanded or IslandState.Interaction)
@@ -1037,7 +1036,8 @@ public partial class MainWindow : Window
                 _interactiveAppPanel.Suspend();
                 _liveAppPreview.Suspend();
                 AnimateIslandResize(width, height, _islandManager.State,
-                    prelayoutTarget: outgoing == AppsPanel && panel != AppsPanel);
+                    prelayoutTarget: outgoing == AppsPanel && panel != AppsPanel,
+                    durationOverride: appsTransition ? TimeSpan.FromMilliseconds(165) : null);
             }
         }
         var version = ++_panelAnimationVersion;
@@ -1053,14 +1053,15 @@ public partial class MainWindow : Window
         if (outgoing is not null && outgoing != panel && outgoing.Visibility == Visibility.Visible)
         {
             outgoing.IsHitTestVisible = false;
-            var fadeOut = new DoubleAnimation(0, TimeSpan.FromMilliseconds(115))
+            var fadeOutDuration = TimeSpan.FromMilliseconds(appsTransition ? 85 : 115);
+            var fadeOut = new DoubleAnimation(0, fadeOutDuration)
             {
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
             };
             var outgoingMotion = new TranslateTransform();
             outgoing.RenderTransform = outgoingMotion;
             outgoingMotion.BeginAnimation(TranslateTransform.XProperty,
-                new DoubleAnimation(-8, TimeSpan.FromMilliseconds(115))
+                new DoubleAnimation(appsTransition ? -4 : -8, fadeOutDuration)
                 {
                     EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
                 });
@@ -1078,11 +1079,13 @@ public partial class MainWindow : Window
         panel.IsHitTestVisible = true;
         panel.Opacity = 0;
         var slide = new TranslateTransform();
-        var scale = new ScaleTransform(0.985, 0.985);
+        // Scaling the Apps tree continuously re-rasterizes its native viewport
+        // and pickers. The outer surface already animates the size change.
+        var scale = new ScaleTransform(appsTransition ? 1 : 0.985, appsTransition ? 1 : 0.985);
         panel.RenderTransformOrigin = new Point(0.5, 0.5);
         panel.RenderTransform = new TransformGroup { Children = new TransformCollection { scale, slide } };
-        var entrance = new Duration(TimeSpan.FromMilliseconds(245));
-        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(14, 0, entrance)
+        var entrance = new Duration(TimeSpan.FromMilliseconds(appsTransition ? 135 : 245));
+        slide.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(appsTransition ? 6 : 14, 0, entrance)
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
             FillBehavior = FillBehavior.Stop
@@ -1095,11 +1098,10 @@ public partial class MainWindow : Window
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         });
-        var returningFromApps = outgoing == AppsPanel && panel != AppsPanel;
         var fadeIn = new DoubleAnimation(0, 1,
-            TimeSpan.FromMilliseconds(returningFromApps ? 240 : 205))
+            TimeSpan.FromMilliseconds(appsTransition ? 125 : 205))
         {
-            BeginTime = TimeSpan.FromMilliseconds(returningFromApps ? 110 : 20)
+            BeginTime = TimeSpan.FromMilliseconds(appsTransition ? 0 : 20)
         };
         fadeIn.Completed += (_, _) =>
         {
@@ -1107,6 +1109,64 @@ public partial class MainWindow : Window
                 UpdateInteractivePanel();
         };
         panel.BeginAnimation(OpacityProperty, fadeIn, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private async void ScheduleAppsPanelRefresh()
+    {
+        var version = ++_appsRefreshVersion;
+        // Let the resize commit before process/package discovery. Repeated
+        // navigation invalidates stale scheduled work.
+        await Task.Delay(190);
+        if (version != _appsRefreshVersion || _activePanel != AppsPanel) return;
+
+        await RefreshRunningApplicationsAsync();
+        if (version != _appsRefreshVersion || _activePanel != AppsPanel) return;
+        if (!_installedAppsLoaded) await RefreshInstalledApplicationsAsync();
+    }
+
+    private async void PanelViewport_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (_islandManager.State is not (IslandState.Expanded or IslandState.Interaction) ||
+            e.OriginalSource is not DependencyObject source)
+            return;
+
+        if (FindAncestor<Slider>(source) is not null || FindAncestor<ComboBox>(source) is not null)
+            return;
+
+        var scroller = FindAncestor<ScrollViewer>(source);
+        if (scroller is not null && scroller.ScrollableHeight > 0)
+        {
+            var canScroll = e.Delta < 0
+                ? scroller.VerticalOffset < scroller.ScrollableHeight
+                : scroller.VerticalOffset > 0;
+            if (canScroll) return;
+        }
+
+        e.Handled = true;
+        var now = Environment.TickCount64;
+        if (_isAnimating || now - _lastPanelWheelSwitch < 220) return;
+
+        UIElement[] panels =
+        [
+            MediaPanel, WeatherPanel, HardwarePanel, ActivityPanel, ControlsPanel,
+            FocusPanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel
+        ];
+        var current = Array.IndexOf(panels, _activePanel);
+        if (current < 0) current = 0;
+        var next = Math.Clamp(current + (e.Delta < 0 ? 1 : -1), 0, panels.Length - 1);
+        if (next == current) return;
+
+        _lastPanelWheelSwitch = now;
+        var target = panels[next];
+        if (target == ActivityPanel) UpdateActivityStack();
+        if (target == ControlsPanel) RefreshQuickControls();
+        if (target == FocusPanel) UpdateFocusUi();
+        ShowPanel(target);
+
+        if (target == WeatherPanel && !_weatherLoaded) await RefreshWeatherAsync();
+        else if (target == HardwarePanel) ApplyHardwareSnapshot(_hardwareMonitor.Capture());
+        else if (target == ClipboardPanel) _ = PasteClipboardContentAsync(false);
+        else if (target == AppsPanel) ScheduleAppsPanelRefresh();
     }
 
     private void UpdateActiveNavigation()
@@ -1913,18 +1973,21 @@ public partial class MainWindow : Window
         await SaveConfigurationAsync();
     }
 
-    private void RefreshRunningAppsButton_Click(object sender, RoutedEventArgs e) => RefreshRunningApplications();
+    private async void RefreshRunningAppsButton_Click(object sender, RoutedEventArgs e) =>
+        await RefreshRunningApplicationsAsync();
 
-    private void RefreshRunningApplications()
+    private async Task RefreshRunningApplicationsAsync()
     {
         var selectedHandle = (RunningAppsComboBox.SelectedItem as RunningApplicationInfo)?.WindowHandle;
-        var windows = _appCatalog.DiscoverRunningWindows(Environment.ProcessId);
+        var windows = await Task.Run(() => _appCatalog.DiscoverRunningWindows(Environment.ProcessId));
 
+        RunningAppsComboBox.ItemsSource = null;
         _runningApplications.Clear();
         foreach (var window in windows)
         {
             _runningApplications.Add(window);
         }
+        RunningAppsComboBox.ItemsSource = _runningApplications;
 
         RunningAppsComboBox.SelectedItem = _runningApplications.FirstOrDefault(item => item.WindowHandle == selectedHandle)
                                            ?? _runningApplications.FirstOrDefault();
@@ -1951,11 +2014,13 @@ public partial class MainWindow : Window
     {
         AppRunnerStatus.Text = "Loading installed applications…";
         var applications = await _appCatalog.DiscoverAsync();
+        InstalledAppsComboBox.ItemsSource = null;
         _installedApplications.Clear();
         foreach (var application in applications)
         {
             _installedApplications.Add(application);
         }
+        InstalledAppsComboBox.ItemsSource = _installedApplications;
 
         InstalledAppsComboBox.SelectedItem = _installedApplications.FirstOrDefault();
         _installedAppsLoaded = true;
