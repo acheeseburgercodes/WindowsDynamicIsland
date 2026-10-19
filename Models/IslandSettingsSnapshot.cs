@@ -22,6 +22,9 @@ public sealed class IslandSettingsSnapshot
     public bool UseMediaArtworkColors { get; set; }
     public bool UseAudioReactiveEffects { get; set; }
     public int MinimizedAppearance { get; set; }
+    public int CompactContent { get; set; }
+    public int HoverContent { get; set; }
+    public int ExpandedPanel { get; set; }
     public int LogoStyle { get; set; }
     public string TempVaultRoot { get; set; } = @"D:\TempVault\storage";
     public bool TempVaultAutoCopy { get; set; }
@@ -30,4 +33,6 @@ public sealed class IslandSettingsSnapshot
     public bool NotificationsEnabled { get; set; }
     public string NotificationStatus { get; set; } = string.Empty;
     public bool HasCustomMiniLogo { get; set; }
+    public int NotificationBehavior { get; set; }
+    public List<NotificationRule> NotificationRules { get; set; } = [];
 }

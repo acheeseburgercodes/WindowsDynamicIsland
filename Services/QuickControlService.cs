@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Windows.Devices.Radios;
+using Windows.Networking.Connectivity;
 
 namespace DynamicIsland.Services;
 
@@ -28,6 +30,46 @@ public sealed class QuickControlService
             var context = Guid.Empty;
             return endpoint.SetMute(!muted, ref context) == 0 ? !muted : muted;
         }, muted);
+    }
+
+    public async Task<QuickConnectivitySnapshot> GetConnectivityAsync()
+    {
+        var network = "Offline";
+        try
+        {
+            var profile = NetworkInformation.GetInternetConnectionProfile();
+            if (profile is not null)
+            {
+                var level = profile.GetNetworkConnectivityLevel();
+                network = level == NetworkConnectivityLevel.InternetAccess
+                    ? profile.ProfileName
+                    : $"{profile.ProfileName} · {level}";
+            }
+        }
+        catch
+        {
+            // Network profile access may be restricted by device policy.
+        }
+
+        var bluetooth = "Unavailable";
+        try
+        {
+            var radios = await Radio.GetRadiosAsync();
+            var radio = radios.FirstOrDefault(item => item.Kind == RadioKind.Bluetooth);
+            bluetooth = radio?.State switch
+            {
+                RadioState.On => "On",
+                RadioState.Off => "Off",
+                RadioState.Disabled => "Disabled",
+                _ => "Unavailable"
+            };
+        }
+        catch
+        {
+            // Radio state access can require a packaged identity on some PCs.
+        }
+
+        return new QuickConnectivitySnapshot(network, bluetooth);
     }
 
     public static void OpenWindowsSurface(string uri) => Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
@@ -92,3 +134,5 @@ public sealed class QuickControlService
         [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
     }
 }
+
+public sealed record QuickConnectivitySnapshot(string NetworkName, string BluetoothState);

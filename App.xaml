@@ -15,6 +15,7 @@
             <SolidColorBrush x:Key="DropSurfaceBrush" Color="#402F2F35" />
             <SolidColorBrush x:Key="DividerBrush" Color="#665B5B63" />
             <SolidColorBrush x:Key="HostSurfaceBrush" Color="#FF09090B" />
+            <SolidColorBrush x:Key="SidebarSurfaceBrush" Color="#D90B0C10" />
             <SolidColorBrush x:Key="PrimaryActionBrush" Color="#FFF4F4F5" />
             <SolidColorBrush x:Key="PrimaryActionTextBrush" Color="#FF111113" />
             <SolidColorBrush x:Key="AccentBrush" Color="#FF6ED6A9" />
