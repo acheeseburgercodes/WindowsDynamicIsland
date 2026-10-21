@@ -16,11 +16,17 @@ public sealed class WeatherService : IDisposable
         _client.DefaultRequestHeaders.UserAgent.ParseAdd("WindowsDynamicIsland/0.1");
     }
 
-    public async Task<WeatherSnapshot> GetCurrentAsync(string? location, CancellationToken cancellationToken = default)
-    {
-        var path = string.IsNullOrWhiteSpace(location)
+    public Task<WeatherSnapshot> GetCurrentAsync(string? location, CancellationToken cancellationToken = default) =>
+        GetAsync(string.IsNullOrWhiteSpace(location)
             ? string.Empty
-            : Uri.EscapeDataString(location.Trim());
+            : Uri.EscapeDataString(location.Trim()), cancellationToken);
+
+    public Task<WeatherSnapshot> GetCurrentAtAsync(double latitude, double longitude,
+        CancellationToken cancellationToken = default) =>
+        GetAsync(FormattableString.Invariant($"{latitude:0.####},{longitude:0.####}"), cancellationToken);
+
+    private async Task<WeatherSnapshot> GetAsync(string path, CancellationToken cancellationToken)
+    {
         using var response = await _client.GetAsync($"https://wttr.in/{path}?format=j1", cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);

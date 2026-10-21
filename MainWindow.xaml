@@ -202,13 +202,15 @@
 
                     <Border Margin="0,2,10,6" Padding="5" CornerRadius="15"
                             Background="{DynamicResource SidebarSurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                        <UniformGrid Columns="2" Rows="5" VerticalAlignment="Stretch">
+                        <UniformGrid Columns="2" Rows="6" VerticalAlignment="Stretch">
                             <Button x:Name="MediaNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Media" Click="MediaNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconMusic}" /></Button>
                             <Button x:Name="WeatherNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Weather" Click="WeatherNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconWeather}" /></Button>
                             <Button x:Name="HardwareNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="System" Click="HardwareNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconHardware}" /></Button>
                             <Button x:Name="ActivityNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Activity" Click="ActivityNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconActivity}" /></Button>
                             <Button x:Name="ControlsNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Controls" Click="ControlsNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconControls}" /></Button>
                             <Button x:Name="FocusNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Focus" Click="FocusNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconFocus}" /></Button>
+                            <Button x:Name="TasksNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Tasks" Click="TasksNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconTasks}" /></Button>
+                            <Button x:Name="NotesNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Notes" Click="NotesNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconNotes}" /></Button>
                             <Button x:Name="FilesNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Files" Click="FilesNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconFiles}" /></Button>
                             <Button x:Name="ClipboardNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Clipboard" Click="ClipboardNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconClipboard}" /></Button>
                             <Button x:Name="AppsNavButton" Style="{StaticResource IslandNavButton}" Margin="2" ToolTip="Apps" Click="AppsNavButton_Click"><Path Style="{StaticResource SidebarIcon}" Data="{StaticResource NavIconApps}" /></Button>
@@ -745,14 +747,21 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="Location" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
-                                    <TextBox x:Name="WeatherLocationTextBox" Grid.Column="1" Margin="14,0,0,0" Padding="10,6"
-                                             Background="{DynamicResource PanelSurfaceBrush}"
-                                             ToolTip="Leave blank to use approximate IP location" Text="" />
+                                    <Button x:Name="WeatherLocationButton" Grid.Column="1" Margin="14,0,0,0" Padding="10,6"
+                                            HorizontalAlignment="Stretch" Style="{StaticResource IslandButton}"
+                                            Click="WeatherLocationButton_Click"
+                                            ToolTip="Use this device's location for the forecast">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Style="{StaticResource LineIcon}" Data="{StaticResource IconLocation}"
+                                                  Width="12" Height="12" Stroke="{DynamicResource AccentBrush}" />
+                                            <TextBlock Text="Use my location" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                 </Grid>
                             </Border>
                             <TextBlock x:Name="WeatherStatusText" Margin="2,5,2,0" FontSize="9" TextTrimming="CharacterEllipsis"
                                        Foreground="{DynamicResource SecondaryTextBrush}"
-                                       Text="Weather loads only when you open this dashboard. Leave location blank for approximate IP location." />
+                                       Text="Weather loads only when you open this dashboard. Device location needs Windows location access; otherwise the network location is used." />
                         </StackPanel>
                     </Grid>
 
@@ -849,6 +858,273 @@
                             <UniformGrid Columns="3"><Button Style="{StaticResource IslandButton}" Tag="25" Margin="0,0,5,0" Padding="10,8" Click="FocusPresetButton_Click" Content="25 min"/><Button Style="{StaticResource IslandButton}" Tag="5" Margin="3,0" Padding="10,8" Click="FocusPresetButton_Click" Content="5 min"/><Button Style="{StaticResource IslandButton}" Tag="15" Margin="5,0,0,0" Padding="10,8" Click="FocusPresetButton_Click" Content="15 min"/></UniformGrid>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,9,0,0"><Button x:Name="FocusStartButton" Style="{StaticResource AppRunnerPrimaryButton}" Margin="0,0,8,0" Click="FocusStartButton_Click" Content="Start"/><Button Style="{StaticResource IslandButton}" Click="FocusResetButton_Click" Content="Reset"/></StackPanel>
                         </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="TasksPanel" Visibility="Collapsed" Margin="8,6,8,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Margin="0,0,0,9">
+                            <StackPanel>
+                                <TextBlock Text="Tasks" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <TextBlock x:Name="TasksSummaryText" Text="A small checklist that stays where you left it"
+                                           Margin="0,2,0,0" FontSize="10" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                            </StackPanel>
+                            <Button x:Name="ClearCompletedTasksButton" Style="{StaticResource IslandButton}"
+                                    HorizontalAlignment="Right" VerticalAlignment="Center" Padding="10,6" FontSize="11"
+                                    IsEnabled="False" ToolTip="Remove every completed task"
+                                    AutomationProperties.Name="Clear completed tasks"
+                                    Click="ClearCompletedTasksButton_Click" Content="Clear done" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" Margin="0,0,0,9">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid>
+                                <TextBox x:Name="TaskInput" Padding="11,8" FontSize="12" KeyDown="TaskInput_KeyDown"
+                                         AutomationProperties.Name="New task" />
+                                <TextBlock Text="Type a task and press Enter" Margin="13,0" VerticalAlignment="Center"
+                                           FontSize="11" IsHitTestVisible="False"
+                                           Foreground="{DynamicResource SecondaryTextBrush}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=TaskInput}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                            <Button Grid.Column="1" Margin="8,0,0,0" Padding="13,8" FontSize="11"
+                                    Style="{StaticResource IslandButton}"
+                                    Background="{DynamicResource PrimaryActionBrush}"
+                                    Foreground="{DynamicResource PrimaryActionTextBrush}"
+                                    AutomationProperties.Name="Add task"
+                                    Click="AddTaskButton_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Style="{StaticResource LineButtonIcon}" Data="{StaticResource IconPlus}" />
+                                    <TextBlock Text="Add" Margin="6,0,0,0" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <Border Grid.Row="2" Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="14" Padding="6">
+                            <Grid>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl x:Name="TaskList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Margin="0,0,0,5" Padding="8,6" CornerRadius="10"
+                                                        BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{DynamicResource SubtleSurfaceBrush}" />
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <CheckBox Style="{StaticResource TaskCheckBox}" VerticalAlignment="Center"
+                                                                  IsChecked="{Binding IsCompleted, Mode=TwoWay}"
+                                                                  Checked="TaskCheck_Changed" Unchecked="TaskCheck_Changed"
+                                                                  AutomationProperties.Name="{Binding Text}" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Text}" Margin="10,0,6,0" FontSize="12"
+                                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                                            <Setter Property="TextDecorations" Value="Strikethrough" />
+                                                                            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <Button Grid.Column="2" Style="{StaticResource ChromeFreeIconButton}" Width="26" Height="26"
+                                                                Tag="{Binding}" ToolTip="Delete task"
+                                                                AutomationProperties.Name="Delete task"
+                                                                Click="RemoveTaskButton_Click">
+                                                            <Path Style="{StaticResource LineButtonIcon}" Data="{StaticResource IconTrash}"
+                                                                  Width="12" Height="12" />
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <StackPanel x:Name="TasksEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                    <Path Data="{StaticResource NavIconTasks}" Width="28" Height="28" Stretch="Uniform"
+                                          Fill="Transparent" Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="1.5"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          HorizontalAlignment="Center" Opacity="0.75" />
+                                    <TextBlock Text="Nothing on the list" Margin="0,8,0,0" HorizontalAlignment="Center"
+                                               FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    <TextBlock Text="Add a task above; it survives a restart." Margin="0,3,0,0"
+                                               HorizontalAlignment="Center" FontSize="10"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="TasksStatusText" Grid.Row="3" Margin="2,7,2,0" FontSize="9"
+                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SecondaryTextBrush}"
+                                   Text="Tasks are saved on this device." />
+                    </Grid>
+
+                    <Grid x:Name="NotesPanel" Visibility="Collapsed" Margin="8,6,8,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Margin="0,0,0,9">
+                            <StackPanel>
+                                <TextBlock Text="Notes" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                <TextBlock x:Name="NotesSummaryText" Text="A quiet place for anything worth keeping"
+                                           Margin="0,2,0,0" FontSize="10" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Grid.Row="1" Margin="0,0,0,9" Padding="3" CornerRadius="14"
+                                Background="{DynamicResource PanelSurfaceBrush}"
+                                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
+                            <StackPanel>
+                                <Grid>
+                                    <TextBox x:Name="NoteInput" MinHeight="46" MaxHeight="104" Padding="9,7" FontSize="12"
+                                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                             BorderThickness="0" Background="Transparent"
+                                             KeyDown="NoteInput_KeyDown" TextChanged="NoteInput_TextChanged"
+                                             AutomationProperties.Name="Note text" />
+                                    <TextBlock Text="Write a note, then press Ctrl+Enter." Margin="13,9,13,0"
+                                               VerticalAlignment="Top" FontSize="11" IsHitTestVisible="False"
+                                               Foreground="{DynamicResource SecondaryTextBrush}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=NoteInput}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                                <Grid Margin="4,0,4,3">
+                                    <TextBlock x:Name="NoteEditHint" Text="Editing a saved note"
+                                               Visibility="Collapsed" VerticalAlignment="Center" FontSize="9"
+                                               Foreground="{DynamicResource AccentBrush}" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button x:Name="CancelNoteEditButton" Visibility="Collapsed"
+                                                Style="{StaticResource IslandButton}" Margin="0,0,6,0" Padding="10,5"
+                                                FontSize="11" Click="CancelNoteEditButton_Click" Content="Cancel" />
+                                        <Button x:Name="SaveNoteButton" Style="{StaticResource IslandButton}"
+                                                Padding="12,5" FontSize="11" IsEnabled="False"
+                                                Background="{DynamicResource PrimaryActionBrush}"
+                                                Foreground="{DynamicResource PrimaryActionTextBrush}"
+                                                AutomationProperties.Name="Save note"
+                                                Click="SaveNoteButton_Click">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path x:Name="NoteSaveIcon" Style="{StaticResource LineButtonIcon}"
+                                                      Data="{StaticResource IconPlus}" />
+                                                <TextBlock x:Name="NoteSaveButtonText" Text="Save" Margin="6,0,0,0" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="2" Background="{DynamicResource PanelSurfaceBrush}" CornerRadius="14" Padding="6">
+                            <Grid>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl x:Name="NoteList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Margin="0,0,0,5" Padding="9,7" CornerRadius="10" BorderThickness="1"
+                                                        Cursor="Hand" ToolTip="Open this note to edit it"
+                                                        MouseLeftButtonUp="NoteCard_MouseLeftButtonUp">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{DynamicResource SubtleSurfaceBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                </Trigger>
+                                                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Text}" FontSize="12" TextWrapping="Wrap"
+                                                                   MaxHeight="54" LineHeight="17" TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                                                        <Grid Margin="0,5,0,0">
+                                                            <TextBlock Text="{Binding UpdatedAt, StringFormat={}{0:d MMM · HH:mm}}"
+                                                                       FontSize="9" VerticalAlignment="Center"
+                                                                       Foreground="{DynamicResource SecondaryTextBrush}" />
+                                                            <Button Style="{StaticResource ChromeFreeIconButton}" Width="24" Height="24"
+                                                                    HorizontalAlignment="Right" Tag="{Binding}"
+                                                                    ToolTip="Delete note"
+                                                                    AutomationProperties.Name="Delete note"
+                                                                    Click="RemoveNoteButton_Click">
+                                                                <Path Style="{StaticResource LineButtonIcon}"
+                                                                      Data="{StaticResource IconTrash}" Width="12" Height="12" />
+                                                            </Button>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                <StackPanel x:Name="NotesEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                    <Path Data="{StaticResource NavIconNotes}" Width="28" Height="28" Stretch="Uniform"
+                                          Fill="Transparent" Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="1.5"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          HorizontalAlignment="Center" Opacity="0.75" />
+                                    <TextBlock Text="Nothing written yet" Margin="0,8,0,0" HorizontalAlignment="Center"
+                                               FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    <TextBlock Text="Jot a thought above; notes stay on this device." Margin="0,3,0,0"
+                                               HorizontalAlignment="Center" FontSize="10"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="NotesStatusText" Grid.Row="3" Margin="2,7,2,0" FontSize="9"
+                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SecondaryTextBrush}"
+                                   Text="Notes are saved on this device." />
                     </Grid>
 
                     <Grid x:Name="SettingsPanel" Visibility="Collapsed">

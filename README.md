@@ -8,11 +8,13 @@ The application source is licensed under the [MIT License](LICENSE). Self-contai
 
 - Album artwork, live timeline and seeking where supported, media controls, and a button to open the source player
 - Compact dashboard rail with wheel-driven vertical switching between media, weather, system, activity, controls, focus, files, clipboard, apps, and settings
-- On-demand weather conditions from wttr.in with an optional city field; a blank location uses wttr.in's approximate IP location
+- On-demand weather conditions from wttr.in; a **Use my location** button asks the Windows location service for a device fix and falls back to wttr.in's approximate network location when access is unavailable
 - Live CPU, memory, primary-storage, battery/power, and network-throughput telemetry without a background collector when the System or Controls dashboard is closed
 - Activity stack for playback, focus sessions, persistent files, and real file-dock copy progress
 - Quick controls for native output volume and microphone mute, plus direct Windows surfaces for audio, Wi-Fi, display, Bluetooth, Focus Assist, and screen capture
 - Pomodoro-style focus timer with 5, 15, and 25 minute presets and a compact top-edge countdown state
+- Persistent task checklist with per-item completion, delete, and clear-completed; tasks are stored with the island's own configuration
+- Notepad panel with multi-line notes, click-to-edit, delete, and the same on-device configuration storage
 - Durable file shelf with drag-in and drag-out, file picker, clipboard paste, open, copy, and remove actions
 - Global island drop target: files can be dropped on the idle pill and are copied into app-managed storage
 - Editable Windows text clipboard view with copy and paste controls
@@ -44,7 +46,7 @@ Drag a row from the Files tab into a browser or File Explorer. The island hands 
 
 ## Install
 
-Download `WindowsDynamicIsland-v0.2.0-win-x64-setup.exe` from the GitHub Releases page and run it. The installer adds the island and its Control Center to the Start menu, can launch the island at sign-in, and registers **Windows Dynamic Island** in Windows Settings under **Apps > Installed apps** and in Control Panel under **Programs and Features**. Use either Windows surface to uninstall it normally.
+Download `WindowsDynamicIsland-v0.3.0-win-x64-setup.exe` from the GitHub Releases page and run it. The installer adds the island and its Control Center to the Start menu, can launch the island at sign-in, and registers **Windows Dynamic Island** in Windows Settings under **Apps > Installed apps** and in Control Panel under **Programs and Features**. Use either Windows surface to uninstall it normally.
 
 The installer is self-contained, so running the island does not require a separate .NET installation. The included Control Center is installed beside the island and is opened from the island's Settings panel or its Start-menu shortcut.
 
@@ -71,7 +73,7 @@ The opt-in build target signs and verifies both the Release build executable and
 To create the complete installer locally, install Inno Setup 6 and run:
 
 ```powershell
-.\tools\Build-Installer.ps1 -Version 0.2.0
+.\tools\Build-Installer.ps1 -Version 0.3.0
 ```
 
 Pass `-CertificateThumbprint YOUR_CERTIFICATE_THUMBPRINT` to sign the published app and installer. The resulting setup executable and SHA-256 file are written to `artifacts\installer`.

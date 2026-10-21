@@ -70,5 +70,9 @@ public sealed class AppConfiguration
 
     public List<DockedFileItem> DockedFiles { get; set; } = [];
 
+    public List<ChecklistItem> Tasks { get; set; } = [];
+
+    public List<NoteItem> Notes { get; set; } = [];
+
     public List<AppLauncherItem> Applications { get; set; } = [];
 }
