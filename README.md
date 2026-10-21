@@ -42,7 +42,13 @@ Docked files are independent copies stored under `%LOCALAPPDATA%\DynamicIsland\F
 
 Drag a row from the Files tab into a browser or File Explorer. The island hands Windows a standard file-drop list with the path of the persistent copy and stays open until the drag finishes. If a website does not accept the drop, use **Open stored folder** and select that file with the site's upload button.
 
-## Requirements
+## Install
+
+Download `WindowsDynamicIsland-v0.2.0-win-x64-setup.exe` from the GitHub Releases page and run it. The installer adds the island and its Control Center to the Start menu, can launch the island at sign-in, and registers **Windows Dynamic Island** in Windows Settings under **Apps > Installed apps** and in Control Panel under **Programs and Features**. Use either Windows surface to uninstall it normally.
+
+The installer is self-contained, so running the island does not require a separate .NET installation. The included Control Center is installed beside the island and is opened from the island's Settings panel or its Start-menu shortcut.
+
+## Development requirements
 
 - Windows 11
 - Visual Studio 2022 or later with the **.NET desktop development** workload
@@ -52,7 +58,7 @@ The app uses the .NET Windows Desktop runtime and does not require the Windows A
 
 ## Build and run
 
-The GitHub Releases page provides a self-contained Windows x64 executable and a portable ZIP containing the same executable. Extract the ZIP before running it. These release downloads do not require a separate .NET installation. They are currently unsigned, so Windows Smart App Control may block them until a trusted signed build is available.
+GitHub Releases provides a self-contained Windows x64 installer. Release downloads do not require a separate .NET installation.
 
 For a signed Release build, install an RSA code-signing certificate from a trusted certificate provider in `Cert:\CurrentUser\My`, then provide its thumbprint:
 
@@ -61,6 +67,14 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 ```
 
 The opt-in build target signs and verifies both the Release build executable and the published executable using `signtool.exe` from the Windows SDK. It does not create certificates or alter Windows trust stores. A locally self-signed certificate is not sufficient for Smart App Control; Microsoft requires a certificate issued by a trusted provider. `Unblock-File` only removes the Mark of the Web and cannot resolve a Code Integrity policy block.
+
+To create the complete installer locally, install Inno Setup 6 and run:
+
+```powershell
+.\tools\Build-Installer.ps1 -Version 0.2.0
+```
+
+Pass `-CertificateThumbprint YOUR_CERTIFICATE_THUMBPRINT` to sign the published app and installer. The resulting setup executable and SHA-256 file are written to `artifacts\installer`.
 
 Open `DynamicIsland.csproj` in Visual Studio, select `x64`, then build and run. From a Developer PowerShell with the .NET 10 SDK installed:
 
