@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "0.2.0",
+    [string]$Version = "0.3.0",
     [ValidateSet("x64")]
     [string]$Architecture = "x64",
     [string]$CertificateThumbprint
