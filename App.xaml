@@ -30,16 +30,18 @@
             <Geometry x:Key="IconWeather">M12,4 A4,4 0 1 1 12,12 A4,4 0 1 1 12,4 M12,0 L12,2 M12,14 L12,16 M4,8 L2,8 M22,8 L20,8 M5.3,1.3 L6.7,2.7 M17.3,13.3 L18.7,14.7 M18.7,1.3 L17.3,2.7 M6.7,13.3 L5.3,14.7 M6,20 C6,17.8 7.8,16 10,16 C11.4,16 12.7,16.8 13.4,18 C14,17.4 14.9,17 16,17 C18.2,17 20,18.8 20,21 L6,21 Z</Geometry>
             <Geometry x:Key="IconHardware">M7,3 L17,3 17,6 20,6 20,18 17,18 17,21 7,21 7,18 4,18 4,6 7,6 Z M8,8 L16,8 16,16 8,16 Z M10,10 L14,10 14,14 10,14 Z</Geometry>
             <!-- Stroke icons used by the dashboard navigation and information cards. -->
-            <Geometry x:Key="NavIconMusic">M9,18 L9,5 20,3 20,16 M9,9 L20,7 M9,18 C9,19.7 7.7,21 6,21 C4.3,21 3,19.9 3,18.5 C3,16.9 4.4,16 6,16 C7.2,16 8.2,16.5 9,17.2 M20,16 C20,17.7 18.7,19 17,19 C15.3,19 14,17.9 14,16.5 C14,14.9 15.4,14 17,14 C18.2,14 19.2,14.5 20,15.2</Geometry>
-            <Geometry x:Key="NavIconWeather">M8,15 C5.8,15 4,13.2 4,11 C4,8.8 5.8,7 8,7 C9.5,7 10.8,7.8 11.5,9 C12.1,8.4 13,8 14,8 C16.2,8 18,9.8 18,12 C18,13.1 17.6,14.1 16.9,15 M15,4 L15,2 M20,6 L21.5,4.5 M10,6 L8.5,4.5 M7,19 L17,19 M9,22 L15,22</Geometry>
-            <Geometry x:Key="NavIconHardware">M8,4 L16,4 C18.2,4 20,5.8 20,8 L20,16 C20,18.2 18.2,20 16,20 L8,20 C5.8,20 4,18.2 4,16 L4,8 C4,5.8 5.8,4 8,4 M9,1 L9,4 M15,1 L15,4 M9,20 L9,23 M15,20 L15,23 M1,9 L4,9 M20,9 L23,9 M1,15 L4,15 M20,15 L23,15 M9,9 L15,9 L15,15 L9,15 Z</Geometry>
-            <Geometry x:Key="NavIconFiles">M3,7 L3,19 C3,20.1 3.9,21 5,21 L19,21 C20.1,21 21,20.1 21,19 L21,9 C21,7.9 20.1,7 19,7 L12,7 L10,4 L5,4 C3.9,4 3,4.9 3,6 Z</Geometry>
-            <Geometry x:Key="NavIconClipboard">M9,5 L7,5 C5.9,5 5,5.9 5,7 L5,20 C5,21.1 5.9,22 7,22 L17,22 C18.1,22 19,21.1 19,20 L19,7 C19,5.9 18.1,5 17,5 L15,5 M9,3 L15,3 L15,7 L9,7 Z M9,12 L15,12 M9,16 L15,16</Geometry>
-            <Geometry x:Key="NavIconApps">M4,4 L10,4 L10,10 L4,10 Z M14,4 L20,4 L20,10 L14,10 Z M4,14 L10,14 L10,20 L4,20 Z M14,14 L20,14 L20,20 L14,20 Z</Geometry>
-            <Geometry x:Key="NavIconSettings">M4,7 L13,7 M17,7 L20,7 M4,17 L7,17 M11,17 L20,17 M13,4 L17,4 L17,10 L13,10 Z M7,14 L11,14 L11,20 L7,20 Z</Geometry>
-            <Geometry x:Key="NavIconActivity">M4,19 L8,14 L11,17 L16,9 L20,12 M4,5 L20,5 M4,22 L20,22</Geometry>
-            <Geometry x:Key="NavIconControls">M4,7 L20,7 M8,4 L8,10 M4,17 L20,17 M16,14 L16,20</Geometry>
-            <Geometry x:Key="NavIconFocus">M12,3 A9,9 0 1 0 12,21 A9,9 0 1 0 12,3 M12,7 L12,12 L16,14</Geometry>
+            <Geometry x:Key="NavIconMusic">M12,3.2 A8.8,8.8 0 1 0 12,20.8 A8.8,8.8 0 1 0 12,3.2 Z M9.9,7.9 L16.3,12 L9.9,16.1 Z</Geometry>
+            <Geometry x:Key="NavIconWeather">M7,4.2 A2.6,2.6 0 1 0 7,9.4 A2.6,2.6 0 1 0 7,4.2 Z M7,1.4 L7,2.6 M3.4,6.8 L2.2,6.8 M10.6,6.8 L11.8,6.8 M4.5,4.3 L3.7,3.5 M9.5,4.3 L10.3,3.5 M10.5,20.6 L18.6,20.6 C20.5,20.6 21.9,19.2 21.9,17.4 C21.9,15.6 20.5,14.2 18.6,14.2 C18.1,11.9 16.2,10.2 13.8,10.2 C11.6,10.2 9.8,11.6 9,13.5 C7.3,13.7 6,15.2 6,17 C6,19 7.8,20.6 10.5,20.6 Z</Geometry>
+            <Geometry x:Key="NavIconHardware">M6.6,6.6 L17.4,6.6 L17.4,17.4 L6.6,17.4 Z M9.8,9.8 L14.2,9.8 L14.2,14.2 L9.8,14.2 Z M9,3.4 L9,6.6 M15,3.4 L15,6.6 M9,17.4 L9,20.6 M15,17.4 L15,20.6 M3.4,9 L6.6,9 M3.4,15 L6.6,15 M17.4,9 L20.6,9 M17.4,15 L20.6,15</Geometry>
+            <Geometry x:Key="NavIconFiles">M3,7.4 C3,6.3 3.9,5.4 5,5.4 L9.3,5.4 L11.3,7.4 L19,7.4 C20.1,7.4 21,8.3 21,9.4 L21,17.6 C21,18.7 20.1,19.6 19,19.6 L5,19.6 C3.9,19.6 3,18.7 3,17.6 Z</Geometry>
+            <Geometry x:Key="NavIconClipboard">M9,4.4 L7.6,4.4 C6.2,4.4 5,5.6 5,7 L5,19 C5,20.4 6.2,21.6 7.6,21.6 L16.4,21.6 C17.8,21.6 19,20.4 19,19 L19,7 C19,5.6 17.8,4.4 16.4,4.4 L15,4.4 M9,2.4 L15,2.4 L15,6.4 L9,6.4 Z M9,12 L15,12 M9,16 L13.4,16</Geometry>
+            <Geometry x:Key="NavIconApps">M4.6,4.6 L10.2,4.6 L10.2,10.2 L4.6,10.2 Z M13.8,4.6 L19.4,4.6 L19.4,10.2 L13.8,10.2 Z M4.6,13.8 L10.2,13.8 L10.2,19.4 L4.6,19.4 Z M13.8,13.8 L19.4,13.8 L19.4,19.4 L13.8,19.4 Z</Geometry>
+            <Geometry x:Key="NavIconSettings">M19.21,10.86 L20.89,8.94 L20.89,15.06 L19.21,13.14 L16.59,17.67 L19.09,18.17 L13.79,21.23 L14.62,18.82 L9.38,18.82 L10.21,21.23 L4.91,18.17 L7.41,17.67 L4.79,13.14 L3.11,15.06 L3.11,8.94 L4.79,10.86 L7.41,6.33 L4.91,5.83 L10.21,2.77 L9.38,5.18 L14.62,5.18 L13.79,2.77 L19.09,5.83 L16.59,6.33 Z M8.8,12 A3.2,3.2 0 1 0 15.2,12 A3.2,3.2 0 1 0 8.8,12 Z</Geometry>
+            <Geometry x:Key="NavIconActivity">M3,7.5 L10,3.2 L21,7.5 L12,12.8 Z M3,12.6 L12,17.8 L21,12.6 M3,17 L12,22 L21,17</Geometry>
+            <Geometry x:Key="NavIconControls">M3.4,8 L21,8 M3.4,16 L21,16 M6.8,8 A1.9,1.9 0 1 0 10.6,8 A1.9,1.9 0 1 0 6.8,8 Z M13.4,16 A1.9,1.9 0 1 0 17.2,16 A1.9,1.9 0 1 0 13.4,16 Z</Geometry>
+            <Geometry x:Key="NavIconFocus">M12,3.4 A8.6,8.6 0 1 0 12,20.6 A8.6,8.6 0 1 0 12,3.4 Z M12,7.8 L12,12.4 L15.4,14.4 M9.4,1.6 L14.6,1.6</Geometry>
+            <Geometry x:Key="NavIconTasks">M3.2,6.6 L4.9,8.3 L8.2,5 M3.2,12 L4.9,13.7 L8.2,10.4 M3.2,17.4 L4.9,19.1 L8.2,15.8 M11.6,6.6 L21,6.6 M11.6,12 L21,12 M11.6,17.4 L21,17.4</Geometry>
+            <Geometry x:Key="NavIconNotes">M6.4,3.2 L14.4,3.2 L19.4,8.2 L19.4,20.8 L6.4,20.8 Z M14.4,3.2 L14.4,8.2 L19.4,8.2 M9.6,12.4 L16.2,12.4 M9.6,16.2 L13.6,16.2</Geometry>
             <Geometry x:Key="IconVolume">M4,10 L8,10 L13,6 L13,18 L8,14 L4,14 Z M16,9 C18,11 18,13 16,15 M18,6 C22,10 22,14 18,18</Geometry>
             <Geometry x:Key="IconMic">M9,5 C9,3.3 10.3,2 12,2 C13.7,2 15,3.3 15,5 L15,12 C15,13.7 13.7,15 12,15 C10.3,15 9,13.7 9,12 Z M6,11 C6,15 8.5,18 12,18 C15.5,18 18,15 18,11 M12,18 L12,22 M8,22 L16,22</Geometry>
             <Geometry x:Key="IconNetwork">M3,9 C8,4 16,4 21,9 M6,13 C9.5,9.8 14.5,9.8 18,13 M9.5,17 C11,15.8 13,15.8 14.5,17 M12,20 L12,20.2</Geometry>
@@ -50,10 +52,13 @@
             <Geometry x:Key="IconThermometer">M10,5 C10,3.3 11.3,2 13,2 C14.7,2 16,3.3 16,5 L16,14.3 C17.3,15.3 18,16.8 18,18.3 C18,21.2 15.8,23 13,23 C10.2,23 8,21.2 8,18.3 C8,16.8 8.7,15.3 10,14.3 Z M13,8 L13,18</Geometry>
             <Geometry x:Key="IconDroplet">M12,2 C12,2 6,9 6,14 C6,17.3 8.7,20 12,20 C15.3,20 18,17.3 18,14 C18,9 12,2 12,2 Z M9,15 C9.4,16.2 10.4,17 11.7,17</Geometry>
             <Geometry x:Key="IconWind">M3,8 L15,8 C17.2,8 18,6.8 18,5.5 C18,4.1 16.9,3 15.5,3 C14.4,3 13.5,3.6 13,4.5 M3,13 L19,13 C20.7,13 22,14.3 22,16 C22,17.7 20.7,19 19,19 C17.7,19 16.6,18.2 16.2,17 M3,18 L11,18</Geometry>
+            <Geometry x:Key="IconLocation">M12,22 C12,22 5,15.4 5,10 A7,7 0 1 1 19,10 C19,15.4 12,22 12,22 Z M12,7.6 A2.4,2.4 0 1 1 12,12.4 A2.4,2.4 0 1 1 12,7.6 Z</Geometry>
+            <Geometry x:Key="IconTrash">M4.6,6.8 L19.4,6.8 M9.6,6.8 L9.6,4.7 C9.6,4 10.2,3.4 10.9,3.4 L13.1,3.4 C13.8,3.4 14.4,4 14.4,4.7 L14.4,6.8 M6.6,6.8 L7.5,20 C7.6,21 8.4,21.8 9.4,21.8 L14.6,21.8 C15.6,21.8 16.4,21 16.5,20 L17.4,6.8 M10.4,10.6 L10.4,17.8 M13.6,10.6 L13.6,17.8</Geometry>
             <Geometry x:Key="IconDocument">M6,2 L14,2 L19,7 L19,22 L6,22 Z M14,2 L14,7 L19,7 M9,12 L16,12 M9,16 L16,16</Geometry>
             <Geometry x:Key="IconFolderOpen">M3,7 L10,7 L12,9 L21,9 L19,20 L4,20 Z M3,7 L3,18</Geometry>
             <Geometry x:Key="IconPaste">M9,4 L15,4 L15,7 L9,7 Z M7,6 L5,6 L5,21 L17,21 L17,18 M12,12 L21,12 L21,21 L12,21 Z</Geometry>
             <Geometry x:Key="IconPlus">M12,5 L12,19 M5,12 L19,12</Geometry>
+            <Geometry x:Key="IconCheck">M4.8,12.6 L9.6,17.4 L19.2,6.6</Geometry>
             <Geometry x:Key="IconExternal">M14,4 L20,4 L20,10 M20,4 L11,13 M18,13 L18,20 L4,20 L4,6 L11,6</Geometry>
             <Geometry x:Key="IconCopy">M8,8 L21,8 L21,21 L8,21 Z M8,17 L3,17 L3,3 L17,3 L17,8</Geometry>
             <Geometry x:Key="IconVault">M4,3 L20,3 L20,8 L4,8 Z M6,8 L18,8 L18,21 L6,21 Z M10,12 L14,12</Geometry>
@@ -85,9 +90,40 @@
             </Style>
 
             <Style x:Key="SidebarIcon" TargetType="Path" BasedOn="{StaticResource LineIcon}">
+                <Setter Property="Width" Value="21" />
+                <Setter Property="Height" Value="21" />
+                <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Style>
+
+            <Style x:Key="TaskCheckBox" TargetType="CheckBox">
                 <Setter Property="Width" Value="18" />
                 <Setter Property="Height" Value="18" />
-                <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="CheckBox">
+                            <Grid Background="Transparent">
+                                <Border x:Name="CheckSurface" Width="18" Height="18" CornerRadius="6"
+                                        BorderThickness="1.5" BorderBrush="{DynamicResource DividerBrush}"
+                                        Background="Transparent" />
+                                <Path x:Name="CheckMark" Data="M4.3,9.4 L7.4,12.5 L13.7,6" Width="18" Height="18"
+                                      Stretch="None" Stroke="{DynamicResource PrimaryActionTextBrush}"
+                                      StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" Opacity="0" />
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="CheckSurface" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                    <Setter TargetName="CheckSurface" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                    <Setter TargetName="CheckMark" Property="Opacity" Value="1" />
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="CheckSurface" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style x:Key="LineButtonIcon" TargetType="Path" BasedOn="{StaticResource LineIcon}">
@@ -219,21 +255,95 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="NavSurface" Background="{TemplateBinding Background}" CornerRadius="9"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                  VerticalAlignment="Center" />
+                            <Border x:Name="NavSurface" Background="{TemplateBinding Background}" CornerRadius="10">
+                                <Grid>
+                                    <Border x:Name="HoverSurface" CornerRadius="10" Opacity="0" IsHitTestVisible="False"
+                                            Background="{DynamicResource PanelSurfaceBrush}" />
+                                    <Border x:Name="ActiveSurface" CornerRadius="10" Opacity="0" IsHitTestVisible="False"
+                                            Background="{DynamicResource ControlSurfaceBrush}" />
+                                    <Border x:Name="ActiveRail" Width="2.5" Height="4" CornerRadius="1.5"
+                                            Margin="3,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                            Background="{DynamicResource AccentBrush}" Opacity="0"
+                                            IsHitTestVisible="False" />
+                                    <ContentPresenter x:Name="IconHost" Margin="{TemplateBinding Padding}"
+                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                      VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                        <ContentPresenter.RenderTransform>
+                                            <ScaleTransform x:Name="IconScale" ScaleX="1" ScaleY="1" />
+                                        </ContentPresenter.RenderTransform>
+                                    </ContentPresenter>
+                                </Grid>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="NavSurface" Property="Background" Value="{DynamicResource PanelSurfaceBrush}" />
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="HoverSurface" Storyboard.TargetProperty="Opacity"
+                                                                 To="1" Duration="0:0:0.13">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="IconScale" Storyboard.TargetProperty="ScaleX"
+                                                                 To="1.08" Duration="0:0:0.17">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="IconScale" Storyboard.TargetProperty="ScaleY"
+                                                                 To="1.08" Duration="0:0:0.17">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="HoverSurface" Storyboard.TargetProperty="Opacity"
+                                                                 To="0" Duration="0:0:0.2" />
+                                                <DoubleAnimation Storyboard.TargetName="IconScale" Storyboard.TargetProperty="ScaleX"
+                                                                 To="1" Duration="0:0:0.22">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="IconScale" Storyboard.TargetProperty="ScaleY"
+                                                                 To="1" Duration="0:0:0.22">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
                                 </Trigger>
                                 <Trigger Property="Tag" Value="Active">
-                                    <Setter TargetName="NavSurface" Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
                                     <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="NavSurface" Property="Opacity" Value="0.72" />
+                                    <Setter TargetName="ActiveSurface" Property="Opacity" Value="1" />
+                                    <Setter TargetName="ActiveRail" Property="Opacity" Value="1" />
+                                    <Setter TargetName="ActiveRail" Property="Height" Value="18" />
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ActiveSurface" Storyboard.TargetProperty="Opacity"
+                                                                 To="1" Duration="0:0:0.22">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="ActiveRail" Storyboard.TargetProperty="Opacity"
+                                                                 To="1" Duration="0:0:0.16" />
+                                                <DoubleAnimation Storyboard.TargetName="ActiveRail" Storyboard.TargetProperty="Height"
+                                                                 To="18" Duration="0:0:0.3">
+                                                    <DoubleAnimation.EasingFunction><BackEase EasingMode="EaseOut" Amplitude="0.5" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ActiveSurface" Storyboard.TargetProperty="Opacity"
+                                                                 To="0" Duration="0:0:0.18" />
+                                                <DoubleAnimation Storyboard.TargetName="ActiveRail" Storyboard.TargetProperty="Opacity"
+                                                                 To="0" Duration="0:0:0.16" />
+                                                <DoubleAnimation Storyboard.TargetName="ActiveRail" Storyboard.TargetProperty="Height"
+                                                                 To="4" Duration="0:0:0.18" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

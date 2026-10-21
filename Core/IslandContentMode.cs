@@ -24,7 +24,9 @@ public enum ExpandedPanelMode
     Focus,
     Files,
     Clipboard,
-    Apps
+    Apps,
+    Tasks,
+    Notes
 }
 
 public enum NotificationBehavior

@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     private readonly IslandManager _islandManager = new();
     private readonly MediaSessionService _mediaService = new();
     private readonly WeatherService _weatherService = new();
+    private readonly LocationService _locationService = new();
     private readonly HardwareMonitorService _hardwareMonitor = new();
     private readonly BitmapImage _brandLogo = new(new Uri("pack://application:,,,/Assets/island-logo.png", UriKind.Absolute));
     private readonly ConfigurationService _configurationService = new();
@@ -59,6 +60,9 @@ public partial class MainWindow : Window
     private readonly QuickControlService _quickControlService = new();
     private readonly WebcamPreviewService _webcamPreviewService = new();
     private readonly ObservableCollection<DockedFileItem> _files = [];
+    private readonly ObservableCollection<ChecklistItem> _tasks = [];
+    private readonly ObservableCollection<NoteItem> _notes = [];
+    private NoteItem? _editingNote;
     private readonly ObservableCollection<AppLauncherItem> _applications = [];
     private readonly ObservableCollection<RunningApplicationInfo> _runningApplications = [];
     private readonly ObservableCollection<InstalledApplicationInfo> _installedApplications = [];
@@ -134,6 +138,18 @@ public partial class MainWindow : Window
         UpdateActiveNavigation();
         FileList.ItemsSource = _files;
         _files.CollectionChanged += (_, _) => UpdateActivityStack();
+        TaskList.ItemsSource = _tasks;
+        _tasks.CollectionChanged += (_, _) =>
+        {
+            UpdateTasksSummary();
+            QueueSettingsSave();
+        };
+        NoteList.ItemsSource = _notes;
+        _notes.CollectionChanged += (_, _) =>
+        {
+            UpdateNotesSummary();
+            QueueSettingsSave();
+        };
         AppList.ItemsSource = _applications;
         RunningAppsComboBox.ItemsSource = _runningApplications;
         InstalledAppsComboBox.ItemsSource = _installedApplications;
@@ -275,6 +291,8 @@ public partial class MainWindow : Window
         if (!Enum.IsDefined(_configuration.NotificationBehavior))
             _configuration.NotificationBehavior = NotificationBehavior.Standard;
         _configuration.NotificationRules ??= [];
+        _configuration.Tasks ??= [];
+        _configuration.Notes ??= [];
         if (!TryParseSurfaceColor(_configuration.GradientStartColor, out _))
             _configuration.GradientStartColor = "#FF334654";
         if (!TryParseSurfaceColor(_configuration.GradientEndColor, out _))
@@ -303,6 +321,12 @@ public partial class MainWindow : Window
                 // A missing or locked legacy source is skipped during one-time migration.
             }
         }
+        foreach (var task in _configuration.Tasks)
+            _tasks.Add(task);
+        UpdateTasksSummary();
+        foreach (var note in _configuration.Notes)
+            _notes.Add(note);
+        UpdateNotesSummary();
         foreach (var application in _configuration.Applications.Where(item => File.Exists(item.ExecutablePath)))
         {
             _applications.Add(application);
@@ -329,7 +353,6 @@ public partial class MainWindow : Window
             ? Visibility.Visible : Visibility.Collapsed;
         BackgroundColorOptions.Visibility = _configuration.SurfaceStyle == IslandSurfaceStyle.Solid
             ? Visibility.Visible : Visibility.Collapsed;
-        WeatherLocationTextBox.Text = _configuration.WeatherLocation;
         try
         {
             _customMiniLogo = _miniLogoStorage.Load(_configuration.MiniLogoImagePath);
@@ -868,6 +891,8 @@ public partial class MainWindow : Window
             ExpandedPanelMode.Activity => ActivityPanel,
             ExpandedPanelMode.Controls => ControlsPanel,
             ExpandedPanelMode.Focus => FocusPanel,
+            ExpandedPanelMode.Tasks => TasksPanel,
+            ExpandedPanelMode.Notes => NotesPanel,
             ExpandedPanelMode.Files => FilesPanel,
             ExpandedPanelMode.Clipboard => ClipboardPanel,
             ExpandedPanelMode.Apps => AppsPanel,
@@ -1308,6 +1333,8 @@ public partial class MainWindow : Window
         }
 
         var outgoing = _activePanel;
+        if (navigationDirection == 0 && outgoing is not null && outgoing != panel)
+            navigationDirection = GetNavigationDirection(outgoing, panel);
         var appsTransition = panel == AppsPanel || outgoing == AppsPanel;
         if (appsTransition && outgoing is not null && outgoing != panel)
         {
@@ -1338,7 +1365,7 @@ public partial class MainWindow : Window
         }
         var version = ++_panelAnimationVersion;
         _hardwareTimer.IsEnabled = panel == HardwarePanel || panel == ControlsPanel;
-        foreach (var other in new UIElement[] { MediaPanel, WeatherPanel, HardwarePanel, ActivityPanel, ControlsPanel, FocusPanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
+        foreach (var other in new UIElement[] { MediaPanel, WeatherPanel, HardwarePanel, ActivityPanel, ControlsPanel, FocusPanel, TasksPanel, NotesPanel, FilesPanel, ClipboardPanel, SettingsPanel, AppsPanel })
         {
             if (other == panel || other == outgoing) continue;
             other.BeginAnimation(OpacityProperty, null);
@@ -1388,8 +1415,8 @@ public partial class MainWindow : Window
         panel.RenderTransformOrigin = new Point(0.5, 0.5);
         panel.RenderTransform = new TransformGroup { Children = new TransformCollection { scale, slide } };
         var entrance = new Duration(TimeSpan.FromMilliseconds(
-            isDirectionalSlide ? (appsTransition ? 165 : 190) : appsTransition ? 135 : 245));
-        var incomingOffset = isDirectionalSlide ? 22 * navigationDirection : appsTransition ? 6 : 14;
+            isDirectionalSlide ? (appsTransition ? 165 : 210) : appsTransition ? 135 : 235));
+        var incomingOffset = isDirectionalSlide ? 16 * navigationDirection : appsTransition ? 6 : 12;
         var incomingSlide = new DoubleAnimation(incomingOffset, 0, entrance)
         {
             EasingFunction = new QuarticEase { EasingMode = EasingMode.EaseOut },
@@ -1407,7 +1434,7 @@ public partial class MainWindow : Window
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         });
         var fadeIn = new DoubleAnimation(0, 1,
-            TimeSpan.FromMilliseconds(isDirectionalSlide ? 165 : appsTransition ? 125 : 205))
+            TimeSpan.FromMilliseconds(isDirectionalSlide ? 185 : appsTransition ? 125 : 205))
         {
             BeginTime = TimeSpan.FromMilliseconds(isDirectionalSlide || appsTransition ? 0 : 20)
         };
@@ -1417,6 +1444,18 @@ public partial class MainWindow : Window
                 UpdateInteractivePanel();
         };
         panel.BeginAnimation(OpacityProperty, fadeIn, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private int GetNavigationDirection(UIElement? from, UIElement? to)
+    {
+        UIElement[] order =
+        [
+            MediaPanel, WeatherPanel, HardwarePanel, ActivityPanel, ControlsPanel,
+            FocusPanel, TasksPanel, NotesPanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel
+        ];
+        var fromIndex = from is null ? -1 : Array.IndexOf(order, from);
+        var toIndex = to is null ? -1 : Array.IndexOf(order, to);
+        return fromIndex < 0 || toIndex < 0 ? 0 : Math.Sign(toIndex - fromIndex);
     }
 
     private void ApplyPanelSizeImmediately(double targetWidth, double targetHeight, IslandState state)
@@ -1475,7 +1514,7 @@ public partial class MainWindow : Window
         UIElement[] panels =
         [
             MediaPanel, WeatherPanel, HardwarePanel, ActivityPanel, ControlsPanel,
-            FocusPanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel
+            FocusPanel, TasksPanel, NotesPanel, FilesPanel, ClipboardPanel, AppsPanel, SettingsPanel
         ];
         var current = Array.IndexOf(panels, _activePanel);
         if (current < 0) current = 0;
@@ -1503,6 +1542,8 @@ public partial class MainWindow : Window
         ActivityNavButton.Tag = _activePanel == ActivityPanel ? "Active" : null;
         ControlsNavButton.Tag = _activePanel == ControlsPanel ? "Active" : null;
         FocusNavButton.Tag = _activePanel == FocusPanel ? "Active" : null;
+        TasksNavButton.Tag = _activePanel == TasksPanel ? "Active" : null;
+        NotesNavButton.Tag = _activePanel == NotesPanel ? "Active" : null;
         FilesNavButton.Tag = _activePanel == FilesPanel ? "Active" : null;
         ClipboardNavButton.Tag = _activePanel == ClipboardPanel ? "Active" : null;
         AppsNavButton.Tag = _activePanel == AppsPanel ? "Active" : null;
@@ -1515,6 +1556,8 @@ public partial class MainWindow : Window
             var active when active == ActivityPanel => ActivityNavButton,
             var active when active == ControlsPanel => ControlsNavButton,
             var active when active == FocusPanel => FocusNavButton,
+            var active when active == TasksPanel => TasksNavButton,
+            var active when active == NotesPanel => NotesNavButton,
             var active when active == FilesPanel => FilesNavButton,
             var active when active == ClipboardPanel => ClipboardNavButton,
             var active when active == AppsPanel => AppsNavButton,
@@ -1531,7 +1574,9 @@ public partial class MainWindow : Window
 
     private static void AnimateNavigationIcon(Button? button, bool becomingActive, int navigationDirection)
     {
-        if (button?.Content is not FrameworkElement icon) return;
+        // Only the arriving icon moves. Pulsing the outgoing one made the rail
+        // feel jittery when panels switched quickly.
+        if (!becomingActive || button?.Content is not FrameworkElement icon) return;
 
         var scale = new ScaleTransform(1, 1);
         var motion = new TranslateTransform();
@@ -1543,40 +1588,23 @@ public partial class MainWindow : Window
 
         var settle = new CubicEase { EasingMode = EasingMode.EaseOut };
         var scaleFrames = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-        var opacityFrames = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-        if (becomingActive)
-        {
-            scaleFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame(0.74, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1.13,
-                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(105)), settle));
-            scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
-                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)), settle));
-            opacityFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame(0.42, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            opacityFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
-                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(165)), settle));
-        }
-        else
-        {
-            scaleFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(0.84,
-                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(75)), settle));
-            scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
-                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(175)), settle));
-            opacityFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            opacityFrames.KeyFrames.Add(new EasingDoubleKeyFrame(0.5,
-                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(75)), settle));
-            opacityFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
-                KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(175)), settle));
-        }
-
+        scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(0.82, KeyTime.FromTimeSpan(TimeSpan.Zero), settle));
+        scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1.07,
+            KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(130)), settle));
+        scaleFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
+            KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)), settle));
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleFrames, HandoffBehavior.SnapshotAndReplace);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleFrames, HandoffBehavior.SnapshotAndReplace);
+
+        var opacityFrames = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        opacityFrames.KeyFrames.Add(new EasingDoubleKeyFrame(0.5, KeyTime.FromTimeSpan(TimeSpan.Zero), settle));
+        opacityFrames.KeyFrames.Add(new EasingDoubleKeyFrame(1,
+            KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180)), settle));
         icon.BeginAnimation(OpacityProperty, opacityFrames, HandoffBehavior.SnapshotAndReplace);
 
         if (navigationDirection == 0) return;
-        var offset = becomingActive ? 5 * navigationDirection : -3 * navigationDirection;
-        motion.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(offset, 0,
-            TimeSpan.FromMilliseconds(becomingActive ? 190 : 150))
+        motion.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(4 * navigationDirection, 0,
+            TimeSpan.FromMilliseconds(220))
         {
             EasingFunction = settle,
             FillBehavior = FillBehavior.Stop
@@ -1586,15 +1614,27 @@ public partial class MainWindow : Window
     private async void WeatherRefreshButton_Click(object sender, RoutedEventArgs e) =>
         await RefreshWeatherAsync();
 
-    private async Task RefreshWeatherAsync()
+    private async void WeatherLocationButton_Click(object sender, RoutedEventArgs e) =>
+        await RefreshWeatherAsync(useDeviceLocation: true);
+
+    private async Task RefreshWeatherAsync(bool useDeviceLocation = false)
     {
         WeatherRefreshButton.IsEnabled = false;
-        WeatherStatusText.Text = "Loading current conditions…";
-        _configuration.WeatherLocation = WeatherLocationTextBox.Text.Trim();
-        QueueSettingsSave();
+        WeatherLocationButton.IsEnabled = false;
+        WeatherStatusText.Text = useDeviceLocation
+            ? "Finding your location…"
+            : "Loading current conditions…";
+        var detected = useDeviceLocation ? await _locationService.TryGetAsync() : null;
+        if (useDeviceLocation && detected is null)
+        {
+            WeatherStatusText.Text = "No device location available; using the network location…";
+        }
+
         try
         {
-            var weather = await _weatherService.GetCurrentAsync(_configuration.WeatherLocation);
+            var weather = detected is { } fix
+                ? await _weatherService.GetCurrentAtAsync(fix.Latitude, fix.Longitude)
+                : await _weatherService.GetCurrentAsync(null);
             WeatherLocationText.Text = string.IsNullOrWhiteSpace(weather.Location)
                 ? "Current location" : weather.Location;
             WeatherTemperatureText.Text = $"{weather.TemperatureC}°";
@@ -1603,7 +1643,9 @@ public partial class MainWindow : Window
             WeatherFeelsText.Text = $"{weather.FeelsLikeC}°";
             WeatherHumidityText.Text = $"{weather.HumidityPercent}%";
             WeatherWindText.Text = $"{weather.WindKph} km/h";
-            WeatherStatusText.Text = $"Updated {DateTime.Now:h:mm tt} · weather data from wttr.in";
+            WeatherStatusText.Text = detected is null
+                ? $"Updated {DateTime.Now:h:mm tt} · approximate network location"
+                : $"Updated {DateTime.Now:h:mm tt} · device location";
             _weatherLoaded = true;
             UpdateCompactStatus();
         }
@@ -1614,6 +1656,7 @@ public partial class MainWindow : Window
         finally
         {
             WeatherRefreshButton.IsEnabled = true;
+            WeatherLocationButton.IsEnabled = true;
         }
     }
 
@@ -1674,6 +1717,173 @@ public partial class MainWindow : Window
             ? $"Focus · {FormatFocusTime(_focusRemaining)}"
             : _currentMediaSnapshot.IsPlaying ? $"Playing · {_currentMediaSnapshot.Title}" : string.Empty;
         if (_islandManager.State == IslandState.Collapsed) UpdateCompactStatus();
+    }
+
+    private void TasksNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateTasksSummary();
+        ShowPanel(TasksPanel);
+    }
+
+    private void AddTaskButton_Click(object sender, RoutedEventArgs e) => AddTaskFromInput();
+
+    private void TaskInput_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        AddTaskFromInput();
+        e.Handled = true;
+    }
+
+    private void AddTaskFromInput()
+    {
+        var text = TaskInput.Text.Trim();
+        if (text.Length == 0) return;
+        _tasks.Add(new ChecklistItem { Text = text });
+        TaskInput.Clear();
+        TaskInput.Focus();
+    }
+
+    private void TaskCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        UpdateTasksSummary();
+        QueueSettingsSave();
+    }
+
+    private void RemoveTaskButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: ChecklistItem item })
+            _tasks.Remove(item);
+    }
+
+    private void ClearCompletedTasksButton_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var item in _tasks.Where(task => task.IsCompleted).ToList())
+            _tasks.Remove(item);
+    }
+
+    private void UpdateTasksSummary()
+    {
+        if (TasksSummaryText is null) return;
+        var completed = _tasks.Count(task => task.IsCompleted);
+        var open = _tasks.Count - completed;
+        TasksSummaryText.Text = _tasks.Count == 0
+            ? "A small checklist that stays where you left it"
+            : $"{open} open · {completed} done";
+        TasksEmptyState.Visibility = _tasks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ClearCompletedTasksButton.IsEnabled = completed > 0;
+        TasksStatusText.Text = _tasks.Count == 0
+            ? "Tasks are saved on this device."
+            : $"{_tasks.Count} {(_tasks.Count == 1 ? "task" : "tasks")} saved on this device";
+    }
+
+    private void NotesNavButton_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateNotesSummary();
+        ShowPanel(NotesPanel);
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        {
+            if (_activePanel == NotesPanel) NoteInput.Focus();
+        }));
+    }
+
+    private void NoteInput_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (SaveNoteButton is null) return;
+        SaveNoteButton.IsEnabled = NoteInput.Text.Trim().Length > 0;
+    }
+
+    private void NoteInput_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || (Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+        SaveNoteFromInput();
+        e.Handled = true;
+    }
+
+    private void SaveNoteButton_Click(object sender, RoutedEventArgs e) => SaveNoteFromInput();
+
+    private void SaveNoteFromInput()
+    {
+        var text = NoteInput.Text.Trim();
+        if (text.Length == 0) return;
+
+        if (_editingNote is { } note)
+        {
+            note.Text = text;
+            note.UpdatedAt = DateTime.Now;
+        }
+        else
+        {
+            // Newest notes sit at the top, so the last thing written stays in reach.
+            _notes.Insert(0, new NoteItem { Text = text, UpdatedAt = DateTime.Now });
+        }
+
+        EndNoteEditing();
+        UpdateNotesSummary();
+        QueueSettingsSave();
+        NoteInput.Focus();
+    }
+
+    private void CancelNoteEditButton_Click(object sender, RoutedEventArgs e) => EndNoteEditing();
+
+    private void NoteCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        // The delete button lives inside the card, so its click must not open the note.
+        if (e.OriginalSource is DependencyObject source && FindAncestor<Button>(source) is not null) return;
+        if (sender is not FrameworkElement { DataContext: NoteItem note } || _editingNote == note) return;
+        BeginNoteEditing(note);
+        e.Handled = true;
+    }
+
+    private void BeginNoteEditing(NoteItem note)
+    {
+        if (_editingNote is { } previous) previous.IsEditing = false;
+        _editingNote = note;
+        note.IsEditing = true;
+        NoteInput.Text = note.Text;
+        NoteInput.CaretIndex = NoteInput.Text.Length;
+        NoteInput.Focus();
+        UpdateNotesSummary();
+    }
+
+    private void EndNoteEditing()
+    {
+        if (_editingNote is { } note) note.IsEditing = false;
+        _editingNote = null;
+        NoteInput.Clear();
+        UpdateNotesSummary();
+    }
+
+    private void RemoveNoteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: NoteItem note }) return;
+        if (_editingNote == note)
+        {
+            _editingNote = null;
+            NoteInput.Clear();
+        }
+        _notes.Remove(note);
+        UpdateNotesSummary();
+        QueueSettingsSave();
+    }
+
+    private void UpdateNotesSummary()
+    {
+        if (NotesSummaryText is null) return;
+        var count = _notes.Count;
+        NotesSummaryText.Text = count == 0
+            ? "A quiet place for anything worth keeping"
+            : $"{count} {(count == 1 ? "note" : "notes")} · newest first";
+        NotesEmptyState.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        NotesStatusText.Text = count == 0
+            ? "Notes are saved on this device."
+            : $"{count} {(count == 1 ? "note" : "notes")} saved on this device";
+
+        var editing = _editingNote is not null;
+        NoteEditHint.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+        CancelNoteEditButton.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+        NoteSaveButtonText.Text = editing ? "Update" : "Save";
+        NoteSaveIcon.Data = (Geometry)Application.Current.Resources[editing ? "IconCheck" : "IconPlus"];
+        SaveNoteButton.IsEnabled = NoteInput.Text.Trim().Length > 0;
     }
 
     private void RefreshQuickControls()
@@ -3303,6 +3513,8 @@ public partial class MainWindow : Window
     private async Task SaveConfigurationAsync()
     {
         _configuration.DockedFiles = _files.ToList();
+        _configuration.Tasks = _tasks.ToList();
+        _configuration.Notes = _notes.ToList();
         _configuration.Applications = _applications.ToList();
         try
         {
