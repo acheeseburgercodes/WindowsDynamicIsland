@@ -48,6 +48,15 @@ VersionInfoDescription={#MyAppName} installer
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
+; When Build-Installer.ps1 is run with -CertificateThumbprint it passes the
+; IslandSign tool on the ISCC command line; the uninstaller stub generated at
+; compile time is then signed too, so Smart App Control sees trusted code for
+; both install and uninstall.
+#ifdef CodeSigningThumbprint
+SignTool=IslandSign
+SignedUninstaller=yes
+#endif
+
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 

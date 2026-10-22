@@ -94,6 +94,16 @@ if (-not (Test-Path -LiteralPath (Join-Path $controlCenterOutput "IslandSettings
     throw "The Control Center output was not found at $controlCenterOutput."
 }
 
+if ($CertificateThumbprint) {
+    Write-Host "Signing Control Center binaries..."
+    Get-ChildItem -LiteralPath $controlCenterOutput -Recurse -File |
+        Where-Object { $_.Extension -in ".exe", ".dll" } |
+        Where-Object { (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -eq "NotSigned" } |
+        ForEach-Object {
+            & (Join-Path $PSScriptRoot "Sign-Executable.ps1") -FilePath $_.FullName -CertificateThumbprint $CertificateThumbprint
+        }
+}
+
 Get-ChildItem -LiteralPath $controlCenterOutput -File |
     Where-Object { $_.Extension -notin ".pdb", ".map" } |
     Copy-Item -Destination $controlCenterStage -Force
@@ -110,9 +120,32 @@ if (Test-Path -LiteralPath $dotnetNotices) {
 }
 
 $iscc = Find-InnoCompiler
+$isccArguments = @(
+    "/DMyAppVersion=$Version",
+    "/DRepoRoot=$repoRoot",
+    "/DStageDir=$stageRoot"
+)
+$signShim = $null
+if ($CertificateThumbprint) {
+    # Inno Setup signs the uninstaller stub at compile time through a sign
+    # tool declared on the ISCC command line. The shim reuses the validated
+    # Sign-Executable.ps1 (signtool sign + verify).
+    $signShim = Join-Path $artifactsRoot "iscc-sign-shim.cmd"
+    $signScript = Join-Path $PSScriptRoot "Sign-Executable.ps1"
+    @(
+        '@echo off',
+        'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "' + $signScript + '" -FilePath "%~1" -CertificateThumbprint "' + $CertificateThumbprint + '"'
+    ) | Set-Content -LiteralPath $signShim -Encoding ascii
+    $isccArguments += "/DCodeSigningThumbprint=$CertificateThumbprint"
+    $isccArguments += "/SIslandSign=`"$signShim`" `$f"
+}
+$isccArguments += $installerScript
 Write-Host "Compiling the Windows installer..."
-& $iscc "/DMyAppVersion=$Version" "/DRepoRoot=$repoRoot" "/DStageDir=$stageRoot" $installerScript
+& $iscc @isccArguments
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE." }
+if ($signShim) {
+    Remove-Item -LiteralPath $signShim -Force -ErrorAction SilentlyContinue
+}
 
 $installer = Join-Path $installerOutput "WindowsDynamicIsland-v$Version-win-x64-setup.exe"
 if (-not (Test-Path -LiteralPath $installer)) {
