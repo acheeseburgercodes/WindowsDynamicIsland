@@ -41,6 +41,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
 RestartApplications=no
+SetupLogging=yes
 VersionInfoVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName} installer
@@ -76,3 +77,19 @@ Root: HKLM; Subkey: "Software\Classes\dynamicisland-settings\shell\open\command"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch Windows Dynamic Island"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// Close the running app before uninstalling. Otherwise the locked
+// DynamicIsland.exe is left behind in {app} with no registry entries,
+// shortcuts or Control Panel registration - the app keeps running but
+// disappears from Start Menu and installed apps.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    Exec('taskkill.exe', '/F /IM DynamicIsland.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('taskkill.exe', '/F /IM IslandSettings.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+end;
