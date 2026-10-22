@@ -1,0 +1,45 @@
+# SignPath Foundation onboarding
+
+This repository is prepared for the SignPath Foundation's free open-source signing program. Approval is external and cannot be automated by this repository.
+
+## Application checklist
+
+Before applying at <https://signpath.org/>:
+
+1. Keep the repository public and retain its OSI-approved MIT license.
+2. Confirm that all project-maintained source and build scripts are publicly available and that no released component is proprietary.
+3. Enable multi-factor authentication for every maintainer and for the GitHub account used for releases.
+4. Keep this repository's [code signing policy](CODE_SIGNING_POLICY.md) and [privacy policy](PRIVACY.md) publicly linked from the README and release pages.
+5. Ensure releases describe the application's functionality and include source, license, third-party notices, and checksums.
+
+## SignPath project setup after approval
+
+Create a SignPath project for `acheeseburgercodes/WindowsDynamicIsland` and configure:
+
+- a release-signing policy restricted to the repository's protected release branch/tag and approved GitHub Actions workflow;
+- a manual approval rule for the signing approver named in the code-signing policy;
+- an artifact configuration that signs only project-owned artifacts and preserves/verifies existing third-party signatures;
+- a version parameter or wildcard rule for `WindowsDynamicIsland-v*-win-x64-setup.exe`;
+- signing coverage for `DynamicIsland.exe`, `IslandSettings.exe`, project-owned native binaries, the Inno Setup installer, and its generated uninstaller.
+
+Do not use a personal PFX or a self-signed certificate for public releases. SignPath must provide and protect the signing identity. Inno Setup's generated uninstaller requires a SignPath-compatible `SignTool`/KSP integration during compilation, rather than being appended after the installer is built.
+
+## GitHub configuration
+
+After SignPath gives you the project-specific values, add these repository settings:
+
+- Secret: `SIGNPATH_API_TOKEN`
+- Variables: `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_SIGNING_POLICY_SLUG`, and `SIGNPATH_ARTIFACT_CONFIGURATION_SLUG`
+
+The release workflow must upload the unsigned artifact from GitHub Actions to the official `SignPath/github-action-submit-signing-request` action, wait for manual approval, download the signed result, and verify the Authenticode signature and timestamp before publishing a GitHub Release.
+
+## Release acceptance checks
+
+Before a signed release is published:
+
+1. Verify every shipped executable and project-owned DLL with `Get-AuthenticodeSignature`.
+2. Confirm the expected SignPath Foundation signer and an RFC 3161 timestamp.
+3. Verify the installer starts, installs, launches the island and Control Center, and uninstalls cleanly on a Windows 11 test device with Smart App Control enabled or in audit mode.
+4. Publish the signed setup executable, SHA-256 checksum, MIT license, and third-party notices from the same approved tag.
+
+Microsoft's current Smart App Control guidance requires trusted signing for all distributed code, including installers, uninstallers, executables, DLLs, and scripts. See <https://learn.microsoft.com/windows/apps/develop/smart-app-control/code-signing-for-smart-app-control>.
