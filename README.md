@@ -4,6 +4,28 @@ A small, always-on-top WPF island for Windows 11. Its per-pixel-transparent wind
 
 The application source is licensed under the [MIT License](LICENSE). Self-contained downloads also include the .NET runtime's license and third-party notices; see [third-party notices](THIRD-PARTY-NOTICES.md).
 
+## Code Signing Policy
+
+Windows Dynamic Island uses the SignPath Foundation program for free open-source code signing.
+
+**Free code signing provided by SignPath.io, certificate by SignPath Foundation.**
+
+### Signing responsibilities
+
+- **Authors and committers:** `acheeseburgercodes` — responsible for maintaining the source code, build scripts, and release configuration.
+- **Reviewers:** Changes proposed by contributors who are not trusted committers must be reviewed before merging.
+- **Approvers:** Release signing requests must be approved by an authorized project maintainer.
+
+All release binaries submitted for signing must be built from this repository's source code using the project's documented build process and an approved, verifiable build pipeline.
+
+### Privacy
+
+See our [Privacy Statement](PRIVACY.md) for information about local data storage, network requests, location-related weather functionality, and optional integrations.
+
+### Releases
+
+Official releases are published on the [GitHub Releases page](https://github.com/acheeseburgercodes/WindowsDynamicIsland/releases).
+
 ## Features
 
 - Album artwork, live timeline and seeking where supported, media controls, and a button to open the source player
