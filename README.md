@@ -48,7 +48,7 @@ Drag a row from the Files tab into a browser or File Explorer. The island hands 
 
 ## Install
 
-Download `WindowsDynamicIsland-v0.3.0-win-x64-setup.exe` from the GitHub Releases page and run it. The installer adds the island and its Control Center to the Start menu, can launch the island at sign-in, and registers **Windows Dynamic Island** in Windows Settings under **Apps > Installed apps** and in Control Panel under **Programs and Features**. Use either Windows surface to uninstall it normally.
+Download the latest `WindowsDynamicIsland-v*-win-x64-setup.exe` from the GitHub Releases page and run it. The installer adds the island and its Control Center to the Start menu, can launch the island at sign-in, and registers **Windows Dynamic Island** in Windows Settings under **Apps > Installed apps** and in Control Panel under **Programs and Features**. Use either Windows surface to uninstall it normally.
 
 The installer is self-contained, so running the island does not require a separate .NET installation. The included Control Center is installed beside the island and is opened from the island's Settings panel or its Start-menu shortcut.
 
@@ -75,7 +75,7 @@ The opt-in build target signs and verifies both the Release build executable and
 To create the complete installer locally, install Inno Setup 6 and run:
 
 ```powershell
-.\tools\Build-Installer.ps1 -Version 0.3.0
+.\tools\Build-Installer.ps1 -Version 0.3.1
 ```
 
 Pass `-CertificateThumbprint YOUR_CERTIFICATE_THUMBPRINT` to sign the published app and installer. The resulting setup executable and SHA-256 file are written to `artifacts\installer`.

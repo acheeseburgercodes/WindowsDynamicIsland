@@ -139,6 +139,7 @@
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="Padding" Value="10,6" />
                 <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
@@ -148,8 +149,8 @@
                                         Background="{TemplateBinding Background}"
                                         BorderBrush="{TemplateBinding BorderBrush}"
                                         BorderThickness="{TemplateBinding BorderThickness}"
-                                        CornerRadius="11" />
-                                <Border x:Name="HoverGlass" CornerRadius="11" Opacity="0"
+                                        CornerRadius="12" />
+                                <Border x:Name="HoverGlass" CornerRadius="12" Opacity="0"
                                         BorderThickness="1" BorderBrush="#30FFFFFF"
                                         IsHitTestVisible="False">
                                     <Border.Background>
@@ -192,7 +193,10 @@
                                     </Trigger.ExitActions>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="ButtonFrame" Property="Opacity" Value="0.78" />
+                                    <Setter TargetName="ButtonFrame" Property="Opacity" Value="0.86" />
+                                    <Setter TargetName="ButtonFrame" Property="RenderTransform">
+                                        <Setter.Value><TranslateTransform Y="1" /></Setter.Value>
+                                    </Setter>
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
                                     <Setter TargetName="ButtonFrame" Property="Opacity" Value="0.4" />
@@ -214,17 +218,30 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border Background="Transparent">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Border x:Name="IconSurface" Background="{TemplateBinding Background}" CornerRadius="10">
+                                <Grid>
+                                    <Border x:Name="IconGlass" Margin="1" CornerRadius="9" Opacity="0" IsHitTestVisible="False">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                <GradientStop Color="#32FFFFFF" Offset="0" />
+                                                <GradientStop Color="#12FFFFFF" Offset="0.5" />
+                                                <GradientStop Color="#00FFFFFF" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
                             </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                    <Setter Property="Background" Value="{DynamicResource ControlSurfaceBrush}" />
+                                    <Setter TargetName="IconGlass" Property="Opacity" Value="1" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
-                <Style.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                    </Trigger>
-                </Style.Triggers>
             </Style>
 
             <Style x:Key="AppRunnerActionButton" TargetType="Button" BasedOn="{StaticResource IslandButton}">
@@ -368,6 +385,9 @@
                                 <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
                             </Border>
                             <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="InputFrame" Property="BorderBrush" Value="#668C8F98" />
+                                </Trigger>
                                 <Trigger Property="IsKeyboardFocused" Value="True">
                                     <Setter TargetName="InputFrame" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                 </Trigger>
