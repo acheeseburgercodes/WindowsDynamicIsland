@@ -4,7 +4,9 @@ A small, always-on-top WPF island for Windows 11. Its per-pixel-transparent wind
 
 The application source is licensed under the [MIT License](LICENSE). Self-contained downloads also include the .NET runtime's license and third-party notices; see [third-party notices](THIRD-PARTY-NOTICES.md).
 
-Project policies: [code signing](docs/CODE_SIGNING_POLICY.md), [SignPath Foundation onboarding](docs/SIGNPATH_ONBOARDING.md), and [privacy](docs/PRIVACY.md).
+Project policies: [code signing](docs/CODE_SIGNING_POLICY.md), [SignPath Foundation onboarding](docs/SIGNPATH_ONBOARDING.md), [privacy](docs/PRIVACY.md), and [security reporting](SECURITY.md).
+
+Windows release signing is being prepared through SignPath Foundation. Until a release explicitly states that it has a valid **SignPath Foundation** Authenticode signature, treat it as unsigned; self-signed development builds are not public release artifacts.
 
 ## Features
 
