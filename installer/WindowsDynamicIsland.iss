@@ -74,7 +74,7 @@ Source: "{#RepoRoot}\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignorever
 Source: "{#RepoRoot}\PRIVACY.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#RepoRoot}\CODE_SIGNING.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#RepoRoot}\installer\weather-disabled"; DestDir: "{app}"; Flags: ignoreversion; Tasks: not onlineweather
-Source: "{#StageDir}\legal\*"; DestDir: "{app}\legal"; Flags: ignoreversion
+Source: "{#StageDir}\legal\*"; DestDir: "{app}\legal"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Windows Dynamic Island"; Filename: "{app}\{#MyAppExeName}"

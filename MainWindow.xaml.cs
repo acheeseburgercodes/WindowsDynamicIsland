@@ -1619,6 +1619,11 @@ public partial class MainWindow : Window
 
     private async Task RefreshWeatherAsync(bool useDeviceLocation = false)
     {
+        if (!_weatherService.IsEnabled)
+        {
+            WeatherStatusText.Text = "Online weather is disabled. Run Setup again and select Enable online weather to opt in.";
+            return;
+        }
         WeatherRefreshButton.IsEnabled = false;
         WeatherLocationButton.IsEnabled = false;
         WeatherStatusText.Text = useDeviceLocation
