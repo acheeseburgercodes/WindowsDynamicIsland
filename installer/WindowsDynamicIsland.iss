@@ -28,6 +28,7 @@ DefaultDirName={autopf}\Windows Dynamic Island
 DefaultGroupName=Windows Dynamic Island
 DisableProgramGroupPage=yes
 LicenseFile={#RepoRoot}\LICENSE
+InfoBeforeFile={#RepoRoot}\PRIVACY.md
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 OutputDir={#RepoRoot}\artifacts\installer
@@ -61,7 +62,8 @@ SignedUninstaller=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "startup"; Description: "Start Windows Dynamic Island when I sign in"; GroupDescription: "Startup:"; Flags: checkedonce
+Name: "startup"; Description: "Start Windows Dynamic Island when I sign in"; GroupDescription: "Startup:"; Flags: unchecked
+Name: "onlineweather"; Description: "Enable online weather (sends IP and optional location to wttr.in)"; GroupDescription: "Optional network access:"; Flags: unchecked
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
@@ -69,6 +71,9 @@ Source: "{#StageDir}\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 Source: "{#StageDir}\control-center\*"; DestDir: "{app}\IslandSettings"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#RepoRoot}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#RepoRoot}\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#RepoRoot}\PRIVACY.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#RepoRoot}\CODE_SIGNING.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#RepoRoot}\installer\weather-disabled"; DestDir: "{app}"; Flags: ignoreversion; Tasks: not onlineweather
 Source: "{#StageDir}\legal\*"; DestDir: "{app}\legal"; Flags: ignoreversion
 
 [Icons]
@@ -76,6 +81,9 @@ Name: "{group}\Windows Dynamic Island"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Island Control Center"; Filename: "{app}\IslandSettings\IslandSettings.exe"
 Name: "{group}\Uninstall Windows Dynamic Island"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Windows Dynamic Island"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[InstallDelete]
+Type: files; Name: "{app}\weather-disabled"; Tasks: onlineweather
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "WindowsDynamicIsland"; ValueData: """{app}\{#MyAppExeName}"""; Tasks: startup; Flags: uninsdeletevalue

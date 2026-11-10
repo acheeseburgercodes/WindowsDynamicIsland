@@ -1,5 +1,22 @@
 # Third-party notices
 
+The application's MIT license applies to this project's source, not every
+dependency or Windows runtime binary shipped with it. Release staging collects
+available npm/NuGet license files and a dependency-inventory.json under legal/.
+This conservative inventory includes build dependencies as well as runtime
+dependencies and is not a legal certification. Review missing licenses and
+system-library exceptions before requesting Foundation signing.
+
+Principal upstream projects include React, React Native, React Native Windows,
+Hermes, .NET and the Windows App SDK. Windows distributions may also include
+Microsoft Visual C++ runtime components and WebView2 loader/interop binaries.
+Their own license/redistribution terms apply. No upstream binary is re-signed
+with the project's certificate by the installer build.
+
+The upstream Lucide Animated credit below is retained. Confirm all artwork
+and icon provenance before submission. The release process does not claim
+that every transitive package is MIT or that Foundation eligibility is granted.
+
 Windows Dynamic Island is open source under the [MIT License](LICENSE)
 (c) 2026 acheeseburgercodes. The MIT license text is also attached to every
 GitHub release as the `LICENSE` asset and shown during installation.

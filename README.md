@@ -6,9 +6,14 @@ The application source is licensed under the [MIT License](LICENSE). Self-contai
 
 ## Code Signing Policy
 
-Windows Dynamic Island uses the SignPath Foundation program for free open-source code signing.
+SignPath Foundation approval and production signing have not been verified.
+This repository is being prepared for application; existing releases must not
+be assumed to have a Foundation signature.
 
-**Free code signing provided by SignPath.io, certificate by SignPath Foundation.**
+See the [Code signing policy](CODE_SIGNING.md) for proposed responsibilities,
+signing scope and approval rules, and the [application checklist](docs/SIGNPATH_APPLICATION.md)
+for remaining onboarding requirements. The Foundation attribution will be
+published as an active statement only after acceptance and verified signing.
 
 ### Signing responsibilities
 
@@ -71,6 +76,16 @@ Drag a row from the Files tab into a browser or File Explorer. The island hands 
 Download `WindowsDynamicIsland-v0.3.0-win-x64-setup.exe` from the GitHub Releases page and run it. The installer adds the island and its Control Center to the Start menu, can launch the island at sign-in, and registers **Windows Dynamic Island** in Windows Settings under **Apps > Installed apps** and in Control Panel under **Programs and Features**. Use either Windows surface to uninstall it normally.
 
 The installer is self-contained, so running the island does not require a separate .NET installation. The included Control Center is installed beside the island and is opened from the island's Settings panel or its Start-menu shortcut.
+
+Source builds from this revision display the [privacy policy](PRIVACY.md) during
+installation. Online weather and sign-in startup are optional and off by default.
+Re-run Setup and select **Enable online weather** to enable requests to wttr.in.
+Existing v0.3.0 downloads predate these changes.
+
+Build evidence and unsigned installer candidates are produced by the
+[Windows release candidate workflow](.github/workflows/windows-candidate.yml).
+See [releasing](docs/RELEASING.md), [contributing](CONTRIBUTING.md) and
+[security reporting](SECURITY.md).
 
 ## Development requirements
 

@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Services/WeatherService.cs" Link="WeatherService.cs" />
+    <Compile Include="../Models/WeatherSnapshot.cs" Link="WeatherSnapshot.cs" />
     <Compile Include="../Services/InteractiveAppPanelService.cs" Link="InteractiveAppPanelService.cs" />
     <Compile Include="../Services/WindowService.cs" Link="WindowService.cs" />
     <Compile Include="../Core/IslandPlacement.cs" Link="IslandPlacement.cs" />
