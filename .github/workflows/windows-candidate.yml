@@ -38,6 +38,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'TypeScript failed' }
       - name: Native regression checks
         run: dotnet run --project .checks/PanelChecks.csproj -c Release
+      - name: Audit production dependency graph
+        working-directory: IslandSettings
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path ../artifacts/audit -Force | Out-Null
+          npm audit --omit=dev --audit-level=high --json > ../artifacts/audit/npm-production-audit.json
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency audit failed; inspect report before releasing' }
+      - name: Upload dependency audit
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dependency-audit
+          path: artifacts/audit/
+          if-no-files-found: ignore
       - name: Install Inno Setup
         run: choco upgrade innosetup --version=6.7.1 --yes --no-progress
       - name: Build unsigned installer from source

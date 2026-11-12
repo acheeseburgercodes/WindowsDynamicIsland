@@ -50,6 +50,8 @@ Committing files does not complete these account, policy or release tasks.
       entries and verify redistribution rights. Ask SignPath about Windows
       system-library exceptions, especially WebView2, Visual C++ runtime and
       Windows App SDK binary packages; do not relabel them all as MIT.
+- [ ] Review the current dependency-audit artifact and the remaining advisories
+      in [DEPENDENCY_REVIEW.md](DEPENDENCY_REVIEW.md) before production signing.
 - [ ] Confirm artwork/icon ownership and upstream-derived code licensing.
 - [ ] Supply actual contact details and accept the form's terms personally.
 - [ ] Supply truthful adoption/reputation evidence. Do not invent users,
