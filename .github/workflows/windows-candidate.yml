@@ -1,0 +1,78 @@
+name: Windows release candidate
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-candidate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: IslandSettings/package-lock.json
+      - name: Restore JavaScript dependencies
+        working-directory: IslandSettings
+        run: npm ci
+      - name: Test Control Center
+        working-directory: IslandSettings
+        shell: pwsh
+        run: |
+          npm test -- --runInBand
+          if ($LASTEXITCODE -ne 0) { throw 'Jest failed' }
+          npx tsc --noEmit
+          if ($LASTEXITCODE -ne 0) { throw 'TypeScript failed' }
+      - name: Native regression checks
+        run: dotnet run --project .checks/PanelChecks.csproj -c Release
+      - name: Audit production dependency graph
+        working-directory: IslandSettings
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path ../artifacts/audit -Force | Out-Null
+          npm audit --omit=dev --audit-level=high --json > ../artifacts/audit/npm-production-audit.json
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency audit failed; inspect report before releasing' }
+      - name: Upload dependency audit
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dependency-audit
+          path: artifacts/audit/
+          if-no-files-found: ignore
+      - name: Install Inno Setup
+        run: choco upgrade innosetup --version=6.7.1 --yes --no-progress
+      - name: Build unsigned installer from source
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content DynamicIsland.csproj
+          $version = [string]$project.Project.PropertyGroup.Version
+          ./tools/Build-Installer.ps1 -Version $version
+          Copy-Item LICENSE,PRIVACY.md,CODE_SIGNING.md,THIRD-PARTY-NOTICES.md artifacts/installer
+          Copy-Item artifacts/installer-stage/build.json artifacts/installer
+      - name: Upload applications and dependency evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-application-stage
+          path: artifacts/installer-stage/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload unsigned installer candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-installer
+          path: artifacts/installer/
+          if-no-files-found: error
+          retention-days: 14

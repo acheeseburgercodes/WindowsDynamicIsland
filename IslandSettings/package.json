@@ -2,6 +2,9 @@
   "name": "IslandSettings",
   "version": "0.0.1",
   "private": true,
+  "overrides": {
+    "@xmldom/xmldom": "0.8.15"
+  },
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",

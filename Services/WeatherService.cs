@@ -6,6 +6,9 @@ namespace DynamicIsland.Services;
 
 public sealed class WeatherService : IDisposable
 {
+    public bool IsEnabled => !System.IO.File.Exists(
+        System.IO.Path.Combine(AppContext.BaseDirectory, "weather-disabled"));
+
     private readonly HttpClient _client = new()
     {
         Timeout = TimeSpan.FromSeconds(8)
@@ -27,6 +30,9 @@ public sealed class WeatherService : IDisposable
 
     private async Task<WeatherSnapshot> GetAsync(string path, CancellationToken cancellationToken)
     {
+        if (!IsEnabled)
+            throw new InvalidOperationException(
+                "Online weather is disabled for this installation. Run Setup again and select Enable online weather to opt in.");
         using var response = await _client.GetAsync($"https://wttr.in/{path}?format=j1", cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);

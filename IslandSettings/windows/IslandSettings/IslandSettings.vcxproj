@@ -120,6 +120,7 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="IslandSettings.rc" />
+    <ResourceCompile Include="Version.rc" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="IslandSettings.ico" />

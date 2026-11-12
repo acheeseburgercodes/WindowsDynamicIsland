@@ -13,6 +13,23 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
+        var weatherMarker = Path.Combine(AppContext.BaseDirectory, "weather-disabled");
+        if (File.Exists(weatherMarker)) throw new InvalidOperationException("Unexpected pre-existing weather test marker");
+        try
+        {
+            File.WriteAllText(weatherMarker, "test");
+            using var weather = new WeatherService();
+            try
+            {
+                weather.GetCurrentAtAsync(0, 0).GetAwaiter().GetResult();
+                throw new Exception("Disabled weather reached the network");
+            }
+            catch (InvalidOperationException error)
+            {
+                Check(error.Message.StartsWith("Online weather is disabled"), "installer opt-out blocks weather before networking");
+            }
+        }
+        finally { File.Delete(weatherMarker); }
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var dragPath = Path.GetFullPath("README.md");
         var dragData = new DataObject();
