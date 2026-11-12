@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: windows-2025
+    runs-on: windows-2022
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -39,7 +39,7 @@ jobs:
       - name: Native regression checks
         run: dotnet run --project .checks/PanelChecks.csproj -c Release
       - name: Install Inno Setup
-        run: choco install innosetup --version=6.4.3 --yes --no-progress
+        run: choco upgrade innosetup --version=6.7.1 --yes --no-progress
       - name: Build unsigned installer from source
         shell: pwsh
         run: |

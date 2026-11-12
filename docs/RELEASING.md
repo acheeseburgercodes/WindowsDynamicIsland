@@ -3,7 +3,7 @@
 ## Unsigned build evidence
 
 Use a clean checkout on Windows 11 with .NET 10 SDK, Node 22, Visual Studio
-2022 C++/.NET desktop workloads and Windows SDK, and Inno Setup 6.4.3.
+2022 C++/.NET desktop workloads and Windows SDK, and Inno Setup 6.7.1.
 
     cd IslandSettings
     npm ci
